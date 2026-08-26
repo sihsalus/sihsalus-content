@@ -8,6 +8,7 @@ CONFIG_DIR = Path("configuration/backend_configuration")
 LOCATION_TAGS_PATH = CONFIG_DIR / "locationtags" / "locationtags.csv"
 LOCATIONS_PATH = CONFIG_DIR / "locations" / "sihsalus-locations.csv"
 ROLES_CORE_PATH = CONFIG_DIR / "roles" / "roles-core.csv"
+ROLES_PERU_HCE_PATH = CONFIG_DIR / "roles" / "roles_peru_hce.csv"
 MODULE_LOCATION_TAGS = {"Appointment Location", "Queue Location"}
 CARE_UPSS_TAG_NAME = "Care UPSS"
 CARE_UPSS_TAG_UUID = "f1fa0d61-ca3e-4cf1-a58b-b3458f7db1b3"
@@ -23,7 +24,48 @@ CONSULTA_EXTERNA_ROLE_UUID = "e832327b-7fc2-4e64-a527-7e6ae0cdd041"
 CONSULTA_EXTERNA_ROLE_NAME = "SIHSALUS Consulta Externa"
 PATIENT_SUMMARY_ROLE_UUID = "564b560e-3fe8-4829-8be4-68ddb40cf106"
 PATIENT_SUMMARY_ROLE_NAME = "Application: Uses Patient Summary"
-ATTACHMENT_PRIVILEGES = {
+ATTACHMENT_READER_ROLE_UUID = "46d700c7-71a7-486f-8467-e85f2a08678e"
+ATTACHMENT_READER_ROLE_NAME = "SIH SALUS Hoja Clinica Adjuntos"
+ATTACHMENT_EDITOR_ROLE_UUID = "ceaf46f8-6f27-4da5-885a-5d830cfc059c"
+ATTACHMENT_EDITOR_ROLE_NAME = "SIH SALUS Hoja Clinica Adjuntos editar"
+GENERIC_ATTACHMENT_ROLE_CONTRACTS = {
+    ATTACHMENT_READER_ROLE_UUID: {
+        "name": ATTACHMENT_READER_ROLE_NAME,
+        "required": {
+            "View Attachments",
+            "app:hoja.clinica.adjuntos",
+        },
+        "forbidden": {
+            "Create Attachments",
+            "Get Global Properties",
+        },
+    },
+    ATTACHMENT_EDITOR_ROLE_UUID: {
+        "name": ATTACHMENT_EDITOR_ROLE_NAME,
+        "required": {
+            "Add Observations",
+            "Create Attachments",
+            "Delete Observations",
+            "View Attachments",
+            "app:hoja.clinica.adjuntos.editar",
+        },
+        "forbidden": {
+            "Get Global Properties",
+        },
+    },
+}
+LABORATORY_ROLE_UUID = "2049b153-6d8c-4bc1-96ab-f34f0ca43285"
+LABORATORY_ROLE_NAME = "Laboratorio"
+LEGACY_LABORATORY_ROLE_UUID = "5a870421-1f01-46a6-8479-e3930266e9c1"
+LABORATORY_ATTACHMENT_MARKERS = {
+    "Create Attachments",
+    "View Attachments",
+}
+LABORATORY_FORBIDDEN_PRIVILEGES = {
+    "Get Global Properties",
+    "app:hoja.clinica.adjuntos.editar",
+}
+CONSULTA_EXTERNA_ATTACHMENT_MARKERS = {
     "Add Observations",
     "Create Attachments",
     "View Attachments",
@@ -94,6 +136,162 @@ ADMISSION_REQUIRED_PRIVILEGES = {
 
 def is_true(value):
     return value.strip().lower() in {"1", "true", "yes"}
+
+
+def split_privileges(value):
+    return {
+        privilege.strip()
+        for privilege in value.split(";")
+        if privilege.strip()
+    }
+
+
+def validate_generic_attachment_role_contracts(rows, path=ROLES_CORE_PATH):
+    errors = []
+    uuid_index = rows[0].index("Uuid")
+    role_index = rows[0].index("Role name")
+    inherited_roles_index = rows[0].index("Inherited roles")
+    privileges_index = rows[0].index("Privileges")
+
+    for role_uuid, contract in GENERIC_ATTACHMENT_ROLE_CONTRACTS.items():
+        matching_rows = [
+            row
+            for row in rows[1:]
+            if len(row) > privileges_index
+            and (
+                row[uuid_index] == role_uuid
+                or row[role_index] == contract["name"]
+            )
+        ]
+        if len(matching_rows) != 1:
+            errors.append(
+                f"{path}: expected exactly one canonical {contract['name']!r} "
+                f"role with UUID {role_uuid}, found {len(matching_rows)}"
+            )
+            continue
+
+        row = matching_rows[0]
+        if row[uuid_index] != role_uuid:
+            errors.append(
+                f"{path}: {contract['name']!r} must keep UUID {role_uuid}"
+            )
+        if row[role_index] != contract["name"]:
+            errors.append(
+                f"{path}: role {role_uuid} must keep the name "
+                f"{contract['name']!r}"
+            )
+        if row[inherited_roles_index].strip():
+            errors.append(
+                f"{path}: {contract['name']!r} must keep its direct role contract"
+            )
+
+        privileges = split_privileges(row[privileges_index])
+        missing_privileges = contract["required"] - privileges
+        if missing_privileges:
+            errors.append(
+                f"{path}: {contract['name']!r} is missing required contract "
+                f"markers: {', '.join(sorted(missing_privileges))}"
+            )
+        forbidden_privileges = contract["forbidden"] & privileges
+        if forbidden_privileges:
+            errors.append(
+                f"{path}: {contract['name']!r} has markers outside its "
+                f"contract: {', '.join(sorted(forbidden_privileges))}"
+            )
+
+    return errors
+
+
+def validate_laboratory_attachment_contract(rows, path=ROLES_CORE_PATH):
+    errors = []
+    uuid_index = rows[0].index("Uuid")
+    role_index = rows[0].index("Role name")
+    inherited_roles_index = rows[0].index("Inherited roles")
+    privileges_index = rows[0].index("Privileges")
+    matching_rows = [
+        row
+        for row in rows[1:]
+        if len(row) > privileges_index
+        and (
+            row[uuid_index] == LABORATORY_ROLE_UUID
+            or row[role_index] == LABORATORY_ROLE_NAME
+        )
+    ]
+
+    if len(matching_rows) != 1:
+        errors.append(
+            f"{path}: expected exactly one canonical {LABORATORY_ROLE_NAME!r} role "
+            f"with UUID {LABORATORY_ROLE_UUID}, found {len(matching_rows)}"
+        )
+        return errors
+
+    laboratory_row = matching_rows[0]
+    if laboratory_row[uuid_index] != LABORATORY_ROLE_UUID:
+        errors.append(
+            f"{path}: {LABORATORY_ROLE_NAME!r} must keep UUID {LABORATORY_ROLE_UUID}"
+        )
+    if laboratory_row[role_index] != LABORATORY_ROLE_NAME:
+        errors.append(
+            f"{path}: role {LABORATORY_ROLE_UUID} must keep the name "
+            f"{LABORATORY_ROLE_NAME!r}"
+        )
+    if laboratory_row[inherited_roles_index].strip():
+        errors.append(
+            f"{path}: {LABORATORY_ROLE_NAME!r} must not inherit roles for the "
+            "minimal attachment contract"
+        )
+
+    privileges = split_privileges(laboratory_row[privileges_index])
+    missing_attachment_markers = LABORATORY_ATTACHMENT_MARKERS - privileges
+    if missing_attachment_markers:
+        errors.append(
+            f"{path}: {LABORATORY_ROLE_NAME!r} is missing declarative attachment "
+            f"markers: {', '.join(sorted(missing_attachment_markers))}"
+        )
+    if "Add Observations" not in privileges:
+        errors.append(
+            f"{path}: {LABORATORY_ROLE_NAME!r} must preserve Add Observations "
+            "as part of its existing clinical contract"
+        )
+
+    forbidden_privileges = LABORATORY_FORBIDDEN_PRIVILEGES & privileges
+    if forbidden_privileges:
+        errors.append(
+            f"{path}: {LABORATORY_ROLE_NAME!r} must not receive privileges "
+            "outside the declarative laboratory attachment contract: "
+            f"{', '.join(sorted(forbidden_privileges))}"
+        )
+
+    return errors
+
+
+def validate_legacy_laboratory_attachment_scope(rows, path=ROLES_PERU_HCE_PATH):
+    errors = []
+    uuid_index = rows[0].index("Uuid")
+    role_index = rows[0].index("Role name")
+    privileges_index = rows[0].index("Privileges")
+
+    for row in rows[1:]:
+        if len(row) <= privileges_index:
+            continue
+        is_legacy_laboratory_role = (
+            row[uuid_index] == LEGACY_LABORATORY_ROLE_UUID
+            or "laboratorio" in row[role_index].casefold()
+        )
+        if not is_legacy_laboratory_role:
+            continue
+
+        unapproved_privileges = (
+            LABORATORY_ATTACHMENT_MARKERS | LABORATORY_FORBIDDEN_PRIVILEGES
+        ) & split_privileges(row[privileges_index])
+        if unapproved_privileges:
+            errors.append(
+                f"{path}: legacy role {row[role_index]!r} ({row[uuid_index]}) "
+                "must remain outside the canonical laboratory attachment "
+                f"contract: {', '.join(sorted(unapproved_privileges))}"
+            )
+
+    return errors
 
 
 def main():
@@ -322,6 +520,8 @@ def main():
                     )
 
         if path == ROLES_CORE_PATH:
+            errors.extend(validate_generic_attachment_role_contracts(rows, path))
+            errors.extend(validate_laboratory_attachment_contract(rows, path))
             uuid_index = rows[0].index("Uuid")
             role_index = rows[0].index("Role name")
             inherited_roles_index = rows[0].index("Inherited roles")
@@ -422,15 +622,19 @@ def main():
                     for privilege in consulta_externa_row[privileges_index].split(";")
                     if privilege.strip()
                 }
-                missing_attachment_privileges = (
-                    ATTACHMENT_PRIVILEGES - consulta_externa_privileges
+                missing_attachment_markers = (
+                    CONSULTA_EXTERNA_ATTACHMENT_MARKERS
+                    - consulta_externa_privileges
                 )
-                if missing_attachment_privileges:
+                if missing_attachment_markers:
                     errors.append(
                         f"{path}: {CONSULTA_EXTERNA_ROLE_NAME!r} is missing "
-                        "attachment privileges: "
-                        f"{', '.join(sorted(missing_attachment_privileges))}"
+                        "declarative attachment markers: "
+                        f"{', '.join(sorted(missing_attachment_markers))}"
                     )
+
+        if path == ROLES_PERU_HCE_PATH:
+            errors.extend(validate_legacy_laboratory_attachment_scope(rows, path))
 
     if errors:
         print("CSV width validation failed:", file=sys.stderr)

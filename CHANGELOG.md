@@ -7,6 +7,33 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [1.25.14] - 2026-08-26
+
+### Agregado
+- Registra en el rol canónico `Laboratorio` los marcadores declarativos
+  `Create Attachments` y `View Attachments`, conservando `Add Observations`
+  como parte del contrato clínico existente. Estos marcadores no habilitan el
+  flujo por sí solos; Attachments 4.0.0 no es compatible y permanece no
+  operativo.
+- Completa el contrato del adjuntador genérico: el rol lector conserva
+  `View Attachments` y el rol editor recibe `Create Attachments` y
+  `View Attachments`, sin ampliar otros roles.
+
+### Seguridad
+- Mantiene fuera del rol el marcador general
+  `app:hoja.clinica.adjuntos.editar`. El rol legado
+  `Tecnico de Laboratorio` permanece intacto.
+- Rechaza explícitamente `Get Global Properties`. El flujo requiere una release
+  backend compatible con Attachments `>=4.0.1-sihsalus.1 <5.0.0`, autorización
+  server-side y acceso interno acotado a la configuración del módulo.
+- Documenta que `Edit Observations` y `Delete Observations` ya formaban parte de
+  `Laboratorio`. Esta versión no altera esas asignaciones ni promete impedir el
+  borrado.
+- Conserva sin cambios `Add Observations` y `Delete Observations` del rol editor
+  genérico; los marcadores nuevos no prometen impedir borrado.
+- Fija en CI el contrato declarativo de Laboratorio y establece que la futura
+  carga PDF no deberá completar ni cambiar el estado de la orden.
+
 ## [1.25.13] - 2026-08-26
 
 ### Corregido

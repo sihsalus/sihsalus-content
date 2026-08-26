@@ -1,6 +1,6 @@
 # SIHSALUS Content Package
 
-SIHSALUS Content Package para OpenMRS, con la versión actual **1.25.13**.
+SIHSALUS Content Package para OpenMRS, con la versión actual **1.25.14**.
 
 The contents of a typical Content Package are:
 * **Configuration**
@@ -86,7 +86,36 @@ If this command reports any violations, you can then run `mvn spotless:apply` to
 
 Remember, in most cases, you don't need to run these commands separately as Spotless will run automatically during the build process with `mvn clean package`.
 
-Versión del paquete: **1.25.13**.
+Versión del paquete: **1.25.14**.
+
+## Contrato preparatorio para PDF de resultados de laboratorio
+
+El rol canónico `Laboratorio` recibe los marcadores declarativos
+`Create Attachments` y `View Attachments`, y conserva `Add Observations` como
+parte de su contrato clínico existente. Estos marcadores preparan la integración
+coordinada, pero no habilitan el flujo por sí solos. Attachments 4.0.0 no es
+compatible y el flujo permanece no operativo con esa versión. El rol legado
+`Tecnico de Laboratorio` permanece intacto y no se agrega
+`app:hoja.clinica.adjuntos.editar`.
+
+El adjuntador genérico conserva su separación canónica: el rol
+`SIH SALUS Hoja Clinica Adjuntos` mantiene `View Attachments`, mientras
+`SIH SALUS Hoja Clinica Adjuntos editar` declara `Create Attachments` y
+`View Attachments` y conserva sus asignaciones clínicas existentes. No se
+amplían otros roles para esta compatibilidad.
+
+El contrato define el PDF como evidencia suplementaria del resultado. Cuando el
+flujo sea habilitado, su carga no deberá completar la orden, cambiar su estado
+ni sustituir resultados estructurados o su validación clínica. El flujo de
+laboratorio deberá seguir finalizando la orden mediante operaciones explícitas.
+
+El flujo requiere una release backend compatible con Attachments
+`>=4.0.1-sihsalus.1 <5.0.0`, con autorización server-side y acceso interno
+acotado a su configuración. No se debe conceder `Get Global Properties` al rol
+ni resolver la compatibilidad ampliando sus privilegios.
+
+`Laboratorio` ya tenía `Edit Observations` y `Delete Observations`. Esta versión
+no altera esas asignaciones ni promete impedir el borrado.
 
 ## Contrato canónico de Visit Notes
 
