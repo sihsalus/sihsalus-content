@@ -295,6 +295,178 @@
         </sql>
     </changeSet>
 
+    <changeSet id="assert-admission-role-uuid-owner-20260903" author="sihsalus">
+        <preConditions onFail="HALT" onError="HALT">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*)
+                FROM role
+                WHERE uuid = '71dcb611-756a-4ad3-a9bb-73b6cfe28066'
+                  AND role NOT IN ('Admision', 'SIHSALUS Admision')
+            </sqlCheck>
+        </preConditions>
+        <comment>
+            Falla de forma cerrada si el UUID canonico pertenece a un tercer rol. La
+            consolidacion posterior solo puede operar sobre las dos identidades conocidas
+            de admision y nunca debe reasignar silenciosamente otro rol.
+        </comment>
+        <sql>SELECT 1;</sql>
+    </changeSet>
+
+    <changeSet id="merge-admission-role-core-references-20260903" author="sihsalus">
+        <preConditions onFail="MARK_RAN" onError="HALT">
+            <sqlCheck expectedResult="1">
+                SELECT CASE WHEN EXISTS (
+                    SELECT 1 FROM role WHERE role = 'SIHSALUS Admision'
+                ) THEN 1 ELSE 0 END
+            </sqlCheck>
+        </preConditions>
+        <comment>
+            Repara instalaciones donde el rol historico y Admision coexistian cuando el
+            changeSet de 20260722 fue marcado como ejecutado. Crea la identidad canonica si
+            falta y fusiona primero las referencias con INSERT IGNORE para tolerar usuarios,
+            privilegios o herencias ya presentes en ambos roles.
+        </comment>
+        <sql>
+            INSERT INTO role (role, description, uuid)
+            SELECT 'Admision', legacy.description, UUID()
+            FROM role legacy
+            WHERE legacy.role = 'SIHSALUS Admision'
+              AND NOT EXISTS (
+                SELECT 1 FROM role canonical WHERE canonical.role = 'Admision'
+              );
+
+            INSERT IGNORE INTO user_role (user_id, role)
+            SELECT user_id, 'Admision'
+            FROM user_role
+            WHERE role = 'SIHSALUS Admision';
+
+            INSERT IGNORE INTO role_privilege (role, privilege)
+            SELECT 'Admision', privilege
+            FROM role_privilege
+            WHERE role = 'SIHSALUS Admision';
+
+            INSERT IGNORE INTO role_role (parent_role, child_role)
+            SELECT DISTINCT
+                CASE
+                    WHEN parent_role = 'SIHSALUS Admision' THEN 'Admision'
+                    ELSE parent_role
+                END,
+                CASE
+                    WHEN child_role = 'SIHSALUS Admision' THEN 'Admision'
+                    ELSE child_role
+                END
+            FROM role_role
+            WHERE (
+                parent_role = 'SIHSALUS Admision'
+                OR child_role = 'SIHSALUS Admision'
+            )
+              AND CASE
+                    WHEN parent_role = 'SIHSALUS Admision' THEN 'Admision'
+                    ELSE parent_role
+                  END
+                  &lt;&gt;
+                  CASE
+                    WHEN child_role = 'SIHSALUS Admision' THEN 'Admision'
+                    ELSE child_role
+                  END;
+
+            DELETE FROM user_role WHERE role = 'SIHSALUS Admision';
+            DELETE FROM role_privilege WHERE role = 'SIHSALUS Admision';
+            DELETE FROM role_role
+            WHERE parent_role = 'SIHSALUS Admision'
+               OR child_role = 'SIHSALUS Admision';
+        </sql>
+    </changeSet>
+
+    <changeSet id="merge-admission-role-patientflags-references-20260903" author="sihsalus">
+        <preConditions onFail="MARK_RAN" onError="HALT">
+            <and>
+                <tableExists tableName="patientflags_tag_role" />
+                <sqlCheck expectedResult="1">
+                    SELECT CASE WHEN EXISTS (
+                        SELECT 1 FROM role WHERE role = 'SIHSALUS Admision'
+                    ) THEN 1 ELSE 0 END
+                </sqlCheck>
+            </and>
+        </preConditions>
+        <comment>
+            Conserva las asignaciones de Patient Flags sin duplicar el mismo tag cuando
+            ambos nombres del rol ya estaban asociados.
+        </comment>
+        <sql>
+            INSERT INTO patientflags_tag_role (tag_id, role)
+            SELECT DISTINCT legacy.tag_id, 'Admision'
+            FROM patientflags_tag_role legacy
+            WHERE legacy.role = 'SIHSALUS Admision'
+              AND NOT EXISTS (
+                SELECT 1
+                FROM patientflags_tag_role canonical
+                WHERE canonical.tag_id = legacy.tag_id
+                  AND canonical.role = 'Admision'
+              );
+
+            DELETE FROM patientflags_tag_role
+            WHERE role = 'SIHSALUS Admision';
+        </sql>
+    </changeSet>
+
+    <changeSet id="merge-admission-role-stock-references-20260903" author="sihsalus">
+        <preConditions onFail="MARK_RAN" onError="HALT">
+            <and>
+                <tableExists tableName="stockmgmt_user_role_scope" />
+                <sqlCheck expectedResult="1">
+                    SELECT CASE WHEN EXISTS (
+                        SELECT 1 FROM role WHERE role = 'SIHSALUS Admision'
+                    ) THEN 1 ELSE 0 END
+                </sqlCheck>
+            </and>
+        </preConditions>
+        <comment>
+            Conserva los alcances auditables de Stock Management antes de retirar el nombre
+            historico del rol.
+        </comment>
+        <sql>
+            UPDATE stockmgmt_user_role_scope
+            SET role = 'Admision'
+            WHERE role = 'SIHSALUS Admision';
+        </sql>
+    </changeSet>
+
+    <changeSet id="finalize-admission-role-identity-20260903" author="sihsalus">
+        <comment>
+            Retira la identidad historica despues de migrar todas sus referencias conocidas y
+            entrega el UUID estable a Admision antes de que Initializer procese roles-core.csv.
+        </comment>
+        <sql>
+            DELETE FROM role
+            WHERE role = 'SIHSALUS Admision';
+
+            UPDATE role
+            SET uuid = '71dcb611-756a-4ad3-a9bb-73b6cfe28066'
+            WHERE role = 'Admision'
+              AND uuid &lt;&gt; '71dcb611-756a-4ad3-a9bb-73b6cfe28066';
+        </sql>
+    </changeSet>
+
+    <changeSet id="assert-canonical-admission-role-identity-20260903" author="sihsalus">
+        <preConditions onFail="HALT" onError="HALT">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*)
+                FROM role
+                WHERE role = 'SIHSALUS Admision'
+                   OR (
+                    role = 'Admision'
+                    AND uuid &lt;&gt; '71dcb611-756a-4ad3-a9bb-73b6cfe28066'
+                  )
+            </sqlCheck>
+        </preConditions>
+        <comment>
+            Impide continuar con un rol historico residual o una identidad canonica cuyo UUID
+            no pueda ser reconciliado de forma determinista por Initializer.
+        </comment>
+        <sql>SELECT 1;</sql>
+    </changeSet>
+
     <changeSet id="normalize-triage-nurse-role-uuid-20260811" author="sihsalus">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="1">

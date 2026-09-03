@@ -1,6 +1,6 @@
 # SIHSALUS Content Package
 
-SIHSALUS Content Package para OpenMRS, con la versión actual **1.25.13**.
+SIHSALUS Content Package para OpenMRS, con la versión actual **1.25.14**.
 
 The contents of a typical Content Package are:
 * **Configuration**
@@ -86,7 +86,7 @@ If this command reports any violations, you can then run `mvn spotless:apply` to
 
 Remember, in most cases, you don't need to run these commands separately as Spotless will run automatically during the build process with `mvn clean package`.
 
-Versión del paquete: **1.25.13**.
+Versión del paquete: **1.25.14**.
 
 ## Contrato canónico de Visit Notes
 
