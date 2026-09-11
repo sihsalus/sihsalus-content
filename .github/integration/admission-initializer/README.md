@@ -193,9 +193,17 @@ transport unavailability), running state, and boolean completion/abort/candidate
 marker/CSV-error signals from the current container. At the same bounded
 interval, an anonymous, no-redirect, no-retry GET to the fixed internal
 `/openmrs/initialsetup?page=progress.vm.ajaxRequest` reads Core's installer
-progress. Only strictly boolean `hasErrors` and `initializationComplete` values
-are retained, exposed as `installation_has_errors` and `installation_complete`;
-missing, malformed or unavailable responses produce `null`, not a healthy state.
+progress. Strictly boolean `hasErrors` and `initializationComplete` values
+are exposed as `installation_has_errors` and `installation_complete`.
+Nonnegative integer `actionCounter` and `completedPercentage` values are exposed
+as `installation_action_counter` and `installation_completed_percentage`;
+booleans, strings, fractions and negative counters become `null`. Missing,
+malformed or unavailable values also produce `null`, not a healthy state.
+Core's percentage is per task, can reset or exceed 100, and is omitted after
+installation completes. It is not an overall progress or readiness assertion.
+`initializer_log_present` distinguishes a missing attempt log from an empty
+one; `initializer_log_bytes` counts the bytes read from that file, or is `null`
+when absent. These observations reuse the existing log read and contain no path.
 `hasErrors=true` fails with the static code `installation_reported_errors`.
 Neither `hasErrors=false`, `initializationComplete=true`, nor an HTTP code can
 replace the Initializer lifecycle assertions. Installer messages, error pages,

@@ -229,16 +229,16 @@ class HarnessContracts(unittest.TestCase):
         self.runtime.remaining = Mock(return_value=30)
         self.runtime.owned = Mock(return_value={"State": {"Running": True}})
         self.runtime.docker = Mock(return_value=completed(stdout=logs.encode()))
-        self.runtime.lifecycle_logs = Mock(return_value=logs)
+        self.runtime.lifecycle_logs = Mock(return_value=(logs, None, None))
         self.runtime.effective_strict = Mock()
         self.runtime.bootstrap = Mock(return_value=None)
-        self.runtime.installation_progress = Mock(return_value=(None, None))
+        self.runtime.installation_progress = Mock(return_value=(None, None, None, None))
 
     def test_bootstrap_http_precedes_lifecycle_and_real_module_checks(self):
         self.setup_lifecycle(harness.COMPLETION)
         events = []
         self.runtime.bootstrap = Mock(side_effect=lambda backend: events.append("bootstrap") or 200)
-        self.runtime.lifecycle_logs.side_effect = lambda backend: events.append("logs") or harness.COMPLETION
+        self.runtime.lifecycle_logs.side_effect = lambda backend: events.append("logs") or (harness.COMPLETION, True, 44)
         self.runtime.module_status = Mock(side_effect=lambda backend: events.append("module") or True)
         with patch.object(harness, "emit"):
             self.runtime.wait_initializer("owned", "baseline")
@@ -278,7 +278,7 @@ class HarnessContracts(unittest.TestCase):
         with self.assertRaisesRegex(HarnessFailure, "^invalid_bootstrap_http_code$"):
             self.runtime.bootstrap("owned")
 
-    def test_installation_progress_extracts_only_boolean_fields_from_fixed_internal_get(self):
+    def test_installation_progress_extracts_only_typed_fields_from_fixed_internal_get(self):
         self.runtime.owned = Mock()
         self.runtime.docker = Mock()
         for has_errors, complete in ((False, False), (True, False), (False, True),
@@ -290,7 +290,7 @@ class HarnessContracts(unittest.TestCase):
                 self.runtime.docker.return_value = completed(stdout=json.dumps(body).encode() + b"\n200")
                 self.assertEqual(self.runtime.installation_progress("owned"), (
                     has_errors if isinstance(has_errors, bool) else None,
-                    complete if isinstance(complete, bool) else None))
+                    complete if isinstance(complete, bool) else None, None, None))
         call = self.runtime.docker.call_args
         self.assertEqual(call.args, ("exec", "-i", "owned", "curl", "--disable", "--config", "-"))
         config = call.kwargs["data"].decode()
@@ -304,6 +304,22 @@ class HarnessContracts(unittest.TestCase):
         self.assertTrue(call.kwargs["allow_failure"])
         self.runtime.owned.assert_called_with("container", "owned")
 
+    def test_installation_counters_preserve_zero_and_over_100_but_reject_invalid_values(self):
+        self.runtime.owned = Mock()
+        self.runtime.docker = Mock()
+        for value, expected in ((0, 0), (12, 12), (200, 200), (-1, None),
+                                (True, None), (False, None), (1.5, None),
+                                ("12", None), (None, None), ([], None)):
+            with self.subTest(value=value):
+                body = {"hasErrors": False, "initializationComplete": False,
+                        "actionCounter": value, "completedPercentage": value,
+                        "message": "synthetic-private-message", "logLines": ["synthetic-private-log"],
+                        "executingTask": "synthetic-private-task", "executedTasks": ["synthetic-private-task"]}
+                self.runtime.docker.return_value = completed(stdout=json.dumps(body).encode() + b"\n200")
+                result = self.runtime.installation_progress("owned")
+                self.assertEqual(result, (False, False, expected, expected))
+                self.assertNotIn("synthetic-private", json.dumps(result))
+
     def test_installation_progress_unavailable_or_malformed_is_never_healthy(self):
         self.runtime.owned = Mock()
         self.runtime.docker = Mock()
@@ -315,11 +331,11 @@ class HarnessContracts(unittest.TestCase):
                        completed(stdout=b"synthetic-private-undelimited-response")):
             with self.subTest(code=result.returncode):
                 self.runtime.docker.return_value = result
-                self.assertEqual(self.runtime.installation_progress("owned"), (None, None))
+                self.assertEqual(self.runtime.installation_progress("owned"), (None, None, None, None))
 
     def test_reported_installation_error_fails_without_lifecycle_success(self):
         self.setup_lifecycle("synthetic-private-log")
-        self.runtime.installation_progress = Mock(return_value=(True, False))
+        self.runtime.installation_progress = Mock(return_value=(True, False, None, None))
         self.runtime.module_status = Mock(return_value=True)
         with patch.object(harness.time, "monotonic", side_effect=[0, 0, 0, 31]), \
                 patch.object(harness.time, "sleep") as sleep, patch.object(harness, "emit") as emit:
@@ -336,7 +352,8 @@ class HarnessContracts(unittest.TestCase):
         self.setup_lifecycle("synthetic-private-log")
         self.runtime.remaining.return_value = 65
         self.runtime.bootstrap = Mock(return_value=200)
-        self.runtime.installation_progress = Mock(return_value=(False, True))
+        self.runtime.installation_progress = Mock(return_value=(False, True, 123, None))
+        self.runtime.lifecycle_logs.return_value = ("synthetic-private-log", True, 20)
         self.runtime.module_status = Mock(return_value=True)
         clock = {"now": 0}
         def advance(seconds):
@@ -357,6 +374,8 @@ class HarnessContracts(unittest.TestCase):
                 "completion_seen": False, "abort_seen": False,
                 "candidate_marker_seen": False, "csv_error_seen": False,
                 "installation_has_errors": False, "installation_complete": True,
+                "installation_action_counter": 123, "installation_completed_percentage": None,
+                "initializer_log_present": True, "initializer_log_bytes": 20,
             })
 
     def test_lifecycle_waits_for_real_module_after_completion_log(self):
@@ -374,8 +393,10 @@ class HarnessContracts(unittest.TestCase):
         self.runtime.lifecycle_files = {"owned": filename}
         self.runtime.owned = Mock()
         self.runtime.docker = Mock(side_effect=[completed(stdout=b"startup"), completed(stdout=harness.COMPLETION.encode())])
-        logs = self.runtime.lifecycle_logs("owned")
+        logs, present, size = self.runtime.lifecycle_logs("owned")
         self.assertIn(harness.COMPLETION, logs)
+        self.assertIs(present, True)
+        self.assertEqual(size, len(harness.COMPLETION.encode()))
         call = self.runtime.docker.call_args
         self.assertEqual(call.args[-1], "/openmrs/data/" + filename)
         self.assertNotIn("/openmrs/data/initializer.log", call.args)
@@ -385,7 +406,9 @@ class HarnessContracts(unittest.TestCase):
         self.runtime.lifecycle_files = {"owned": "admission-initializer-" + "a" * 32 + "-baseline.log"}
         self.runtime.owned = Mock()
         self.runtime.docker = Mock(side_effect=[completed(stdout=b"startup"), completed(44)])
-        self.assertEqual(self.runtime.lifecycle_logs("owned"), "startup")
+        self.assertEqual(self.runtime.lifecycle_logs("owned"), ("startup", False, None))
+        self.runtime.docker.side_effect = [completed(stdout=b"startup"), completed()]
+        self.assertEqual(self.runtime.lifecycle_logs("owned"), ("startup", True, 0))
         self.runtime.docker.side_effect = [completed(), completed(1, stderr=b"synthetic-private-path")]
         with self.assertRaisesRegex(HarnessFailure, "^initializer_log_unreadable$"):
             self.runtime.lifecycle_logs("owned")

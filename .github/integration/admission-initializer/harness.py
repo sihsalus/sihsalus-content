@@ -322,7 +322,7 @@ class Harness:
         return int(result.stdout)
 
     def installation_progress(self, backend):
-        """Read only two typed flags; never return installer messages or logs."""
+        """Read typed flags and counters; never return installer messages or logs."""
         self.owned("container", backend)
         config = (
             "silent\nshow-error\nproxy = \"\"\nnoproxy = \"*\"\n"
@@ -332,19 +332,22 @@ class Harness:
         result = self.docker("exec", "-i", backend, "curl", "--disable", "--config", "-",
             data=config.encode(), timeout=10, allow_failure=True)
         if result.returncode:
-            return None, None
+            return None, None, None, None
         content, separator, code = result.stdout.rpartition(b"\n")
         if not separator or code != b"200":
-            return None, None
+            return None, None, None, None
         try:
             body = json.loads(content)
         except ValueError:
-            return None, None
+            return None, None, None, None
         if not isinstance(body, dict):
-            return None, None
+            return None, None, None, None
         has_errors, complete = body.get("hasErrors"), body.get("initializationComplete")
+        counters = [body.get(key) for key in ("actionCounter", "completedPercentage")]
+        # Core's per-task percentage can reset or exceed 100; it is not readiness.
+        counters = [value if type(value) is int and value >= 0 else None for value in counters]
         return (has_errors if isinstance(has_errors, bool) else None,
-                complete if isinstance(complete, bool) else None)
+                complete if isinstance(complete, bool) else None, *counters)
 
     def effective_strict(self, backend):
         values = properties(self.copy_file(backend, "/openmrs/data/openmrs-runtime.properties"))
@@ -371,7 +374,9 @@ class Harness:
             'if [ ! -e "$1" ]; then exit 44; fi; test -f "$1" && test ! -L "$1" && cat "$1"',
             "--", "/openmrs/data/" + filename, allow_failure=True)
         require(log.returncode in (0, 44), "initializer_log_unreadable")
-        return (output.stdout + output.stderr + (log.stdout if log.returncode == 0 else b"")).decode("utf-8", "replace")
+        present = log.returncode == 0
+        logs = (output.stdout + output.stderr + (log.stdout if present else b"")).decode("utf-8", "replace")
+        return logs, present, len(log.stdout) if present else None
 
     def wait_initializer(self, backend, stage, reject=False):
         started_at = time.monotonic()
@@ -383,17 +388,20 @@ class Harness:
             # The image's one-shot startup request may precede web readiness.
             # Reach the fixed filter directly, without following root redirects.
             bootstrap_code = self.bootstrap(backend)
-            logs = self.lifecycle_logs(backend)
+            logs, log_present, log_bytes = self.lifecycle_logs(backend)
             abort_messages = [match.group(0) for match in FILE_ABORT.finditer(logs)]
             csv_error = "BEGINNING OF CSV FILE ERROR SUMMARY" in logs
             now = time.monotonic()
             if now >= next_diagnostic:
-                has_errors, installation_complete = self.installation_progress(backend)
+                has_errors, installation_complete, action_counter, percentage = self.installation_progress(backend)
                 emit(stage, "WAITING", backend_running=True, bootstrap_http_code=bootstrap_code,
                      completion_seen=COMPLETION in logs, abort_seen=bool(abort_messages),
                      candidate_marker_seen=CHANGESET in logs,
                      csv_error_seen=csv_error, installation_has_errors=has_errors,
-                     installation_complete=installation_complete)
+                     installation_complete=installation_complete,
+                     installation_action_counter=action_counter,
+                     installation_completed_percentage=percentage,
+                     initializer_log_present=log_present, initializer_log_bytes=log_bytes)
                 next_diagnostic = now + 60
                 require(has_errors is not True, "installation_reported_errors")
             # A separate failure cannot be masked by the expected Liquibase
