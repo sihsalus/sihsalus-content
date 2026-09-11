@@ -47,8 +47,9 @@ must match both a random resource prefix and its ownership label.
 - Embedded SIH content: 1.25.12, source `57690d4e976ef6d97a925c68103d532d10ee15cf`.
 - Applied baseline: 1.25.15, source `8000b27f48bf124fe9a553d4ba41c678e9acc231`.
 - Candidate: checked-out SHA and its release version from `pom.xml`, greater
-  than 1.25.15. A future release does not silently change the approved 58-entry
-  admission policy or the required unchanged `roles/roles-core.csv`.
+  than 1.25.15. The historical migration still produces the approved 58-entry
+  admission policy. The current CSV adds only `app:home.libroAtenciones`, for
+  59 privileges; any other policy change requires a separate review.
 
 The backend probe never starts OpenMRS: it overrides the entrypoint with only
 `id -u; id -g`, uses no network, a read-only root filesystem and no capabilities.
@@ -75,24 +76,33 @@ files, and special files are rejected.
    properties and system flags, real Liquibase history and roles checksum.
    Create two synthetic people and users; no patient is required. Stop the
    backend before capturing owned database and application-data snapshots.
-2. **Unchanged-CSV upgrade:** restore the baseline snapshots, seed the two
+2. **Historical unchanged-CSV upgrade:** restore the baseline snapshots, seed the two
    approved 57-permission identities and synthetic user references, then load
-   candidate configuration. The pre-existing roles CSV checksum must still match
-   unchanged bytes while the new changeSet produces exactly the approved 58
+   candidate configuration with only `roles-core.csv` replaced by the exact
+   baseline file. This explicit historical fixture is not the current packaged
+   configuration. The pre-existing roles CSV checksum must still match unchanged
+   bytes while the new changeSet produces exactly the approved 58
    permissions. Compare all RBAC rows and supported optional references against
    the explicit allowed transformation, preserving unrelated multiplicities and
    Stock identity/audit fields. Require real changeSet history and full loader
    completion. Restart with the same data and checksums and require unchanged
    RBAC and complete journal rows, including execution metadata.
-3. **Native RBAC:** a synthetic user assigned only `Admision` reads relationship
+3. **Current candidate CSV:** start the reconciled database with the complete,
+   unmodified candidate configuration. Require its actual roles checksum, exactly
+   59 admission privileges, and only the approved read privilege added to the
+   complete RBAC snapshot. Liquibase history must remain unchanged. This checks
+   the current role policy independently of the historical migration.
+4. **Native RBAC:** a synthetic user assigned only `Admision` reads relationship
    types. Create a new active relationship between the synthetic people. Purging
    that existing active relationship must return 403 without changing the row;
    ordinary deletion must return 204 and persist `voided=1`. An already voided
-   or absent relationship is not accepted as a permission test.
-4. **Rejection and retry:** restore a separate baseline snapshot and seed one
+   or absent relationship is not accepted as a permission test. Run this with
+   both the historical and current policies.
+5. **Rejection and retry:** restore a separate baseline snapshot and seed one
    identity with the 59th, unapproved `Purge Relationships` permission. Add a new,
-   separate, empty-privilege canary CSV without changing candidate XML or
-   `roles-core.csv`. Require the specific changeSet's current-attempt abort,
+   separate, empty-privilege canary CSV to the historical-CSV configuration,
+   without changing candidate XML or the baseline `roles-core.csv`.
+   Require the specific changeSet's current-attempt abort,
    no completion, a valid module response with `started=false`, unchanged RBAC
    and journal snapshots, no candidate journal entry, and no canary role or
    checksum. Remove only the synthetic extra permission, then restart with the
@@ -101,8 +111,12 @@ files, and special files are rejected.
 
 No domains are excluded. The effective startup mode is required in both runtime
 properties and JVM flags; setting a global property or merely observing HTTP
-health is insufficient. Lifecycle logs are read only from each new container,
-not an old application log in a restored snapshot. A transient unavailable REST
+health is insufficient. Lifecycle evidence combines each new container's stdout
+with its dedicated Initializer log. Each startup configures a different filename
+containing the run nonce and phase; the effective runtime property must match.
+The reader never opens the default `initializer.log` or another phase's file,
+so a restored baseline completion cannot validate a later attempt. A missing
+file remains pending; an unreadable or symlinked file fails. A transient unavailable REST
 endpoint is polled within the deadline; malformed responses, wrong versions or
 missing authentication are not interpreted as a stopped module.
 
@@ -128,6 +142,15 @@ would only redirect, while `/auto_run_openmrs` can invoke a different fallback;
 neither is used. An HTTP 200, redirect or error never satisfies the lifecycle
 assertions. The existing completion/abort, strict-mode and actual module-state
 requirements remain mandatory.
+
+The pinned
+[Initializer logger](https://github.com/mekomsolutions/openmrs-module-initializer/blob/3077975fb4f58c91ff3113d7fed1e3df88829476/api-2.4/src/main/java/org/openmrs/module/initializer/api/logging/InitializerLogConfigurator2_4.java)
+configures a file appender. Reading Docker stdout alone does not establish that
+its completion message will be observed. The dedicated log preserves the same
+completion/abort assertions without assuming console propagation or accepting
+Core's installer completion as module completion. Raw log contents are never
+printed or retained as artifacts. Only a successful container run confirms this
+fix against the pinned image; the unit tests exercise the reader and assertions.
 
 The bootstrap contract follows the pinned Core
 [StartupFilter](https://github.com/openmrs/openmrs-core/blob/4dda0f50a60991a5af9a4b36508e69bb3561c8a6/web/src/main/java/org/openmrs/web/filter/StartupFilter.java)

@@ -170,10 +170,16 @@ class HarnessContracts(unittest.TestCase):
 
     def test_actual_assembly_and_csv_contracts_are_recognized(self):
         guards.validate_assembly((harness.ROOT / "assembly.xml").read_bytes())
-        policy = guards.admission_privileges(harness.ROOT / guards.CONFIG_PREFIX)
-        self.assertEqual(len(policy), 58)
+        policy = guards.admission_privileges(harness.ROOT / guards.CONFIG_PREFIX, guards.CURRENT_ADMISSION_ADDITIONS)
+        self.assertEqual(len(policy), 59)
         self.assertIn("Delete Relationships", policy)
         self.assertNotIn("Purge Relationships", policy)
+        fixture = harness.ROOT / ".github/integration/admission-role-reconciliation/src/test/resources/admission-role-1.25.15.csv"
+        historical = self.make_configuration("historical", {guards.ROLES_FILE: fixture.read_bytes()})
+        baseline_policy = guards.admission_privileges(historical)
+        self.assertEqual(len(baseline_policy), 58)
+        self.assertEqual(policy, baseline_policy | {"app:home.libroAtenciones"})
+        self.assertNotIn("app:home.libroAtenciones.editar", policy)
         changed = (harness.ROOT / "assembly.xml").read_bytes().replace(b"**/.gitkeep", b"**/extra")
         with self.assertRaisesRegex(HarnessFailure, "unreviewed_assembly_excludes"):
             guards.validate_assembly(changed)
@@ -223,6 +229,7 @@ class HarnessContracts(unittest.TestCase):
         self.runtime.remaining = Mock(return_value=30)
         self.runtime.owned = Mock(return_value={"State": {"Running": True}})
         self.runtime.docker = Mock(return_value=completed(stdout=logs.encode()))
+        self.runtime.lifecycle_logs = Mock(return_value=logs)
         self.runtime.effective_strict = Mock()
         self.runtime.bootstrap = Mock(return_value=None)
         self.runtime.installation_progress = Mock(return_value=(None, None))
@@ -231,7 +238,7 @@ class HarnessContracts(unittest.TestCase):
         self.setup_lifecycle(harness.COMPLETION)
         events = []
         self.runtime.bootstrap = Mock(side_effect=lambda backend: events.append("bootstrap") or 200)
-        self.runtime.docker.side_effect = lambda *args: events.append("logs") or completed(stdout=harness.COMPLETION.encode())
+        self.runtime.lifecycle_logs.side_effect = lambda backend: events.append("logs") or harness.COMPLETION
         self.runtime.module_status = Mock(side_effect=lambda backend: events.append("module") or True)
         with patch.object(harness, "emit"):
             self.runtime.wait_initializer("owned", "baseline")
@@ -358,9 +365,35 @@ class HarnessContracts(unittest.TestCase):
         with patch.object(harness.time, "sleep"), patch.object(harness, "emit") as emit:
             self.runtime.wait_initializer("new-container", "upgrade")
         self.assertEqual(self.runtime.module_status.call_count, 2)
-        self.runtime.docker.assert_called_with("logs", "--tail", "5000", "new-container")
+        self.runtime.lifecycle_logs.assert_called_with("new-container")
         emit.assert_any_call("upgrade", "PASSED", initializer_started=True)
         self.assertEqual(sum(call.args[1] == "PASSED" for call in emit.call_args_list), 1)
+
+    def test_lifecycle_reads_unique_attempt_file_when_completion_is_absent_from_console(self):
+        filename = "admission-initializer-" + "a" * 32 + "-retry.log"
+        self.runtime.lifecycle_files = {"owned": filename}
+        self.runtime.owned = Mock()
+        self.runtime.docker = Mock(side_effect=[completed(stdout=b"startup"), completed(stdout=harness.COMPLETION.encode())])
+        logs = self.runtime.lifecycle_logs("owned")
+        self.assertIn(harness.COMPLETION, logs)
+        call = self.runtime.docker.call_args
+        self.assertEqual(call.args[-1], "/openmrs/data/" + filename)
+        self.assertNotIn("/openmrs/data/initializer.log", call.args)
+        self.assertIn('test ! -L "$1"', call.args[4])
+
+    def test_missing_attempt_file_is_pending_but_unreadable_file_is_a_failure(self):
+        self.runtime.lifecycle_files = {"owned": "admission-initializer-" + "a" * 32 + "-baseline.log"}
+        self.runtime.owned = Mock()
+        self.runtime.docker = Mock(side_effect=[completed(stdout=b"startup"), completed(44)])
+        self.assertEqual(self.runtime.lifecycle_logs("owned"), "startup")
+        self.runtime.docker.side_effect = [completed(), completed(1, stderr=b"synthetic-private-path")]
+        with self.assertRaisesRegex(HarnessFailure, "^initializer_log_unreadable$"):
+            self.runtime.lifecycle_logs("owned")
+        self.runtime.lifecycle_files["owned"] = "initializer.log"
+        self.runtime.docker.reset_mock()
+        with self.assertRaisesRegex(HarnessFailure, "^invalid_initializer_log_path$"):
+            self.runtime.lifecycle_logs("owned")
+        self.runtime.docker.assert_not_called()
 
     def test_rejection_requires_current_abort_and_real_module_false(self):
         self.setup_lifecycle(harness.ABORT + guards.CHANGESET)
@@ -497,6 +530,58 @@ class HarnessContracts(unittest.TestCase):
         with self.assertRaisesRegex(HarnessFailure, "synthetic_relationship_not_active"):
             self.runtime.rbac("owned", "owned-db")
         self.assertEqual(self.runtime.request.call_count, 3)
+
+    def test_repeated_rbac_creates_distinct_active_relationships(self):
+        self.runtime.nonce = "synthetic"
+        self.runtime.fixtures = [{"person": "synthetic-a"}, {"person": "synthetic-b"}]
+        types, relationships, deletes = {}, {}, []
+
+        def request(backend, method, path, data=None, restricted=False):
+            if method == "GET":
+                self.assertTrue(restricted)
+                return 200, {"results": []}
+            if path == "/relationshiptype":
+                names = data["aIsToB"], data["bIsToA"]
+                if names in types:
+                    return 400, {}
+                identifier = f"00000000-0000-4000-8000-{len(types) + 1:012d}"
+                types[names] = identifier
+                return 201, {"uuid": identifier}
+            if path == "/relationship":
+                self.assertIn(data["relationshipType"], types.values())
+                identifier = f"00000000-0000-4000-8001-{len(relationships) + 1:012d}"
+                relationships[identifier] = "0"
+                return 201, {"uuid": identifier}
+            self.assertEqual(method, "DELETE")
+            self.assertTrue(restricted)
+            identifier, query = path.removeprefix("/relationship/").split("?")
+            self.assertEqual(relationships[identifier], "0")
+            deletes.append((identifier, query))
+            if query == "purge=true":
+                return 403, {}
+            self.assertEqual(query, "reason=synthetic-ci")
+            relationships[identifier] = "1"
+            return 204, None
+
+        def query(db, sql):
+            select, literal = sql.split(" WHERE uuid=")
+            identifier = next(value for value in relationships if guards.sql_string(value) == literal)
+            voided = relationships[identifier]
+            if select == "SELECT voided FROM relationship":
+                return [voided]
+            self.assertEqual(select, "SELECT * FROM relationship")
+            return [identifier + "\t" + voided]
+
+        self.runtime.request, self.runtime.query = request, query
+        with patch.object(harness, "emit"):
+            self.runtime.rbac("historical-policy", "owned-db")
+            self.runtime.rbac("current-policy", "owned-db")
+        self.assertEqual(len(types), 2)
+        self.assertEqual(list(relationships.values()), ["1", "1"])
+        self.assertEqual(deletes, [
+            (identifier, action) for identifier in relationships
+            for action in ("purge=true", "reason=synthetic-ci")
+        ])
 
     def test_wrong_owner_prevents_container_deletion(self):
         self.runtime.prefix, self.runtime.nonce = "owned", "nonce"

@@ -92,6 +92,13 @@ La revisión de los rangos de laboratorio y sus bloqueos clínicos se documentan
 [`docs/audits/2026-09-10-laboratory-reference-ranges-pr-225.md`](docs/audits/2026-09-10-laboratory-reference-ranges-pr-225.md).
 La subida de versión no acredita su validación clínica ni levanta los controles de Admisión.
 
+## Validación y publicación
+
+El CI ejecuta en paralelo la validación del paquete, la integración MariaDB/Liquibase
+y la actualización con Initializer real. Un fallo de integración no oculta los
+resultados del build. La publicación en Maven Central exige que los tres controles
+pasen en el mismo commit de `main` o `pre-release`; los PR solo validan.
+
 ## Permiso de relaciones para Admisión
 
 El rol canónico `Admision` recibe `Delete Relationships` para anular relaciones de

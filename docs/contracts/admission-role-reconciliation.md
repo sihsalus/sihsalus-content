@@ -33,18 +33,27 @@ una reparación de un estado parcialmente migrado ni se borra su historial.
 Se reconocen únicamente `Admision`, `SIHSALUS Admision` y el UUID canónico
 `71dcb611-756a-4ad3-a9bb-73b6cfe28066`. El UUID nunca se toma de un tercer rol.
 
-Cada identidad existente debe tener exactamente la lista de privilegios del
-rol canónico en `roles-core.csv`, o esa misma lista sin `Delete Relationships`
-(el contrato inmediatamente anterior a #222). No se admiten otros permisos,
+Cada identidad existente debe tener exactamente los 58 privilegios del rol
+canónico de `1.25.15`, o esa misma lista sin `Delete Relationships`
+(el contrato inmediatamente anterior a #222). La fixture histórica está fijada
+en `admission-role-1.25.15.csv` y no se deriva del CSV actual. No se admiten otros permisos,
 subconjuntos arbitrarios ni herencias que entren o salgan de cualquiera de las
 dos identidades. Una diferencia se rechaza, no se considera autorización para
 ampliar accesos ni para descartar excepciones operativas.
 
-La salida SQL converge en la lista actual de 58 privilegios **solo después de
+La salida SQL converge en esa lista histórica de 58 privilegios **solo después de
 validar ambas identidades**. Si falta `Delete Relationships`, agrega únicamente
 ese permiso, ya publicado en #222 / `1.25.15`. No crea privilegios nuevos ni
 acepta excepciones fuera de la lista. Esto evita depender de que Initializer
 vuelva a cargar un CSV idéntico al que ya tiene registrado por checksum.
+
+El CSV actual tiene 59 privilegios: #224 añadió exclusivamente
+`app:home.libroAtenciones`. Initializer aplica esa política declarativa después
+de la reconciliación SQL cuando carga el CSV actualizado. No se añade lectura de
+bitácora a la allowlist histórica ni se permite su edición o la purga de relaciones.
+Un rol con esa concesión posterior pero sin haber ejecutado la reconciliación
+queda fuera de la entrada automática y requiere revisión; no se relaja el guard
+para aceptar una secuencia de actualización distinta.
 
 | Estado inicial admitido                                                            | Resultado SQL                                                  |
 | ---------------------------------------------------------------------------------- | -------------------------------------------------------------- |
@@ -119,7 +128,8 @@ El ensayo adicional `admission-initializer.yml` usa el backend publicado fijado
 por digest y bases desechables en un runner GitHub hospedado. Conserva la
 configuración ajena al paquete SIH de esa imagen y sustituye únicamente archivos
 propios verificados. Arranca la baseline `1.25.15`, conserva su historial y
-checksums reales y prueba la candidata con el CSV de roles sin cambios. Incluye
+checksums reales y prueba por separado el CSV histórico sin cambios y el CSV
+actualizado con lectura de bitácora. Incluye
 rechazo de una política incompatible, un CSV canario posterior que debe quedar
 sin cargar, reintento sin borrar checksums e idempotencia. La prueba REST acotada
 comprueba lectura, denegación de borrado permanente y anulación de una relación

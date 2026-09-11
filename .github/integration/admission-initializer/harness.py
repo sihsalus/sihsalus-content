@@ -20,7 +20,7 @@ from pathlib import Path, PurePosixPath
 from guards import (
     BACKEND, DISTRO_SHA, IMAGE_CONTENT_SHA, BASELINE_SHA, DATABASE_IMAGE, DATABASE,
     OWNER_LABEL, CANONICAL_ROLE, LEGACY_ROLE, CANONICAL_UUID, CHANGESET,
-    INITIALIZER_VERSION, CONFIG_PREFIX, ROLES_FILE, LIQUIBASE_FILE,
+    INITIALIZER_VERSION, CONFIG_PREFIX, ROLES_FILE, CURRENT_ADMISSION_ADDITIONS, LIQUIBASE_FILE,
     ROLES_CHECKSUM, LIQUIBASE_CHECKSUM, UUID_PATTERN, STRICT_JAVA, HarnessFailure,
     require, checked, validate_runner, properties, extract_archive,
     single_file_archive, assemble, validate_startup, validate_assembly,
@@ -56,6 +56,7 @@ class Harness:
         self.admin_password = secrets.token_urlsafe(36) + "Aa1!"
         self.user_password = secrets.token_urlsafe(36) + "Aa1!"
         self.fixtures = []
+        self.lifecycle_files = {}
         self.baseline_data = self.directory / "baseline-data"
         self.baseline_dump = self.directory / "baseline.sql"
         self.mysql_config = self.private("mysql.cnf", "[client]\nuser=root\npassword=" + self.password + "\n")
@@ -71,6 +72,7 @@ class Harness:
             "OMRS_EXTRA_INITIALIZER_SKIP_CHECKSUMS=false\n"
             "OMRS_EXTRA_INITIALIZER_ROW_CHECKSUMS_ENABLED=false\n"
             "OMRS_EXTRA_INITIALIZER_LOGGING_LEVEL=INFO\n"
+            "OMRS_EXTRA_INITIALIZER_LOGGING_ENABLED=true\n"
             f"OMRS_JAVA_SERVER_OPTS={STRICT_JAVA}\n"
             "OMRS_JAVA_MEMORY_OPTS=-Xms512m -Xmx3g\n")
 
@@ -191,13 +193,19 @@ class Harness:
         original, baseline, candidate = [self.directory / name for name in ("source-12", "source-15", "source-candidate")]
         for sha, version, path in ((IMAGE_CONTENT_SHA, "1.25.12", original), (BASELINE_SHA, "1.25.15", baseline), (self.candidate_sha, None, candidate)):
             self.git_configuration(sha, version, path)
-        require((baseline / ROLES_FILE).read_bytes() == (candidate / ROLES_FILE).read_bytes(), "unchanged_roles_csv_required")
-        self.privileges = admission_privileges(candidate)
-        require(admission_privileges(baseline) == self.privileges, "baseline_policy_mismatch")
+        self.privileges = admission_privileges(baseline)
+        self.candidate_privileges = admission_privileges(candidate, CURRENT_ADMISSION_ADDITIONS)
+        require(self.candidate_privileges == self.privileges | CURRENT_ADMISSION_ADDITIONS, "unreviewed_current_admission_policy")
         self.baseline_config, self.candidate_config = self.directory / "config-baseline", self.directory / "config-candidate"
         assemble(self.image_config, original, baseline, self.baseline_config)
         receipt = assemble(self.image_config, original, candidate, self.candidate_config)
-        self.role_md5 = hashlib.md5((candidate / ROLES_FILE).read_bytes()).hexdigest()
+        # Exercise the historical checksum regression independently of later
+        # approved role changes, then load the exact candidate CSV separately.
+        self.historical_config = self.directory / "config-historical-roles"
+        shutil.copytree(self.candidate_config, self.historical_config)
+        shutil.copyfile(baseline / ROLES_FILE, self.historical_config / ROLES_FILE)
+        self.role_md5 = hashlib.md5((baseline / ROLES_FILE).read_bytes()).hexdigest()
+        self.candidate_role_md5 = hashlib.md5((candidate / ROLES_FILE).read_bytes()).hexdigest()
         self.network = self.prefix + "-network"
         self.docker("network", "create", "--internal", "--label", OWNER_LABEL + "=" + self.nonce, self.network)
         require(self.owned("network", self.network).get("Internal") is True, "network_not_internal")
@@ -237,6 +245,9 @@ class Harness:
             DATABASE, data=self.baseline_dump.read_bytes(), timeout=self.remaining(300))
 
     def start_backend(self, suffix, configuration, data_volume=None, restore=False):
+        require(re.fullmatch(r"[a-z][a-z-]*", suffix), "invalid_backend_phase")
+        lifecycle_file = "admission-initializer-" + self.nonce + "-" + suffix + ".log"
+        require(lifecycle_file not in self.lifecycle_files.values(), "reused_initializer_log")
         volume = data_volume or self.volume(suffix + "-data")
         self.owned("volume", volume)
         if restore:
@@ -250,8 +261,10 @@ class Harness:
             self.remove_container(helper)
         name = self.container(suffix,
             ["--network", self.network, "--memory", "4g", "--cpus", "2", "--env-file", str(self.backend_env),
+             "--env", "OMRS_EXTRA_INITIALIZER_LOGGING_LOCATION=" + lifecycle_file,
              "--mount", "type=bind,src=" + str(configuration) + ",dst=/openmrs/distribution/openmrs_config,readonly",
              "--mount", "type=volume,src=" + volume + ",dst=/openmrs/data"], BACKEND)
+        self.lifecycle_files[name] = lifecycle_file
         self.docker("start", name)
         return name, volume
 
@@ -338,11 +351,27 @@ class Harness:
         require(values.get("initializer.startup.load") == "fail_on_error", "strict_runtime_property_missing")
         require(values.get("initializer.skip.checksums") == "false", "checksum_tracking_not_enabled")
         require(values.get("initializer.row.checksums.enabled") == "false", "row_checksum_mode_changed")
+        require(values.get("initializer.logging.enabled") == "true"
+                and values.get("initializer.logging.level") == "INFO"
+                and values.get("initializer.logging.location") == self.lifecycle_files[backend],
+                "current_attempt_initializer_logging_not_configured")
         require(not values.get("initializer.domains"), "initializer_domain_filter_forbidden")
         require(not any(key.startswith("initializer.exclude") and value for key, value in values.items()), "initializer_exclusions_forbidden")
         actual = self.owned("container", backend)
         env = dict(item.split("=", 1) for item in actual["Config"]["Env"] if "=" in item)
         require(env.get("OMRS_JAVA_SERVER_OPTS") == STRICT_JAVA, "strict_system_flags_changed")
+
+    def lifecycle_logs(self, backend):
+        """Read this attempt's dedicated file and container output, never a restored log."""
+        self.owned("container", backend)
+        filename = self.lifecycle_files[backend]
+        require(re.fullmatch(r"admission-initializer-[0-9a-f]{32}-[a-z-]+\.log", filename), "invalid_initializer_log_path")
+        output = self.docker("logs", "--tail", "5000", backend)
+        log = self.docker("exec", backend, "/bin/sh", "-c",
+            'if [ ! -e "$1" ]; then exit 44; fi; test -f "$1" && test ! -L "$1" && cat "$1"',
+            "--", "/openmrs/data/" + filename, allow_failure=True)
+        require(log.returncode in (0, 44), "initializer_log_unreadable")
+        return (output.stdout + output.stderr + (log.stdout if log.returncode == 0 else b"")).decode("utf-8", "replace")
 
     def wait_initializer(self, backend, stage, reject=False):
         started_at = time.monotonic()
@@ -354,9 +383,7 @@ class Harness:
             # The image's one-shot startup request may precede web readiness.
             # Reach the fixed filter directly, without following root redirects.
             bootstrap_code = self.bootstrap(backend)
-            # Only this new container's stdout; no persisted baseline initializer.log.
-            result = self.docker("logs", "--tail", "5000", backend)
-            logs = (result.stdout + result.stderr).decode("utf-8", "replace")
+            logs = self.lifecycle_logs(backend)
             abort_messages = [match.group(0) for match in FILE_ABORT.finditer(logs)]
             csv_error = "BEGINNING OF CSV FILE ERROR SUMMARY" in logs
             now = time.monotonic()
@@ -407,8 +434,8 @@ class Harness:
         result = self.docker("exec", backend, "test", "-e", "/openmrs/data/" + relative, allow_failure=True)
         require(result.returncode == 1, "unexpected_checksum_file")
 
-    def assert_checksums(self, backend):
-        require(self.checksum(backend, ROLES_CHECKSUM) == self.role_md5, "roles_checksum_mismatch")
+    def assert_checksums(self, backend, role_md5=None):
+        require(self.checksum(backend, ROLES_CHECKSUM) == (role_md5 or self.role_md5), "roles_checksum_mismatch")
         # LiquibaseLoader2_5 explicitly skips checksum WRITES. Never invent one;
         # an inherited checksum could suppress loading, so that state is blocked.
         self.absent_checksum(backend, LIQUIBASE_CHECKSUM)
@@ -475,9 +502,9 @@ class Harness:
     def normalized_state(state):
         return {table: sorted(rows) for table, rows in state.items()}
 
-    def check_admission(self, db):
+    def check_admission(self, db, privileges=None):
         require(self.query(db, "SELECT role,uuid FROM role WHERE role IN ('Admision','SIHSALUS Admision')") == [CANONICAL_ROLE + "\t" + CANONICAL_UUID], "final_admission_identity_mismatch")
-        require(set(self.query(db, "SELECT privilege FROM role_privilege WHERE role='Admision'")) == self.privileges, "final_admission_privileges_not_58")
+        require(set(self.query(db, "SELECT privilege FROM role_privilege WHERE role='Admision'")) == (privileges or self.privileges), "final_admission_privileges_mismatch")
         require(self.query(db, "SELECT COUNT(*) FROM role_role WHERE parent_role IN ('Admision','SIHSALUS Admision') OR child_role IN ('Admision','SIHSALUS Admision')") == ["0"], "final_admission_inheritance_present")
         for fixture in self.fixtures:
             rows = self.query(db, "SELECT r.role FROM user_role r JOIN users u ON u.user_id=r.user_id WHERE u.uuid=" + sql_string(fixture["uuid"]))
@@ -539,9 +566,10 @@ class Harness:
     def rbac(self, backend, db):
         code, readable = self.request(backend, "GET", "/relationshiptype?limit=1", restricted=True)
         require(code == 200 and isinstance(readable, dict) and isinstance(readable.get("results"), list), "admission_read_denied")
+        suffix = secrets.token_hex(8)
         code, reltype = self.request(backend, "POST", "/relationshiptype", {
-            "aIsToB": "Synthetic CI guardian " + self.nonce[:8],
-            "bIsToA": "Synthetic CI dependent " + self.nonce[:8], "description": "Owned disposable Initializer test"})
+            "aIsToB": "Synthetic CI guardian " + suffix,
+            "bIsToA": "Synthetic CI dependent " + suffix, "description": "Owned disposable Initializer test"})
         require(code == 201 and isinstance(reltype, dict) and UUID_PATTERN.fullmatch(reltype.get("uuid", "")), "synthetic_relationship_type_creation_failed")
         code, relationship = self.request(backend, "POST", "/relationship", {
             "personA": self.fixtures[0]["person"], "personB": self.fixtures[1]["person"], "relationshipType": reltype["uuid"]})
@@ -564,7 +592,7 @@ class Harness:
         self.import_baseline(db)
         self.seed(db)
         expected = self.expected_upgrade_state(db, self.state(db))
-        backend, volume = self.start_backend("upgrade", self.candidate_config, restore=True)
+        backend, volume = self.start_backend("upgrade", self.historical_config, restore=True)
         self.wait_initializer(backend, "upgrade")
         self.assert_checksums(backend)
         require(self.candidate_recorded(db), "candidate_history_missing")
@@ -574,18 +602,29 @@ class Harness:
         self.rbac(backend, db)
         self.docker("stop", "--time", "30", backend, timeout=45)
         self.remove_container(backend)
-        backend, _ = self.start_backend("idempotence", self.candidate_config, data_volume=volume)
+        backend, _ = self.start_backend("idempotence", self.historical_config, data_volume=volume)
         self.wait_initializer(backend, "idempotence")
         self.assert_checksums(backend)
         require(self.state(db) == state, "second_start_changed_rbac")
         require(self.history(db) == history, "second_start_changed_history")
+        self.docker("stop", "--time", "30", backend, timeout=45)
+        self.remove_container(backend)
+        backend, _ = self.start_backend("current-policy", self.candidate_config, data_volume=volume)
+        self.wait_initializer(backend, "current_policy")
+        self.assert_checksums(backend, self.candidate_role_md5)
+        self.check_admission(db, self.candidate_privileges)
+        state["role_privilege"].extend(CANONICAL_ROLE + "\t" + privilege for privilege in CURRENT_ADMISSION_ADDITIONS)
+        require(self.normalized_state(self.state(db)) == self.normalized_state(state), "current_csv_changed_unapproved_rbac")
+        require(self.history(db) == history, "current_csv_changed_migration_history")
+        self.rbac(backend, db)
+        emit("current_policy", "PASSED", privileges=len(self.candidate_privileges), roles_checksum=self.candidate_role_md5)
         self.remove_container(backend)
         self.remove_container(db)
 
     def rejection(self):
         emit("reject", "RUNNING")
         configuration = self.directory / "configuration-rejection"
-        shutil.copytree(self.candidate_config, configuration)
+        shutil.copytree(self.historical_config, configuration)
         canary_uuid, canary_role = str(uuid.uuid4()), "Synthetic Initializer canary " + self.nonce[:8]
         with (configuration / ROLES_FILE).open(encoding="utf-8-sig", newline="") as handle:
             header = next(csv.reader(handle))
@@ -597,7 +636,7 @@ class Harness:
                 "Description": "Owned disposable failure-order test", "Inherited roles": "", "Privileges": ""})
         canary.chmod(0o644)
         canary_md5 = hashlib.md5(canary.read_bytes()).hexdigest()
-        require((configuration / ROLES_FILE).read_bytes() == (self.candidate_config / ROLES_FILE).read_bytes(), "canary_changed_roles_csv")
+        require((configuration / ROLES_FILE).read_bytes() == (self.historical_config / ROLES_FILE).read_bytes(), "canary_changed_roles_csv")
         db = self.start_database("rejection")
         self.import_baseline(db)
         self.seed(db, bad=True)
