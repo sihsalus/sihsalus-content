@@ -60,6 +60,14 @@ conservan pendientes de esa revisión; esta auditoría no los aprueba.
    Debe aclararse si la retirada es intencional y definir su migración, o
    conservar las filas.
 
+7. **Autorización para consultar el programa.** La guarda `isEnrolledInProgram`
+   consulta `ProgramWorkflowService.getPatientPrograms`, que en OpenMRS 2.8.9
+   exige `Get Patient Programs` sin elevar privilegios internamente. El rol
+   `Laboratorio` carece de ese permiso y no tiene herencias. Por tanto, la
+   corrección lógica de embarazo sigue bloqueada para ese rol hasta acordar
+   el soporte y la autorización acotada correspondientes. Esta revisión no
+   amplía permisos. Los fixtures del arnés no prueban autorización real.
+
 La selección gestacional mantiene una limitación ya documentada en
 [la auditoría de triaje](2026-06-17-triage-reference-ranges-peru.md):
 `getLatestObs` no resuelve el episodio ni la observación a la fecha histórica.
