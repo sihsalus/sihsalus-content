@@ -1,5 +1,12 @@
 # Plan de Terminología OCL — SIHSALUS
 
+> **Documento histórico:** el estado, los inventarios y las releases descritos a continuación
+> corresponden a las fechas del plan. Para revisar el contenido de esta rama, consultar los
+> [exports OCL incluidos](configuration/backend_configuration/ocl), los
+> [contratos del paquete](docs/contracts) y las [auditorías posteriores](docs/audits).
+> Las cifras y las tareas pendientes de este documento deben contrastarse con esas fuentes
+> antes de reutilizarlas como diagnóstico del paquete actual.
+
 > Documento de plan/arquitectura para la consolidación de conceptos en OpenConceptLab (OCL).
 > Última actualización: 2026-06-17. Org OCL activa para el content package: **SIHSALUS** (`https://app.openconceptlab.org/#/orgs/SIHSALUS/`).
 > Estado: en progreso. Contiene lo hecho, el plan pendiente, convenciones y **dudas abiertas**.

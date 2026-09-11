@@ -1,8 +1,20 @@
-Formato para el nombre de los formularios:
-NombreÁrea-NúmeroCorresponsal NombreFormulario
-Ejemplo: CRED-003 INSCRIPCIÓN DEL CARNET MATERNO PERINATAL
+# Nombres, versiones e identidad de formularios AMPATH
 
-Formato para las versiones de los formularios:
-NúmeroCorresponsal NombreÁrea.NumeroMayor.NumeroMenor
-El número mayor será para cambios mayores del formulario y el número menor para cambios mínimos.
-Ejemplo: 003CRED.1.3
+Los archivos JSON de este directorio contienen el nombre y la versión del formulario
+como propiedades separadas. Por ejemplo, `CE-001-CONSULTA EXTERNA` usa `1.0.2` y
+`CE-SOAP-001-NOTA SOAP` usa `1.1.0`. La versión no lleva un prefijo de área ni de código.
+
+Conservar los nombres de archivo y las propiedades `name`, `version` y `uuid` existentes
+durante una limpieza documental. Las versiones históricas incluyen formatos como `1.0`
+y `1.0.0`; no deben normalizarse por motivos de estilo.
+
+Initializer deriva la identidad persistida del formulario AMPATH a partir de su nombre
+y versión. El `uuid` del JSON no equivale necesariamente a esa identidad. Cambiar el nombre
+o la versión requiere revisar la actualización y la conservación de los encuentros históricos;
+no es una corrección de formato.
+
+Los contratos del [README principal](../../../README.md) explican el retiro de CE-001
+`1.0.1`, su versión canónica `1.0.2` y la conservación de SOAP `1.0.0` al incorporar
+`1.1.0`. Sus comprobaciones están en
+[validate_ce001_diagnosis_contract.py](../../../.github/scripts/validate_ce001_diagnosis_contract.py)
+y [validate_ce_physical_exam_contract.py](../../../.github/scripts/validate_ce_physical_exam_contract.py).
