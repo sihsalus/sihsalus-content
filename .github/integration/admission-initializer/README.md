@@ -152,6 +152,14 @@ Core's installer completion as module completion. Raw log contents are never
 printed or retained as artifacts. Only a successful container run confirms this
 fix against the pinned image; the unit tests exercise the reader and assertions.
 
+Core's `log.level` system property also sets the Initializer namespace to `INFO`.
+The pinned module configures its parent logger with `Logger.setLevel`, which does
+not update its child loggers under Log4j2. They otherwise inherit Core's `WARN`
+level, leaving the dedicated file empty and hiding lifecycle messages. Core's
+[configuration factory](https://github.com/openmrs/openmrs-core/blob/4dda0f50a60991a5af9a4b36508e69bb3561c8a6/api/src/main/java/org/openmrs/logging/OpenmrsConfigurationFactory.java)
+applies `log.level` to the logger configuration before module startup. This affects
+logging only; loader scope and success assertions remain unchanged.
+
 The bootstrap contract follows the pinned Core
 [StartupFilter](https://github.com/openmrs/openmrs-core/blob/4dda0f50a60991a5af9a4b36508e69bb3561c8a6/web/src/main/java/org/openmrs/web/filter/StartupFilter.java)
 and [InitializationFilter](https://github.com/openmrs/openmrs-core/blob/4dda0f50a60991a5af9a4b36508e69bb3561c8a6/web/src/main/java/org/openmrs/web/filter/initialization/InitializationFilter.java).
