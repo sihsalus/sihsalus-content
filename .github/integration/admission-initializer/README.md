@@ -99,7 +99,7 @@ files, and special files are rejected.
    or absent relationship is not accepted as a permission test. Run this with
    both the historical and current policies.
 5. **Rejection and retry:** restore a separate baseline snapshot and seed one
-   identity with the 59th, unapproved `Purge Relationships` permission. Add a new,
+   identity with the 59th, unapproved `Manage Roles` permission. Add a new,
    separate, empty-privilege canary CSV to the historical-CSV configuration,
    without changing candidate XML or the baseline `roles-core.csv`.
    Require the specific changeSet's current-attempt abort,
@@ -108,6 +108,11 @@ files, and special files are rejected.
    checksum. Remove only the synthetic extra permission, then restart with the
    same configuration, data and checksums. Require full completion, 58 approved
    permissions and the newly loaded canary role with its actual checksum.
+
+The rejection fixture uses `Manage Roles`, which Core creates via `@AddOnStartup`.
+Core defines `Purge Relationships` but does not create it on a clean installation;
+the harness neither requires nor creates that privilege. Its absence does not
+change the separate native REST purge-denial assertion above.
 
 No domains are excluded. The effective startup mode is required in both runtime
 properties and JVM flags; setting a global property or merely observing HTTP

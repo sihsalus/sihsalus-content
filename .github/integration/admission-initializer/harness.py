@@ -559,12 +559,13 @@ class Harness:
 
     def seed(self, db, bad=False):
         self.check_admission(db)
-        require(self.query(db, "SELECT COUNT(*) FROM privilege WHERE privilege='Purge Relationships'") == ["1"], "native_purge_privilege_missing")
+        if bad:
+            require(self.query(db, "SELECT COUNT(*) FROM privilege WHERE privilege='Manage Roles'") == ["1"], "rejection_fixture_privilege_missing")
         self.query(db,
             "START TRANSACTION;\nUPDATE role SET uuid=" + sql_string(str(uuid.uuid4())) + " WHERE role='Admision';\n"
             "INSERT INTO role(role,description,uuid) VALUES ('SIHSALUS Admision','Synthetic admission fixture'," + sql_string(CANONICAL_UUID) + ");\n"
             "INSERT INTO role_privilege(role,privilege) SELECT 'SIHSALUS Admision',privilege FROM role_privilege WHERE role='Admision';\n"
-            + ("INSERT INTO role_privilege(role,privilege) VALUES ('SIHSALUS Admision','Purge Relationships');\n" if bad else
+            + ("INSERT INTO role_privilege(role,privilege) VALUES ('SIHSALUS Admision','Manage Roles');\n" if bad else
                "DELETE FROM role_privilege WHERE role IN ('Admision','SIHSALUS Admision') AND privilege='Delete Relationships';\n")
             + "INSERT INTO user_role(user_id,role) SELECT user_id,'SIHSALUS Admision' FROM users WHERE uuid IN ("
             + ",".join(sql_string(item["uuid"]) for item in self.fixtures) + ");\n"
@@ -661,7 +662,7 @@ class Harness:
         self.docker("stop", "--time", "30", backend, timeout=45)
         self.remove_container(backend)
         # Correct only the owned extra fixture. No checksum/history/XML resets.
-        self.query(db, "DELETE FROM role_privilege WHERE role='SIHSALUS Admision' AND privilege='Purge Relationships'")
+        self.query(db, "DELETE FROM role_privilege WHERE role='SIHSALUS Admision' AND privilege='Manage Roles'")
         backend, _ = self.start_backend("retry", configuration, data_volume=volume)
         self.wait_initializer(backend, "retry")
         self.assert_checksums(backend)
