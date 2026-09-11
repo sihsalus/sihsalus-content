@@ -418,14 +418,34 @@ class HarnessContracts(unittest.TestCase):
             self.runtime.lifecycle_logs("owned")
         self.runtime.docker.assert_not_called()
 
-    def test_rejection_requires_current_abort_and_real_module_false(self):
-        self.setup_lifecycle(harness.ABORT + guards.CHANGESET)
-        self.runtime.module_status = Mock(side_effect=[HarnessFailure("module_state_unavailable"), False])
+    def test_rejection_requires_current_abort_and_initializer_classloader_disposal(self):
+        aborted = harness.ABORT + guards.CHANGESET
+        stopped = "Disposing of ModuleClassLoader: {ModuleClassLoader: uid=123; initializer}"
+        self.setup_lifecycle(aborted)
+        self.runtime.lifecycle_logs.side_effect = [(aborted, True, 40), (aborted + stopped, True, 40)]
+        self.runtime.module_status = Mock(side_effect=HarnessFailure("module_state_unavailable"))
         with patch.object(harness.time, "sleep"), patch.object(harness, "emit") as emit:
             self.runtime.wait_initializer("new-container", "reject", reject=True)
-        self.assertEqual(self.runtime.module_status.call_count, 2)
+        self.assertEqual(self.runtime.lifecycle_logs.call_count, 2)
+        self.runtime.lifecycle_logs.assert_called_with("new-container")
+        self.runtime.module_status.assert_not_called()
         emit.assert_any_call("reject", "PASSED", initializer_started=False)
         self.assertEqual(sum(call.args[1] == "PASSED" for call in emit.call_args_list), 1)
+
+    def test_rejection_never_accepts_missing_abort_or_another_modules_disposal(self):
+        aborted = harness.ABORT + guards.CHANGESET
+        stopped = "Disposing of ModuleClassLoader: {ModuleClassLoader: uid=123; initializer}"
+        for logs in (stopped, aborted, aborted + stopped.replace("initializer}", "webservices.rest}"),
+                     aborted + stopped.replace("initializer}", "initializer-other}"),
+                     aborted + stopped.replace("uid=123", "uid=invalid")):
+            with self.subTest(logs=logs):
+                self.setup_lifecycle(logs)
+                self.runtime.module_status = Mock(return_value=False)
+                with patch.object(harness.time, "sleep"), patch.object(harness, "emit"), \
+                        patch.object(harness.time, "monotonic", side_effect=[0, 0, 0, 31]):
+                    with self.assertRaisesRegex(HarnessFailure, "initializer_lifecycle_not_proven"):
+                        self.runtime.wait_initializer("new-container", "reject", reject=True)
+                self.runtime.module_status.assert_not_called()
 
     def assert_unexpected_loader_abort(self, logs, reject):
         self.setup_lifecycle(logs)
@@ -469,7 +489,8 @@ class HarnessContracts(unittest.TestCase):
         self.assertIs(diagnostic["candidate_marker_seen"], False)
 
     def test_rejection_never_accepts_later_completion_or_unavailable_module(self):
-        self.setup_lifecycle(harness.ABORT + guards.CHANGESET + harness.COMPLETION)
+        stopped = "Disposing of ModuleClassLoader: {ModuleClassLoader: uid=123; initializer}"
+        self.setup_lifecycle(harness.ABORT + guards.CHANGESET + stopped + harness.COMPLETION)
         self.runtime.module_status = Mock(return_value=False)
         with patch.object(harness, "emit"), self.assertRaisesRegex(HarnessFailure, "initializer_continued_after_rejection"):
             self.runtime.wait_initializer("new-container", "reject", reject=True)

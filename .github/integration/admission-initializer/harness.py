@@ -31,6 +31,7 @@ ROOT = Path(__file__).resolve().parents[3]
 COMPLETION = "OpenMRS config loading process completed."
 ABORT = "The loading of the 'liquibase' configuration file was aborted:"
 FILE_ABORT = re.compile(r"The (?:pre-)?loading of the '[^'\r\n]+' configuration file was aborted:")
+INITIALIZER_STOPPED = re.compile(r"Disposing of ModuleClassLoader: \{ModuleClassLoader: uid=-?\d+; initializer\}")
 
 
 def emit(stage, status, **safe):
@@ -418,6 +419,14 @@ class Harness:
                 observed = True
             if observed is not None:
                 self.effective_strict(backend)
+                # Core stops REST too after this startup exception. Its classloader
+                # disposal follows removal from the actual started-modules map.
+                if reject:
+                    if INITIALIZER_STOPPED.search(logs):
+                        emit(stage, "PASSED", initializer_started=False)
+                        return
+                    time.sleep(5)
+                    continue
                 try:
                     started = self.module_status(backend)
                 except HarnessFailure as error:

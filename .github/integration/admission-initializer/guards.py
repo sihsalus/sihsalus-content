@@ -40,7 +40,7 @@ STRICT_JAVA = (
     "-Dinitializer.startup.load=fail_on_error "
     "-Dinitializer.skip.checksums=false -Dinitializer.row.checksums.enabled=false "
     "-Dinitializer.logging.level=INFO "
-    "-Dlog.level=org.openmrs.module.initializer:INFO"
+    "-Dlog.level=org.openmrs.module.initializer:INFO,org.openmrs.module.ModuleClassLoader:DEBUG"
 )
 
 

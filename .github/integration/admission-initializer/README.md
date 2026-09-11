@@ -103,7 +103,7 @@ files, and special files are rejected.
    separate, empty-privilege canary CSV to the historical-CSV configuration,
    without changing candidate XML or the baseline `roles-core.csv`.
    Require the specific changeSet's current-attempt abort,
-   no completion, a valid module response with `started=false`, unchanged RBAC
+   no completion, disposal of Initializer's current classloader, unchanged RBAC
    and journal snapshots, no candidate journal entry, and no canary role or
    checksum. Remove only the synthetic extra permission, then restart with the
    same configuration, data and checksums. Require full completion, 58 approved
@@ -121,9 +121,22 @@ with its dedicated Initializer log. Each startup configures a different filename
 containing the run nonce and phase; the effective runtime property must match.
 The reader never opens the default `initializer.log` or another phase's file,
 so a restored baseline completion cannot validate a later attempt. A missing
-file remains pending; an unreadable or symlinked file fails. A transient unavailable REST
-endpoint is polled within the deadline; malformed responses, wrong versions or
-missing authentication are not interpreted as a stopped module.
+file remains pending; an unreadable or symlinked file fails. Successful startups
+also require the actual module/version from REST. A transient unavailable endpoint
+is polled within the deadline; malformed responses or wrong versions fail.
+
+For the expected rejection, Core's
+[Listener](https://github.com/openmrs/openmrs-core/blob/4dda0f50a60991a5af9a4b36508e69bb3561c8a6/web/src/main/java/org/openmrs/web/Listener.java)
+stops non-mandatory modules, including REST. The stopped-state evidence is therefore
+the current container's exact `Disposing of ModuleClassLoader` message identifying
+`initializer`. Core's
+[stopModule](https://github.com/openmrs/openmrs-core/blob/4dda0f50a60991a5af9a4b36508e69bb3561c8a6/api/src/main/java/org/openmrs/module/ModuleFactory.java)
+removes the module from its started-modules map before disposing the classloader.
+Only the `org.openmrs.module.ModuleClassLoader` logger is additionally set to
+`DEBUG`. Each phase creates a new container and never restarts modules within it;
+the retry uses another container. The marker is not an oracle for a reused
+container or for completed filesystem cleanup. An absent REST response alone
+never proves rejection, and all abort, checksum, journal and canary checks remain.
 
 The file-abort detector recognizes both loading and pre-loading failures from
 any domain using the exact message shape in the pinned
