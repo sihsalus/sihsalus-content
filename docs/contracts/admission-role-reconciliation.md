@@ -78,6 +78,25 @@ de referencias lógicas o efectos de triggers en módulos personalizados: el
 inventario de módulos, triggers y esquemas sigue siendo un requisito de
 actualización. No se declara soporte automático para esquemas personalizados.
 
+## Propiedad de los roles Full y High
+
+Este paquete deja a EMRAPI la definición y el mantenimiento de `Privilege Level:
+Full` y `Privilege Level: High`; se retiran únicamente esas dos filas de
+`roles-core.csv`.
+Su [activador fijado](https://github.com/openmrs/openmrs-module-emrapi/blob/a06a2efd651435609a1c4b39ef35501b3401ff5d/api/src/main/java/org/openmrs/module/emrapi/EmrApiActivator.java#L78)
+crea los roles ausentes y mantiene sus privilegios en cada arranque. Las
+[constantes del mismo pin](https://github.com/openmrs/openmrs-module-emrapi/blob/a06a2efd651435609a1c4b39ef35501b3401ff5d/api/src/main/java/org/openmrs/module/emrapi/EmrApiConstants.java#L79)
+conservan los UUID `ab2160f6-0941-430c-9752-6714353fbd3c` y
+`f089471c-e00b-468e-96e8-46aea1b339af`, respectivamente. Las herencias de otros
+roles siguen resolviéndose por esos nombres.
+
+Omitir estas filas no elimina los roles ni sus asignaciones existentes. Tampoco
+retira privilegios del catálogo: el parser de roles solo
+[busca privilegios existentes](https://github.com/mekomsolutions/openmrs-module-initializer/blob/3077975fb4f58c91ff3113d7fed1e3df88829476/api/src/main/java/org/openmrs/module/initializer/api/utils/Utils.java#L461).
+Los demás roles conservan su definición CSV. Full y High siguen incluidos en
+las comparaciones completas del ensayo; no se excluyen roles, tablas ni grupos
+de permisos para aceptar una actualización.
+
 ## Liquibase no garantiza la parada de Initializer
 
 La revisión del pin de Initializer
@@ -125,15 +144,24 @@ históricos y fallos inducidos. No inicia OpenMRS, no ejecuta Initializer y no
 valida permisos efectivos de cuentas clínicas.
 
 El ensayo adicional `admission-initializer.yml` usa el backend publicado fijado
-por digest y bases desechables en un runner GitHub hospedado. Conserva la
+por digest y bases desechables en runners GitHub hospedados. Conserva la
 configuración ajena al paquete SIH de esa imagen y sustituye únicamente archivos
-propios verificados. Arranca la baseline `1.25.15`, conserva su historial y
-checksums reales y prueba por separado el CSV histórico sin cambios y el CSV
-actualizado con lectura de bitácora. Incluye
+propios verificados. Ejecuta dos escenarios independientes, `upgrade` y `fresh`;
+el fallo de uno no cancela el otro y ambos deben pasar antes de publicar.
+
+`upgrade` arranca la baseline `1.25.15` y la reinicia sin cambiar contenido,
+historial ni checksums, antes de crear el snapshot y sembrar la migración.
+Comprueba los UUID de Full/High y los 58 permisos de Admisión. Desde ese estado
+prueba el CSV histórico sin cambios y el CSV candidato con los 59 permisos de
+Admisión, comparando todas las filas RBAC y referencias contempladas. Incluye
 rechazo de una política incompatible, un CSV canario posterior que debe quedar
-sin cargar, reintento sin borrar checksums e idempotencia. La prueba REST acotada
-comprueba lectura, denegación de borrado permanente y anulación de una relación
-sintética activa. Sus resultados deben leerse por fase: definir el ensayo no
+sin cargar, reintento sin borrar checksums e idempotencia.
+
+`fresh` inicia el candidato completo sobre una base vacía independiente y exige
+carga finalizada, historial y checksum reales, los UUID de Full/High y los 59
+permisos de Admisión. Ambos escenarios verifican mediante REST lectura, purga
+denegada con 403 sin modificar la relación activa y anulación con 204 que
+persiste `voided=1`. Sus resultados deben leerse por fase: definir el ensayo no
 equivale a haberlo aprobado ni sustituye aceptación clínica o revisión operativa.
 
 Consultar el [README del ensayo de Initializer](../../.github/integration/admission-initializer/README.md)

@@ -59,6 +59,60 @@ class HarnessContracts(unittest.TestCase):
                     harness.Harness(invalid)
                 run.assert_not_called()
 
+    def test_fresh_scenario_is_independent_and_cleanup_remains_mandatory(self):
+        for cleanup_ok in (True, False):
+            with self.subTest(cleanup_ok=cleanup_ok), patch.object(harness, "Harness") as runtime, \
+                    patch.object(harness.signal, "signal"), patch.object(harness, "emit"):
+                instance = runtime.return_value
+                instance.cleanup.return_value = cleanup_ok
+                self.assertEqual(harness.main("fresh"), 0 if cleanup_ok else 1)
+                instance.prepare.assert_called_once_with()
+                instance.fresh.assert_called_once_with()
+                instance.baseline.assert_not_called()
+                instance.upgrade.assert_not_called()
+                instance.rejection.assert_not_called()
+                instance.cleanup.assert_called_once_with()
+        with patch.object(harness, "Harness") as runtime, patch.object(harness.signal, "signal"), \
+                patch.object(harness, "emit") as emit:
+            self.assertEqual(harness.main("invalid"), 1)
+        runtime.assert_not_called()
+        emit.assert_any_call("harness", "FAILED", reason="invalid_initializer_scenario")
+
+    def test_baseline_snapshot_requires_restart_with_unchanged_history(self):
+        for changed in (False, True):
+            with self.subTest(changed=changed), patch.object(harness, "emit"):
+                events = []
+                runtime = self.runtime
+                runtime.baseline_config = self.root / "baseline"
+                runtime.baseline_data = self.root / "snapshot"
+                runtime.baseline_dump = self.root / "dump.sql"
+                runtime.role_md5, runtime.fixtures = "fixed-checksum", []
+                runtime.remaining = Mock(return_value=180)
+                runtime.start_database = Mock(return_value="db")
+                runtime.start_backend = Mock(side_effect=[("first", "volume"), ("second", "volume")])
+                runtime.wait_initializer = Mock(side_effect=lambda backend, stage: events.append(stage))
+                runtime.assert_checksums = Mock()
+                runtime.candidate_recorded = Mock(return_value=False)
+                original = ["normalize-admission-role-name-20260722"]
+                runtime.history = Mock(side_effect=[original, ["changed"] if changed else original, original])
+                runtime.docker = Mock(return_value=completed(stdout=b"synthetic-dump"))
+                runtime.remove_container = Mock()
+                runtime.check_emrapi_roles = Mock()
+                runtime.create_fixtures = Mock(side_effect=lambda backend: events.append("fixtures"))
+                runtime.check_admission = Mock()
+                runtime.copy_tree = Mock(side_effect=lambda *args: events.append("snapshot"))
+                if changed:
+                    with self.assertRaisesRegex(HarnessFailure, "^baseline_restart_changed_history$"):
+                        runtime.baseline()
+                    runtime.copy_tree.assert_not_called()
+                    runtime.create_fixtures.assert_not_called()
+                else:
+                    runtime.baseline()
+                    self.assertEqual(events, ["baseline", "baseline_restart", "fixtures", "snapshot"])
+                    runtime.start_backend.assert_called_with("baseline-restart", runtime.baseline_config,
+                                                             data_volume="volume")
+                    self.assertEqual(runtime.baseline_dump.read_bytes(), b"synthetic-dump")
+
     def test_external_docker_and_broad_or_symlink_temp_rejected(self):
         for key in ("DOCKER_HOST", "DOCKER_CONTEXT"):
             with self.subTest(key=key), self.assertRaises(HarnessFailure):
@@ -216,11 +270,11 @@ class HarnessContracts(unittest.TestCase):
         self.assertIs(self.runtime.module_status("owned"), False)
         for code, body in ((200, []), (200, self.module(uuid="other")),
                            (200, self.module(version="other")), (200, self.module(started="false")),
-                           (401, None), (302, None), (500, None)):
+                           (401, None), (403, None), (500, None)):
             with self.subTest(code=code, body=body), self.assertRaises(HarnessFailure):
                 self.runtime.request.return_value = (code, body)
                 self.runtime.module_status("owned")
-        for code in (None, 502, 503, 504):
+        for code in (None, 302, 502, 503, 504):
             with self.subTest(code=code), self.assertRaisesRegex(HarnessFailure, "^module_state_unavailable$"):
                 self.runtime.request.return_value = (code, None)
                 self.runtime.module_status("owned")
@@ -380,13 +434,22 @@ class HarnessContracts(unittest.TestCase):
 
     def test_lifecycle_waits_for_real_module_after_completion_log(self):
         self.setup_lifecycle(harness.COMPLETION)
-        self.runtime.module_status = Mock(side_effect=[HarnessFailure("module_state_unavailable"), True])
+        self.runtime.request = Mock(side_effect=[(302, None), (200, self.module())])
         with patch.object(harness.time, "sleep"), patch.object(harness, "emit") as emit:
             self.runtime.wait_initializer("new-container", "upgrade")
-        self.assertEqual(self.runtime.module_status.call_count, 2)
+        self.assertEqual(self.runtime.request.call_count, 2)
         self.runtime.lifecycle_logs.assert_called_with("new-container")
         emit.assert_any_call("upgrade", "PASSED", initializer_started=True)
         self.assertEqual(sum(call.args[1] == "PASSED" for call in emit.call_args_list), 1)
+
+    def test_persistent_module_redirect_never_proves_startup(self):
+        self.setup_lifecycle(harness.COMPLETION)
+        self.runtime.request = Mock(return_value=(302, None))
+        with patch.object(harness.time, "monotonic", side_effect=[0, 0, 1, 31]), \
+                patch.object(harness.time, "sleep"), patch.object(harness, "emit") as emit:
+            with self.assertRaisesRegex(HarnessFailure, "^initializer_lifecycle_not_proven_before_timeout$"):
+                self.runtime.wait_initializer("new-container", "fresh_candidate")
+        self.assertFalse(any(call.args[1] == "PASSED" for call in emit.call_args_list))
 
     def test_lifecycle_reads_unique_attempt_file_when_completion_is_absent_from_console(self):
         filename = "admission-initializer-" + "a" * 32 + "-retry.log"

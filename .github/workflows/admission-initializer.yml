@@ -9,8 +9,13 @@ permissions:
 
 jobs:
   initializer-upgrade:
+    name: Initializer (${{ matrix.scenario }})
     runs-on: ubuntu-24.04
     timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario: [upgrade, fresh]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -25,6 +30,7 @@ jobs:
       - name: Exercise the pinned backend with exclusively synthetic data
         env:
           ADMISSION_INITIALIZER_DISPOSABLE: github-runner-only
+          ADMISSION_INITIALIZER_SCENARIO: ${{ matrix.scenario }}
         shell: bash
         run: |
           set -euo pipefail
@@ -34,7 +40,7 @@ jobs:
         if: always()
         run: |
           {
-            echo '## Admission Initializer upgrade integration'
+            echo '## Admission Initializer ${{ matrix.scenario }} integration'
             echo "Source: ${GITHUB_SHA}"
             echo 'Pinned backend digest; owned ephemeral MariaDB/backend only.'
             echo 'See sanitized phase results for actual completion and assertions.'
@@ -45,7 +51,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: admission-initializer-${{ github.sha }}
+          name: admission-initializer-${{ matrix.scenario }}-${{ github.sha }}
           path: admission-initializer-result.jsonl
           if-no-files-found: warn
           retention-days: 7
