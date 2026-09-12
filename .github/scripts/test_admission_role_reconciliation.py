@@ -25,6 +25,10 @@ LIQUIBASE_PATH = (
 ROLES_PATH = (
     REPOSITORY_ROOT / "configuration/backend_configuration/roles/roles-core.csv"
 )
+HISTORICAL_ROLES_PATH = REPOSITORY_ROOT / (
+    ".github/integration/admission-role-reconciliation/src/test/resources/"
+    "admission-role-1.25.15.csv"
+)
 NAMESPACE = "http://www.liquibase.org/xml/ns/dbchangelog/1.9"
 CANONICAL_ROLE = "Admision"
 LEGACY_ROLE = "SIHSALUS Admision"
@@ -131,6 +135,7 @@ APPROVED_PRIVILEGES = frozenset({
     "app:opciones.registrarPaciente",
 })
 PREVIOUS_PRIVILEGES = APPROVED_PRIVILEGES - {"Delete Relationships"}
+CURRENT_PRIVILEGES = APPROVED_PRIVILEGES | {"app:home.libroAtenciones"}
 
 
 def get_change_sets():
@@ -309,22 +314,27 @@ class AdmissionChangelogStructureTest(unittest.TestCase):
         )
         self.assertNotRegex(sql, r"(?i)\bINSERT\s+INTO\s+privilege\b")
 
-    def test_sql_allowlist_matches_independent_policy_csv_and_validator(self):
-        with ROLES_PATH.open(newline="", encoding="utf-8-sig") as handle:
-            rows = list(csv.DictReader(handle))
-        roles = [
-            row for row in rows
-            if row["Uuid"] == CANONICAL_UUID or row["Role name"] == CANONICAL_ROLE
-        ]
-        self.assertEqual(1, len(roles))
-        role = roles[0]
-        self.assertEqual(CANONICAL_ROLE, role["Role name"])
-        self.assertEqual(CANONICAL_UUID, role["Uuid"])
-        self.assertEqual("", role["Inherited roles"])
-        self.assertEqual(
-            APPROVED_PRIVILEGES,
-            {privilege.strip() for privilege in role["Privileges"].split(";")},
-        )
+    def test_historical_sql_policy_and_current_csv_policy_remain_distinct(self):
+        for path, expected in (
+            (HISTORICAL_ROLES_PATH, APPROVED_PRIVILEGES),
+            (ROLES_PATH, CURRENT_PRIVILEGES),
+        ):
+            with self.subTest(path=path):
+                with path.open(newline="", encoding="utf-8-sig") as handle:
+                    roles = [
+                        row for row in csv.DictReader(handle)
+                        if row["Uuid"] == CANONICAL_UUID
+                        or row["Role name"] == CANONICAL_ROLE
+                    ]
+                self.assertEqual(1, len(roles))
+                role = roles[0]
+                self.assertEqual(CANONICAL_ROLE, role["Role name"])
+                self.assertEqual(CANONICAL_UUID, role["Uuid"])
+                self.assertEqual("", role["Inherited roles"])
+                self.assertEqual(
+                    expected,
+                    {privilege.strip() for privilege in role["Privileges"].split(";")},
+                )
         spec = importlib.util.spec_from_file_location(
             "admission_csv_validator",
             Path(__file__).with_name("validate_csv_widths.py"),
@@ -332,7 +342,7 @@ class AdmissionChangelogStructureTest(unittest.TestCase):
         validator = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(validator)
         self.assertEqual(
-            APPROVED_PRIVILEGES, validator.ADMISSION_REQUIRED_PRIVILEGES
+            CURRENT_PRIVILEGES, validator.ADMISSION_REQUIRED_PRIVILEGES
         )
         self.assertEqual(CANONICAL_UUID, validator.ADMISSION_ROLE_UUID)
         self.assertEqual(CANONICAL_ROLE, validator.ADMISSION_ROLE_NAME)
@@ -342,6 +352,7 @@ class AdmissionChangelogStructureTest(unittest.TestCase):
         )
         self.assertEqual(58, len(APPROVED_PRIVILEGES))
         self.assertEqual(57, len(PREVIOUS_PRIVILEGES))
+        self.assertEqual(59, len(CURRENT_PRIVILEGES))
 
 
 class AdmissionPortablePolicyTest(unittest.TestCase):

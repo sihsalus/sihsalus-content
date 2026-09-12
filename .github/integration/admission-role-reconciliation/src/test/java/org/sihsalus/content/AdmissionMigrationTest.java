@@ -54,7 +54,7 @@ public class AdmissionMigrationTest {
         "role", "user_role", "role_privilege", "role_role", "patientflags_tag_role",
         "stockmgmt_user_role_scope", "fixture_stock_scope_child", "fixture_unknown_role_reference");
     private static String jdbcUrl;
-    private static Set<String> csvPrivileges;
+    private static Set<String> historicalPrivileges;
     private static Path candidate;
     private Path resourceRoot;
 
@@ -94,8 +94,14 @@ public class AdmissionMigrationTest {
         execute("INSERT INTO admission_harness_owner VALUES (?)", OWNER);
         Path content = Path.of(System.getProperty("content.root")).toRealPath();
         candidate = content.resolve("configuration/backend_configuration/liquibase/liquibase.xml");
-        csvPrivileges = readAdmissionPrivileges(content.resolve("configuration/backend_configuration/roles/roles-core.csv"));
-        assertTrue(csvPrivileges.contains("Delete Relationships"));
+        historicalPrivileges = readHistoricalPrivileges();
+        assertEquals(58, historicalPrivileges.size());
+        assertTrue(historicalPrivileges.contains("Delete Relationships"));
+    }
+
+    static Set<String> readHistoricalPrivileges() throws Exception {
+        return readAdmissionPrivileges(Path.of(AdmissionMigrationTest.class
+            .getResource("/admission-role-1.25.15.csv").toURI()));
     }
 
     static Set<String> readAdmissionPrivileges(Path csv) throws Exception {
@@ -118,7 +124,7 @@ public class AdmissionMigrationTest {
                     }
                 }
             }
-            assertNotNull("Canonical role must be present in candidate CSV", result);
+            assertNotNull("Canonical role must be present in CSV", result);
             return result;
         }
     }
@@ -141,7 +147,7 @@ public class AdmissionMigrationTest {
             }
         }
         assertEquals("utf8mb4_bin", scalar("SELECT @@collation_database"));
-        for (String privilege : csvPrivileges) {
+        for (String privilege : historicalPrivileges) {
             execute("INSERT INTO privilege VALUES (?)", privilege);
         }
         resourceRoot = temporary.newFolder().toPath();
@@ -162,7 +168,7 @@ public class AdmissionMigrationTest {
 
     private void role(String name, String uuid, boolean previousPolicy) throws Exception {
         execute("INSERT INTO role VALUES (?, ?, ?)", name, "synthetic role", uuid);
-        for (String privilege : csvPrivileges) {
+        for (String privilege : historicalPrivileges) {
             if (!(previousPolicy && privilege.equals("Delete Relationships"))) {
                 execute("INSERT INTO role_privilege VALUES (?, ?)", name, privilege);
             }
@@ -202,7 +208,7 @@ public class AdmissionMigrationTest {
     private void assertCanonical() throws Exception {
         assertEquals("0", scalar("SELECT COUNT(*) FROM role WHERE role = ?", LEGACY));
         assertEquals(CANONICAL_UUID, scalar("SELECT uuid FROM role WHERE role = ?", CANONICAL));
-        Set<String> expected = new TreeSet<>(csvPrivileges);
+        Set<String> expected = new TreeSet<>(historicalPrivileges);
         Set<String> actual = new TreeSet<>();
         for (List<String> row : rows("SELECT privilege FROM role_privilege WHERE role = ?", CANONICAL)) {
             actual.add(row.get(0));
@@ -422,9 +428,17 @@ public class AdmissionMigrationTest {
     }
 
     @Test
+    public void rejectsLaterCsvGrantBeforeHistoricalReconciliation() throws Exception {
+        duplicateRoles(false, false);
+        execute("INSERT INTO privilege VALUES ('app:home.libroAtenciones')");
+        execute("INSERT INTO role_privilege VALUES (?, 'app:home.libroAtenciones')", CANONICAL);
+        assertRejectedByGuard("privileges");
+    }
+
+    @Test
     public void rejectsMissingRequiredPrivilegeBeforeMutation() throws Exception {
         duplicateRoles(false, false);
-        String required = csvPrivileges.stream().filter(value -> !value.equals("Delete Relationships")).findFirst().orElseThrow();
+        String required = historicalPrivileges.stream().filter(value -> !value.equals("Delete Relationships")).findFirst().orElseThrow();
         execute("DELETE FROM role_privilege WHERE role = ? AND privilege = ?", LEGACY, required);
         assertRejectedByGuard("privileges");
     }

@@ -33,7 +33,7 @@ mvn --batch-mode --no-transfer-progress \
   --file .github/integration/admission-role-reconciliation/pom.xml test
 ```
 
-Compilation and guard/CSV-oracle checks do not need MariaDB or Docker:
+Compilation and guard/policy checks do not need MariaDB or Docker:
 
 ```sh
 mvn --batch-mode --no-transfer-progress \
@@ -55,11 +55,14 @@ evidence that its MariaDB assertions passed.
   present; deduplicated user/tag references (Patient Flags has no artificial
   uniqueness constraint), and preserved stock scope IDs/UUIDs, audit fields,
   and dependent child rows.
-- Privileges compared with the actual candidate CSV, with the sole permitted
+- Privileges compared with the frozen 1.25.15 policy, with the sole permitted
   input omission of `Delete Relationships` under the previous 57-privilege
-  contract. Existing identities explicitly converge to the approved 58-privilege
-  output in SQL, adding only that permission already published in #222. A
-  missing native privilege causes a closed failure without creating it.
+  contract. Existing identities explicitly converge to that 58-privilege output
+  in SQL, adding only that permission already published in #222. The later
+  `app:home.libroAtenciones` grant from #224 belongs to the current 59-privilege
+  CSV loaded afterward by Initializer; it is not an input to this migration.
+  A missing native privilege or a later CSV grant applied before reconciliation
+  causes a closed failure without changing RBAC.
 - Closed failures for an unrelated UUID owner, extra/missing privileges,
   inheritance in either direction, an unknown role foreign key, and a
   nontransactional optional table, additional copied columns, or a trailing-space
@@ -74,7 +77,15 @@ evidence that its MariaDB assertions passed.
   rollback evidence, **not** evidence of an explicit Liquibase rollback script.
 - A second complete run is idempotent in RBAC rows and changelog records.
 
-The historical fixture is the full candidate XML minus the new reconciliation
+`src/test/resources/admission-role-1.25.15.csv` preserves the header and canonical
+Admisión row from source `8000b27f48bf124fe9a553d4ba41c678e9acc231`. Java fixtures
+and SQL assertions use this historical policy. Python checks it against an
+independent 58-entry allowlist and verifies that the current CSV and validator
+add exactly the approved logbook read permission. The guard test also compares
+the two CSV policies. Current CSV changes therefore cannot rewrite the historical
+fixtures or silently expand the SQL allowlist.
+
+The historical changelog fixture is the full candidate XML minus the new reconciliation
 changeset, executed first at the same logical path. It does not fabricate a
 successful historical changeset by inserting a made-up checksum.
 Additional tests execute the six withdrawn 20260903 changesets, preserved from
@@ -96,12 +107,14 @@ OpenMRS **2.8.9**, file/row checksums, and effective allowed/denied authorizatio
 for synthetic users. The source archive is pinned by the distro to SHA256
 `a750faaa6485b7f5716db8dcd94552102710cd9af0a80b067982133b02365e69`.
 
-That additional phase must distinguish unchanged and changed CSV checksums:
+That additional phase distinguishes unchanged and changed CSV checksums:
 Initializer's role processor replaces privileges and inherited roles when a row
 is loaded, while its checksum mechanism can skip loading. The SQL test therefore
 asserts 57-to-58 convergence without calling or simulating a CSV reload; it does
-not leave #222's grant contingent on a changed checksum. A CSV policy oracle in
-these tests is **not** a substitute for invoking that loader. The upstream
+not leave #222's grant contingent on a changed checksum. The Initializer harness
+separately exercises the unchanged historical CSV and the current CSV carrying
+#224's read permission. A CSV policy oracle in these tests is **not** a substitute
+for invoking that loader. The upstream
 Initializer Validator is also not a drop-in exact-stack test: that source pins
 Core 2.3.6 and starts MySQL 5.7.31, despite its README's MariaDB description.
 

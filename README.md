@@ -1,6 +1,6 @@
 # SIHSALUS Content Package
 
-SIHSALUS Content Package para OpenMRS, con la versión actual **1.25.15**.
+SIHSALUS Content Package para OpenMRS, con la versión candidata **1.25.17**, no publicada.
 
 The contents of a typical Content Package are:
 * **Configuration**
@@ -86,7 +86,18 @@ If this command reports any violations, you can then run `mvn spotless:apply` to
 
 Remember, in most cases, you don't need to run these commands separately as Spotless will run automatically during the build process with `mvn clean package`.
 
-Versión candidata del paquete: **1.25.16**, no publicada.
+Versión candidata del paquete: **1.25.17**, no publicada.
+
+La revisión de los rangos de laboratorio y sus bloqueos clínicos se documentan en
+[`docs/audits/2026-09-10-laboratory-reference-ranges-pr-225.md`](docs/audits/2026-09-10-laboratory-reference-ranges-pr-225.md).
+La subida de versión no acredita su validación clínica ni levanta los controles de Admisión.
+
+## Validación y publicación
+
+El CI ejecuta en paralelo la validación del paquete, la integración MariaDB/Liquibase
+y la actualización con Initializer real. Un fallo de integración no oculta los
+resultados del build. La publicación en Maven Central exige que los tres controles
+pasen en el mismo commit de `main` o `pre-release`; los PR solo validan.
 
 ## Permiso de relaciones para Admisión
 

@@ -2,7 +2,7 @@ name: Build with Maven
 
 on:
   push:
-    branches: [ "**" ]
+    branches: [ main, pre-release ]
   pull_request:
     branches: [ main, pre-release ]
 
@@ -21,7 +21,6 @@ jobs:
     uses: ./.github/workflows/admission-initializer.yml
 
   build:
-    needs: [admission-migration, admission-initializer]
     runs-on: ubuntu-latest
 
     steps:
@@ -82,9 +81,19 @@ jobs:
         run: |
           mvn clean verify --batch-mode --file pom.xml
 
+  publish:
+    needs: [build, admission-migration, admission-initializer]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/pre-release')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 8
       - name: Check Maven Central version
         id: central-version
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/pre-release')
         run: |
           VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout --file pom.xml)
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
@@ -102,10 +111,7 @@ jobs:
           echo "Version ${VERSION} is not in Maven Central; publishing."
 
       - name: Set up Maven Central credentials
-        if: >-
-          github.event_name == 'push' &&
-          (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/pre-release') &&
-          steps.central-version.outputs.exists == 'false'
+        if: steps.central-version.outputs.exists == 'false'
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -117,10 +123,7 @@ jobs:
           gpg-passphrase: GPG_PASSPHRASE
 
       - name: Deploy to Maven Central
-        if: >-
-          github.event_name == 'push' &&
-          (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/pre-release') &&
-          steps.central-version.outputs.exists == 'false'
+        if: steps.central-version.outputs.exists == 'false'
         run: mvn -B -P release deploy --file pom.xml
         env:
           CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
@@ -128,5 +131,4 @@ jobs:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Verify Maven Central publication
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/pre-release')
         run: bash .github/scripts/wait_for_maven_central.sh "${{ steps.central-version.outputs.version }}"

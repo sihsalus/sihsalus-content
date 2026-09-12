@@ -25,6 +25,7 @@ CHANGESET = "reconcile-admission-role-20260907"
 INITIALIZER_VERSION = "2.13.0-sihsalus.1"
 CONFIG_PREFIX = "configuration/backend_configuration"
 ROLES_FILE = "roles/roles-core.csv"
+CURRENT_ADMISSION_ADDITIONS = frozenset({"app:home.libroAtenciones"})
 LIQUIBASE_FILE = "liquibase/liquibase.xml"
 ROLES_CHECKSUM = "configuration_checksums/roles/roles-core.checksum"
 LIQUIBASE_CHECKSUM = "configuration_checksums/liquibase/liquibase.checksum"
@@ -38,7 +39,8 @@ STRICT_JAVA = (
     "-Djava.awt.headless=true -Djava.awt.headlesslib=true "
     "-Dinitializer.startup.load=fail_on_error "
     "-Dinitializer.skip.checksums=false -Dinitializer.row.checksums.enabled=false "
-    "-Dinitializer.logging.level=INFO"
+    "-Dinitializer.logging.level=INFO "
+    "-Dlog.level=org.openmrs.module.initializer:INFO,org.openmrs.module.ModuleClassLoader:DEBUG"
 )
 
 
@@ -233,7 +235,7 @@ def backend_owner(runtime_user, identity):
     return parts[0] + ":" + parts[1]
 
 
-def admission_privileges(configuration):
+def admission_privileges(configuration, additions=frozenset()):
     with (configuration / ROLES_FILE).open(encoding="utf-8-sig", newline="") as handle:
         rows = list(csv.DictReader(handle))
     selected = [row for row in rows if row["Uuid"] == CANONICAL_UUID or row["Role name"] == CANONICAL_ROLE]
@@ -245,7 +247,8 @@ def admission_privileges(configuration):
     )
     privileges = set(row["Privileges"].split(";"))
     require(
-        len(privileges) == 58 and "Delete Relationships" in privileges
+        len(privileges) == 58 + len(additions) and additions <= privileges
+        and "Delete Relationships" in privileges
         and "Purge Relationships" not in privileges, "unexpected_admission_policy",
     )
     return privileges

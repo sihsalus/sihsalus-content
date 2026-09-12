@@ -26,11 +26,16 @@ public class HarnessGuardTest {
     }
 
     @Test
-    public void readsActualCandidateCsvAsPolicyOracle() throws Exception {
+    public void keepsHistoricalMigrationPolicySeparateFromCurrentCsv() throws Exception {
         Path csv = Path.of(System.getProperty("content.root"))
             .resolve("configuration/backend_configuration/roles/roles-core.csv");
-        var privileges = AdmissionMigrationTest.readAdmissionPrivileges(csv);
-        assertTrue(privileges.contains("Delete Relationships"));
-        assertFalse(privileges.contains("Purge Relationships"));
+        var historical = AdmissionMigrationTest.readHistoricalPrivileges();
+        assertEquals(58, historical.size());
+        assertTrue(historical.contains("Delete Relationships"));
+        assertFalse(historical.contains("app:home.libroAtenciones"));
+        assertFalse(historical.contains("Purge Relationships"));
+        var current = AdmissionMigrationTest.readAdmissionPrivileges(csv);
+        assertTrue(current.remove("app:home.libroAtenciones"));
+        assertEquals(historical, current);
     }
 }

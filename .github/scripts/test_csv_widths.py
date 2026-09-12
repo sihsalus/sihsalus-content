@@ -88,6 +88,7 @@ class AdmissionRoleContractTest(unittest.TestCase):
         "app:home.citas.editar",
         "app:home.colasAtencion",
         "app:home.colasAtencion.editar",
+        "app:home.libroAtenciones",
         "app:opciones.busquedaPaciente",
         "app:opciones.registrarAcompanante",
         "app:opciones.registrarPaciente",
@@ -149,24 +150,14 @@ class AdmissionRoleContractTest(unittest.TestCase):
         )
         self.assertEqual((0, ""), self.validate_rows(rows))
 
-    def test_requires_delete_relationships(self):
-        rows = copy.deepcopy(self.core_rows)
-        privileges_index = rows[0].index("Privileges")
-        admission = self.admission_row(rows)
-        privileges = VALIDATOR.split_privileges(admission[privileges_index])
-        privileges.remove("Delete Relationships")
-        admission[privileges_index] = ";".join(sorted(privileges))
-
-        self.assert_rejected(
-            rows, "'Admision' is missing required privileges: Delete Relationships"
-        )
-
-    def test_preserves_existing_relationship_privileges(self):
+    def test_requires_approved_relationship_and_logbook_privileges(self):
         for privilege in (
             "Add Relationships",
+            "Delete Relationships",
             "Edit Relationships",
             "Get Relationships",
             "View Relationships",
+            "app:home.libroAtenciones",
         ):
             with self.subTest(privilege=privilege):
                 rows = copy.deepcopy(self.core_rows)
@@ -191,7 +182,9 @@ class AdmissionRoleContractTest(unittest.TestCase):
         )
 
     def test_rejects_other_unapproved_privileges(self):
-        for privilege in ("Manage Roles", "Get Global Properties"):
+        for privilege in (
+            "Manage Roles", "Get Global Properties", "app:home.libroAtenciones.editar"
+        ):
             with self.subTest(privilege=privilege):
                 rows = copy.deepcopy(self.core_rows)
                 self.admission_row(rows)[rows[0].index("Privileges")] += (
