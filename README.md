@@ -106,6 +106,13 @@ y la actualización con Initializer real. Un fallo de integración no oculta los
 resultados del build. La publicación en Maven Central exige que los tres controles
 pasen en el mismo commit de `main` o `pre-release`; los PR solo validan.
 
+Después de que `publish` confirme el POM y ZIP en Maven Central, el mismo
+workflow llama a `Validate with SIHSALUS` usando el mismo commit del paquete.
+También valida si la versión ya estaba publicada; se omite si `publish` falla
+o se omite. Conserva la ejecución manual y la entrada `sihsalus_ref`, con `main`
+como referencia predeterminada del distro. Esta comprobación es posterior a la
+publicación: un fallo no revierte el artefacto publicado.
+
 ## Permiso de relaciones para Admisión
 
 El rol canónico `Admision` recibe `Delete Relationships` para anular relaciones de

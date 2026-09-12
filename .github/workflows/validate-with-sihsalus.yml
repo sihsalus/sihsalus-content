@@ -1,13 +1,19 @@
 name: Validate with SIHSALUS
 
 on:
-  push:
-    branches: [main, pre-release]
+  workflow_call:
+    inputs:
+      sihsalus_ref:
+        description: SIHSALUS branch, tag, or SHA to validate against
+        required: false
+        type: string
+        default: main
   workflow_dispatch:
     inputs:
       sihsalus_ref:
         description: SIHSALUS branch, tag, or SHA to validate against
         required: false
+        type: string
         default: main
 
 permissions:
