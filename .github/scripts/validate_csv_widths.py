@@ -321,9 +321,10 @@ def main():
                     f"found {len(row)}"
                 )
 
-        if "Role name" in rows[0] and "Uuid" in rows[0]:
-            role_index = rows[0].index("Role name")
-            uuid_index = rows[0].index("Uuid")
+        normalized_header = [column.strip().lower() for column in rows[0]]
+        if "role name" in normalized_header and "uuid" in normalized_header:
+            role_index = normalized_header.index("role name")
+            uuid_index = normalized_header.index("uuid")
             for line_number, row in enumerate(rows[1:], start=2):
                 if len(row) == header_width and (
                     row[role_index].strip() in EMRAPI_ROLES

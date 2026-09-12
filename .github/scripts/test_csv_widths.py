@@ -33,14 +33,14 @@ class EmrApiRoleOwnershipTest(unittest.TestCase):
         "Privilege Level: High": "f089471c-e00b-468e-96e8-46aea1b339af",
     }
 
-    def validate_row(self, row):
+    def validate_row(self, row, header=None):
         stderr = io.StringIO()
         with tempfile.TemporaryDirectory() as directory:
             config_dir = Path(directory)
             roles_path = config_dir / "additional-roles.csv"
             with roles_path.open("w", newline="", encoding="utf-8") as handle:
                 csv.writer(handle).writerows([
-                    ["Uuid", "Role name", "Inherited roles"], row,
+                    header or ["Uuid", "Role name", "Inherited roles"], row,
                 ])
             with mock.patch.object(VALIDATOR, "CONFIG_DIR", config_dir):
                 with redirect_stdout(io.StringIO()), redirect_stderr(stderr):
@@ -64,6 +64,16 @@ class EmrApiRoleOwnershipTest(unittest.TestCase):
             "00000000-0000-0000-0000-000000000001",
             "Clinical role", ";".join(self.ROLES),
         ]))
+
+    def test_recognizes_initializer_header_normalization(self):
+        for header in (
+            ["uuid", "role name", "inherited roles"],
+            [" Uuid ", " Role name ", " Inherited roles "],
+        ):
+            with self.subTest(header=header):
+                result, errors = self.validate_row(["", "Privilege Level: Full", ""], header)
+                self.assertEqual(1, result)
+                self.assertIn("EMRAPI-owned privilege level roles", errors)
 
     def test_reports_malformed_width_without_crashing(self):
         result, errors = self.validate_row(["incomplete"])
