@@ -111,6 +111,15 @@ real. Un fallo de integración no oculta los resultados del build ni cancela el 
 escenario. La publicación en Maven Central exige que el build, MariaDB/Liquibase y
 ambos escenarios pasen en el mismo commit de `main` o `pre-release`; los PR solo validan.
 
+El perfil `release` usa `autoPublish=true` y `waitUntil=validated`: Maven espera
+la subida y validación de Sonatype; los errores de cualquiera de ellas bloquean
+el workflow. La publicación continúa automáticamente y el paso obligatorio
+`Verify Maven Central publication` espera la disponibilidad pública del POM y ZIP.
+Así se evita depender de la confirmación final del Portal antes de comprobar los
+archivos que consumirá el backend. Un `mvn -P release deploy` exitoso por sí solo
+no acredita que ambos archivos ya puedan descargarse; fuera de CI se debe ejecutar
+también `.github/scripts/wait_for_maven_central.sh <version>`.
+
 Después de que `publish` confirme el POM y ZIP en Maven Central, el mismo
 workflow llama a `Validate with SIHSALUS` usando el mismo commit del paquete.
 También valida si la versión ya estaba publicada; se omite si `publish` falla
