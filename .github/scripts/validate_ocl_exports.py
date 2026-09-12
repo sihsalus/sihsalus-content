@@ -390,6 +390,7 @@ def main():
 
     validate_mapping_integrity(concepts_by_url, mapping_records, errors)
     validate_default_name_collision_safety(concept_records, errors)
+    validate_laboratory_capture(concept_records, errors)
     validate_sihsalus_export(exports_by_path, errors)
 
     validate_development_instruments(
@@ -415,6 +416,36 @@ def main():
 
     print(f"Validated {checked} OCL concepts and {len(mapping_records)} mapping endpoints.")
     return 0
+
+
+def validate_laboratory_capture(concept_records, errors):
+    expected = {
+        "5282": ("6576cf12-ca50-4234-be46-ac74a4e7814d", "Coded"),
+        "5286": ("a0d91c80-4e2f-4f12-8007-3a5c40931bf8", "Coded"),
+        "2470": ("267b3f53-10ff-498f-a37e-f33b945bd1ce", "Numeric"),
+        "5400": ("bc79bdb5-5bbe-4864-a2ed-81c7ad77ff88", "Numeric"),
+    }
+    for code, (uuid, datatype) in expected.items():
+        matches = [
+            (source, concept) for _, source, concept in concept_records
+            if (source == "laboratorio" and str(concept.get("id")) == code)
+            or concept.get("external_id") == uuid
+        ]
+        if len(matches) != 1:
+            errors.append(f"laboratorio:{code}: expected exactly one concept {uuid}; found {len(matches)}")
+            continue
+        source, concept = matches[0]
+        if (source != "laboratorio" or str(concept.get("id")) != code
+                or concept.get("external_id") != uuid or concept.get("retired") is not False
+                or concept.get("datatype") != datatype):
+            errors.append(f"laboratorio:{code}: must preserve active UUID {uuid} with datatype {datatype}")
+        if code == "5400":
+            extras = concept.get("extras") or {}
+            # Accept the legacy spelling only for declared magnitude; Units does not
+            # demonstrate that OpenMRS persisted units. Conflicting spellings fail.
+            units = [extras[key] for key in ("units", "Units") if key in extras] if isinstance(extras, dict) else []
+            if not units or any(unit != "mg/24h" for unit in units):
+                errors.append(f"laboratorio:{code}: {uuid} must declare mg/24h consistently in units/Units")
 
 
 def validate_sihsalus_export(exports_by_path, errors):

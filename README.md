@@ -108,6 +108,15 @@ La revisión de los rangos de laboratorio y sus bloqueos clínicos se documentan
 [`docs/audits/2026-09-10-laboratory-reference-ranges-pr-225.md`](docs/audits/2026-09-10-laboratory-reference-ranges-pr-225.md).
 La subida de versión no acredita su validación clínica ni levanta los controles de Admisión.
 
+La candidata `1.25.19` corrige cuatro puntos de corte inferiores de hemoglobina
+según la tabla 13 de la NTS 213 consolidada: 11 g/dL para 24–59 meses y primer/tercer
+trimestre, y 10.5 g/dL para segundo trimestre. El
+[contrato de captura de laboratorio](docs/contracts/laboratory-reporting.md)
+separa estos puntos de corte de los límites analíticos dependientes del método.
+CI protege las identidades históricas y la coherencia de límites entre OCL y CSV.
+La selección de prematuridad/puerperio y los parámetros del método siguen pendientes;
+este cambio no acredita cumplimiento clínico completo.
+
 ## Validación y publicación
 
 El CI ejecuta en paralelo la validación del paquete, la integración MariaDB/Liquibase

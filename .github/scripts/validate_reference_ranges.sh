@@ -6,6 +6,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 python3 - "$repo_root" <<'PY'
 import csv
 import json
+import math
 import re
 import sys
 import zipfile
@@ -94,37 +95,52 @@ def as_number(csv_path, line_number, label, field, value, required=False):
             errors.append(f"{csv_path}:{line_number}: {label}: empty required {field}")
         return None
     try:
-        return float(value)
+        number = float(value)
     except (TypeError, ValueError):
         errors.append(f"{csv_path}:{line_number}: {label}: non-numeric {field}: {value!r}")
         return None
+    if not math.isfinite(number):
+        errors.append(f"{csv_path}:{line_number}: {label}: non-finite {field}: {value!r}")
+        return None
+    return number
 
 
 def validate_absolute_bounds(csv_path, line_number, label, row, concept):
-    if csv_path.name != "conceptreferencerange_vital_signs.csv":
-        return
-
     if concept.get("datatype") != "Numeric":
         errors.append(
             f"{csv_path}:{line_number}: {label}: referenced OCL concept is not Numeric"
         )
         return
 
+    is_vital_sign = csv_path.name == "conceptreferencerange_vital_signs.csv"
     extras = concept.get("extras") or {}
     expected_by_field = {
         "Absolute low": extras.get("low_absolute"),
         "Absolute high": extras.get("hi_absolute"),
     }
     for field, expected_raw in expected_by_field.items():
-        actual = as_number(csv_path, line_number, label, field, row.get(field))
-        expected = None if expected_raw is None else float(expected_raw)
-        if actual != expected:
+        expected = as_number(
+            csv_path, line_number, label, f"OCL {field}", expected_raw
+        )
+        actual = as_number(
+            csv_path, line_number, label, field, row.get(field),
+            required=not is_vital_sign and expected is not None,
+        )
+        if is_vital_sign and actual != expected:
             errors.append(
                 f"{csv_path}:{line_number}: {label}: {field} must match the bundled "
                 f"ConceptNumeric absolute bound; expected {expected!r}, got {actual!r}"
             )
+        elif not is_vital_sign and actual is not None and expected is not None:
+            if (field == "Absolute low" and actual < expected) or (
+                field == "Absolute high" and actual > expected
+            ):
+                errors.append(
+                    f"{csv_path}:{line_number}: {label}: {field} lies outside the bundled "
+                    f"ConceptNumeric absolute bound; bound {expected!r}, got {actual!r}"
+                )
 
-    if concept.get("external_id") == "5092AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA":
+    if is_vital_sign and concept.get("external_id") == "5092AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA":
         critical_high = as_number(
             csv_path, line_number, label, "Critical high", row.get("Critical high")
         )
@@ -327,9 +343,9 @@ if duplicates:
         errors.append(f"Duplicate reference range UUID {duplicate_uuid}: {', '.join(locations)}")
 
 
-def require_value(label, field, expected):
+def require_value(label, field, expected, standard="NT 042-MINSA/DGSP-V.01"):
     if label not in range_rows_by_label:
-        errors.append(f"Missing reference range row required by NT 042-MINSA/DGSP-V.01: {label}")
+        errors.append(f"Missing reference range row required by {standard}: {label}")
         return
     csv_path, line_number, row = range_rows_by_label[label]
     value = as_number(
@@ -338,8 +354,7 @@ def require_value(label, field, expected):
     if value is not None and value != expected:
         errors.append(
             f"{csv_path}:{line_number}: {label}: {field} should be {expected:g} "
-            "as the inclusive integer encoding of the NT 042-MINSA/DGSP-V.01 "
-            f"priority-I boundary, got {value:g}"
+            f"as required by {standard}, got {value:g}"
         )
 
 
@@ -408,6 +423,14 @@ for label in ["1 - <2 yrs", "2 - <6 yrs"]:
     require_value(f"Presion sistolica {label}", "Critical low", 79)
     require_value(f"Frecuencia respiratoria {label}", "Critical high", 41)
     require_value(f"Saturación de oxígeno {label}", "Critical low", 85)
+
+for label, normal_low in [
+    ("Hemoglobina 24 - 59 meses", 11),
+    ("Hemoglobina gestante 0 - <14 wks", 11),
+    ("Hemoglobina gestante 14 - <28 wks", 10.5),
+    ("Hemoglobina gestante 28 - <40 wks", 11),
+]:
+    require_value(label, "Normal low", normal_low, "NTS 213-MINSA/DGIESP-2024, tabla 13")
 
 if errors:
     print("Reference range validation failed:", file=sys.stderr)

@@ -104,6 +104,10 @@ y el comportamiento del importador son evidencia necesaria.
 
 ## Validación
 
+Evidencia inicial del commit `07758fa`, anterior a las correcciones normativas
+descritas en [el contrato de laboratorio](../contracts/laboratory-reporting.md).
+La validación de la revisión posterior y su CI se registran en el PR.
+
 - **PASSED:** los 24 comandos estáticos y suites de pruebas del job `build`
   de `.github/workflows/main.yml`, anteriores a Maven. Incluyen las seis pruebas
   nuevas de `python3 .github/scripts/test_split_ocl_export.py`.

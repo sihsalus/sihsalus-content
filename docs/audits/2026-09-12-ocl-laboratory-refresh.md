@@ -17,6 +17,12 @@ Base de contenido: `0c16cae2088b2dad2e135cfae4c50943836bcd3e` (`1.25.18`).
 Los ZIPs anteriores se verificaron mediante `git show` de esa base, sin depender
 del estado del worktree durante la preparación de la actualización principal.
 
+La revisión normativa posterior de la candidata `1.25.19` está en
+[el contrato de captura](../contracts/laboratory-reporting.md).
+Corrige cuatro límites inferiores de hemoglobina a 11/10.5 g/dL y añade guardas
+de compatibilidad. Los datatypes, unidades, límites altos y selección de población
+descritos como pendientes en esta auditoría no quedan aprobados por esas correcciones.
+
 | Archivo examinado | SHA-256 |
 | --- | --- |
 | `03_SIHSALUS_laboratorio_concepts_2026-07-10-02.zip` | `2cc76abfcfdbc990dcefc135ccdcbe3486a42951bdbfeeb42ef427a068441cb1` |
