@@ -548,6 +548,32 @@ class HarnessContracts(unittest.TestCase):
                          ["7\tAdmision\tfixed-uuid\t2026-01-01", "8\tOther\tother-uuid\tNULL"])
         self.assertEqual(before["stockmgmt_user_role_scope"][0].split("\t")[1], LEGACY_ROLE)
 
+    def test_state_comparison_preserves_multiplicity_without_logging_rows(self):
+        before = {"role_privilege": ["synthetic-private-grant"],
+                  "patientflags_tag_role": ["synthetic-private-tag"] * 2}
+        self.runtime.state = Mock(return_value={
+            "role_privilege": ["synthetic-private-grant", "synthetic-private-extra"],
+            "patientflags_tag_role": ["synthetic-private-tag"],
+        })
+        with patch.object(harness, "emit") as emit, self.assertRaisesRegex(HarnessFailure, "^unexpected_rbac$"):
+            self.runtime.assert_state("owned-db", before, "unexpected_rbac")
+        self.assertEqual(emit.call_count, 2)
+        emit.assert_any_call("rbac_snapshot", "FAILED", table="role_privilege",
+                             expected_present=True, actual_present=True, removed_rows=0, added_rows=1)
+        emit.assert_any_call("rbac_snapshot", "FAILED", table="patientflags_tag_role",
+                             expected_present=True, actual_present=True, removed_rows=1, added_rows=0)
+        self.assertNotIn("synthetic-private", str(emit.call_args_list))
+
+    def test_state_comparison_distinguishes_missing_tables_and_ignores_row_order(self):
+        self.runtime.state = Mock(return_value={"role": ["b", "a"]})
+        with patch.object(harness, "emit") as emit:
+            self.runtime.assert_state("owned-db", {"role": ["a", "b"]}, "unexpected_rbac")
+            emit.assert_not_called()
+            with self.assertRaisesRegex(HarnessFailure, "^unexpected_rbac$"):
+                self.runtime.assert_state("owned-db", {"role": ["a", "b"], "user_role": []}, "unexpected_rbac")
+        emit.assert_called_once_with("rbac_snapshot", "FAILED", table="user_role",
+                                     expected_present=True, actual_present=False, removed_rows=0, added_rows=0)
+
     def test_internal_requests_never_follow_redirects_retry_or_pass_auth_in_argv(self):
         self.runtime.owned = Mock()
         self.runtime.admin_password = "synthetic-generated-only"

@@ -205,7 +205,10 @@ not permission to reduce the loader scope or accept partial startup.
 Stdout contains only sanitized JSON phase results, public source identifiers,
 checksums and fixed diagnostic codes. Preserve only that JSONL as a CI artifact,
 never raw application logs, Docker inspections, HTTP bodies, SQL dumps or the
-private run directory. Cleanup validates resource ownership before removal;
+private run directory. A failed RBAC snapshot comparison identifies only the
+fixed table name, table presence and counts of added/removed whole rows; it never
+prints roles, privileges, users or row contents. Repeated rows remain significant.
+Cleanup validates resource ownership before removal;
 resource creation intents are recorded before Docker calls so client timeouts
 cannot silently omit a possibly created resource. Unverifiable absence or
 ownership remains a cleanup failure, not a successful cleanup claim.
