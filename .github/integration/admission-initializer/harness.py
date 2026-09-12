@@ -15,6 +15,7 @@ import tempfile
 import time
 import uuid
 import xml.etree.ElementTree as ET
+from collections import Counter
 from pathlib import Path, PurePosixPath
 
 from guards import (
@@ -32,6 +33,11 @@ COMPLETION = "OpenMRS config loading process completed."
 ABORT = "The loading of the 'liquibase' configuration file was aborted:"
 FILE_ABORT = re.compile(r"The (?:pre-)?loading of the '[^'\r\n]+' configuration file was aborted:")
 INITIALIZER_STOPPED = re.compile(r"Disposing of ModuleClassLoader: \{ModuleClassLoader: uid=-?\d+; initializer\}")
+STATE_TABLES = {
+    "role": "role", "role_privilege": "role,privilege",
+    "role_role": "parent_role,child_role", "user_role": "user_id,role",
+    "patientflags_tag_role": "tag_id,role", "stockmgmt_user_role_scope": "user_role_scope_id",
+}
 
 
 def emit(stage, status, **safe):
@@ -468,14 +474,20 @@ class Harness:
         return True
 
     def state(self, db):
-        tables = {
-            "role": "role", "role_privilege": "role,privilege",
-            "role_role": "parent_role,child_role", "user_role": "user_id,role",
-            "patientflags_tag_role": "tag_id,role", "stockmgmt_user_role_scope": "user_role_scope_id",
-        }
         existing = set(self.query(db, "SHOW TABLES"))
         return {table: self.query(db, "SELECT * FROM " + table + " ORDER BY " + order)
-                for table, order in tables.items() if table in existing}
+                for table, order in STATE_TABLES.items() if table in existing}
+
+    def assert_state(self, db, expected, reason):
+        actual = self.normalized_state(self.state(db))
+        expected = self.normalized_state(expected)
+        for table in STATE_TABLES:
+            if actual.get(table) != expected.get(table):
+                before, after = Counter(expected.get(table, [])), Counter(actual.get(table, []))
+                emit("rbac_snapshot", "FAILED", table=table,
+                     expected_present=table in expected, actual_present=table in actual,
+                     removed_rows=sum((before - after).values()), added_rows=sum((after - before).values()))
+        require(actual == expected, reason)
 
     def expected_upgrade_state(self, db, before):
         """Explicit relational oracle; no execution or translation of candidate SQL."""
@@ -615,7 +627,7 @@ class Harness:
         self.assert_checksums(backend)
         require(self.candidate_recorded(db), "candidate_history_missing")
         self.check_admission(db)
-        require(self.normalized_state(self.state(db)) == expected, "upgrade_changed_unapproved_rbac_or_references")
+        self.assert_state(db, expected, "upgrade_changed_unapproved_rbac_or_references")
         state, history = self.state(db), self.history(db)
         self.rbac(backend, db)
         self.docker("stop", "--time", "30", backend, timeout=45)
@@ -623,7 +635,7 @@ class Harness:
         backend, _ = self.start_backend("idempotence", self.historical_config, data_volume=volume)
         self.wait_initializer(backend, "idempotence")
         self.assert_checksums(backend)
-        require(self.state(db) == state, "second_start_changed_rbac")
+        self.assert_state(db, state, "second_start_changed_rbac")
         require(self.history(db) == history, "second_start_changed_history")
         self.docker("stop", "--time", "30", backend, timeout=45)
         self.remove_container(backend)
@@ -632,7 +644,7 @@ class Harness:
         self.assert_checksums(backend, self.candidate_role_md5)
         self.check_admission(db, self.candidate_privileges)
         state["role_privilege"].extend(CANONICAL_ROLE + "\t" + privilege for privilege in CURRENT_ADMISSION_ADDITIONS)
-        require(self.normalized_state(self.state(db)) == self.normalized_state(state), "current_csv_changed_unapproved_rbac")
+        self.assert_state(db, state, "current_csv_changed_unapproved_rbac")
         require(self.history(db) == history, "current_csv_changed_migration_history")
         self.rbac(backend, db)
         emit("current_policy", "PASSED", privileges=len(self.candidate_privileges), roles_checksum=self.candidate_role_md5)
@@ -662,7 +674,7 @@ class Harness:
         backend, volume = self.start_backend("rejection", configuration, restore=True)
         self.wait_initializer(backend, "reject", reject=True)
         self.assert_checksums(backend)
-        require(self.state(db) == before, "rejected_migration_changed_rbac")
+        self.assert_state(db, before, "rejected_migration_changed_rbac")
         require(self.history(db) == history, "rejected_migration_changed_history")
         require(not self.candidate_recorded(db), "rejected_migration_was_recorded")
         require(self.query(db, "SELECT COUNT(*) FROM role WHERE uuid=" + sql_string(canary_uuid)) == ["0"], "later_roles_loader_ran_after_rejection")

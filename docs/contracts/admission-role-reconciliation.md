@@ -165,8 +165,9 @@ independiente termine después de publicar el paquete.
 
 Cada ejecución debe registrar `PASSED`, `FAILED`, `NOT RUN` o `BLOCKED`, comando,
 SHA y entorno. No atribuir CI de un SHA anterior al candidato corregido. El
-workflow `Validate with SIHSALUS` actual valida un artefacto ya publicado; no
-es un gate de actualización del PR ni sustituye este harness.
+workflow `Validate with SIHSALUS` se invoca con el mismo commit después de que
+`publish` confirme el artefacto en Maven Central, o mediante ejecución manual;
+no es un gate de actualización del PR ni sustituye este harness.
 
 ## Gates antes de merge, publicación y actualización
 

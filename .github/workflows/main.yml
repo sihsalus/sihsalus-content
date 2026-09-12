@@ -132,3 +132,7 @@ jobs:
 
       - name: Verify Maven Central publication
         run: bash .github/scripts/wait_for_maven_central.sh "${{ steps.central-version.outputs.version }}"
+
+  validate-with-sihsalus:
+    needs: publish
+    uses: ./.github/workflows/validate-with-sihsalus.yml
