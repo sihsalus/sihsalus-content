@@ -27,6 +27,50 @@ def read_csv(relative_path):
         return list(csv.reader(handle))
 
 
+class EmrApiRoleOwnershipTest(unittest.TestCase):
+    ROLES = {
+        "Privilege Level: Full": "ab2160f6-0941-430c-9752-6714353fbd3c",
+        "Privilege Level: High": "f089471c-e00b-468e-96e8-46aea1b339af",
+    }
+
+    def validate_row(self, row):
+        stderr = io.StringIO()
+        with tempfile.TemporaryDirectory() as directory:
+            config_dir = Path(directory)
+            roles_path = config_dir / "additional-roles.csv"
+            with roles_path.open("w", newline="", encoding="utf-8") as handle:
+                csv.writer(handle).writerows([
+                    ["Uuid", "Role name", "Inherited roles"], row,
+                ])
+            with mock.patch.object(VALIDATOR, "CONFIG_DIR", config_dir):
+                with redirect_stdout(io.StringIO()), redirect_stderr(stderr):
+                    result = VALIDATOR.main()
+        return result, stderr.getvalue()
+
+    def test_rejects_module_role_by_name_or_uuid_in_any_role_csv(self):
+        for name, identifier in self.ROLES.items():
+            for row in (
+                ["", name, ""],
+                [identifier, "Renamed role", ""],
+                [identifier.upper(), "Renamed role", ""],
+            ):
+                with self.subTest(row=row):
+                    result, errors = self.validate_row(row)
+                    self.assertEqual(1, result)
+                    self.assertIn("EMRAPI-owned privilege level roles", errors)
+
+    def test_allows_inheriting_module_roles(self):
+        self.assertEqual((0, ""), self.validate_row([
+            "00000000-0000-0000-0000-000000000001",
+            "Clinical role", ";".join(self.ROLES),
+        ]))
+
+    def test_reports_malformed_width_without_crashing(self):
+        result, errors = self.validate_row(["incomplete"])
+        self.assertEqual(1, result)
+        self.assertIn("expected 3 columns, found 1", errors)
+
+
 class AdmissionRoleContractTest(unittest.TestCase):
     EXPECTED_UUID = "71dcb611-756a-4ad3-a9bb-73b6cfe28066"
     EXPECTED_NAME = "Admision"

@@ -20,7 +20,7 @@ from pathlib import Path, PurePosixPath
 
 from guards import (
     BACKEND, DISTRO_SHA, IMAGE_CONTENT_SHA, BASELINE_SHA, DATABASE_IMAGE, DATABASE,
-    OWNER_LABEL, CANONICAL_ROLE, LEGACY_ROLE, CANONICAL_UUID, CHANGESET,
+    OWNER_LABEL, CANONICAL_ROLE, LEGACY_ROLE, CANONICAL_UUID, EMRAPI_ROLES, CHANGESET,
     INITIALIZER_VERSION, CONFIG_PREFIX, ROLES_FILE, CURRENT_ADMISSION_ADDITIONS, LIQUIBASE_FILE,
     ROLES_CHECKSUM, LIQUIBASE_CHECKSUM, UUID_PATTERN, STRICT_JAVA, HarnessFailure,
     require, checked, validate_runner, properties, extract_archive,
@@ -539,6 +539,12 @@ class Harness:
             rows = self.query(db, "SELECT r.role FROM user_role r JOIN users u ON u.user_id=r.user_id WHERE u.uuid=" + sql_string(fixture["uuid"]))
             require(rows == [CANONICAL_ROLE], "synthetic_user_assignment_not_preserved")
 
+    def check_emrapi_roles(self, db):
+        expected = [role + "\t" + identifier for role, identifier in EMRAPI_ROLES.items()]
+        require(self.query(db, "SELECT role,uuid FROM role WHERE role IN ("
+                + ",".join(sql_string(role) for role in EMRAPI_ROLES) + ") ORDER BY role") == expected,
+                "emrapi_role_identity_mismatch")
+
     def create_fixtures(self, backend):
         for index in range(2):
             code, person = self.request(backend, "POST", "/person", {
@@ -557,10 +563,20 @@ class Harness:
     def baseline(self):
         emit("baseline", "RUNNING")
         db = self.start_database("baseline")
-        backend, _ = self.start_backend("baseline", self.baseline_config)
+        backend, volume = self.start_backend("baseline", self.baseline_config)
         self.wait_initializer(backend, "baseline")
         self.assert_checksums(backend)
         require(not self.candidate_recorded(db), "candidate_present_in_baseline")
+        history = self.history(db)
+        self.docker("stop", "--time", "30", backend, timeout=45)
+        self.remove_container(backend)
+        # The historical CSV overwrote EMRAPI's roles on installation. Restart
+        # that same baseline before seeding the migration, retaining all checksums.
+        backend, _ = self.start_backend("baseline-restart", self.baseline_config, data_volume=volume)
+        self.wait_initializer(backend, "baseline_restart")
+        self.assert_checksums(backend)
+        require(self.history(db) == history, "baseline_restart_changed_history")
+        self.check_emrapi_roles(db)
         self.create_fixtures(backend)
         self.check_admission(db)
         self.baseline_history = self.history(db)
@@ -577,6 +593,20 @@ class Harness:
         self.remove_container(db)
         emit("baseline_snapshot", "PASSED", synthetic_users=len(self.fixtures),
              real_history_rows=len(self.baseline_history), roles_checksum=self.role_md5)
+
+    def fresh(self):
+        emit("fresh_candidate", "RUNNING")
+        db = self.start_database("fresh")
+        backend, _ = self.start_backend("fresh", self.candidate_config)
+        self.wait_initializer(backend, "fresh_candidate")
+        self.assert_checksums(backend, self.candidate_role_md5)
+        require(self.candidate_recorded(db), "fresh_candidate_history_missing")
+        self.check_emrapi_roles(db)
+        self.create_fixtures(backend)
+        self.check_admission(db, self.candidate_privileges)
+        self.rbac(backend, db)
+        emit("fresh_candidate", "PASSED", privileges=len(self.candidate_privileges),
+             emrapi_role_identities_verified=True, roles_checksum=self.candidate_role_md5)
 
     def seed(self, db, bad=False):
         self.check_admission(db)
@@ -728,18 +758,22 @@ class Harness:
         return failures == 0
 
 
-def main():
+def main(scenario="upgrade"):
     harness, success, cleanup_ok = None, False, True
     def interrupted(signum, frame):
         raise HarnessFailure("interrupted")
     signal.signal(signal.SIGTERM, interrupted)
     signal.signal(signal.SIGINT, interrupted)
     try:
+        require(scenario in ("upgrade", "fresh"), "invalid_initializer_scenario")
         harness = Harness(os.environ)
         harness.prepare()
-        harness.baseline()
-        harness.upgrade()
-        harness.rejection()
+        if scenario == "fresh":
+            harness.fresh()
+        else:
+            harness.baseline()
+            harness.upgrade()
+            harness.rejection()
         success = True
     except HarnessFailure as error:
         emit("harness", "FAILED", reason=str(error))
@@ -759,4 +793,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(os.environ.get("ADMISSION_INITIALIZER_SCENARIO", "upgrade")))
