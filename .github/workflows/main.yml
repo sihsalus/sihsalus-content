@@ -60,6 +60,8 @@ jobs:
         run: python3 .github/scripts/validate_stock_foundation.py
       - name: Validate OCL exports
         run: python3 .github/scripts/validate_ocl_exports.py
+      - name: Test reproducible OCL export exclusions
+        run: python3 .github/scripts/test_split_ocl_export.py
       - name: Test neighborhood catalog validator
         run: python3 .github/scripts/test_neighborhood_catalog_validation.py
       - name: Test referral transport catalog validator

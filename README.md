@@ -1,6 +1,6 @@
 # SIHSALUS Content Package
 
-SIHSALUS Content Package para OpenMRS, versión **1.25.18**.
+SIHSALUS Content Package para OpenMRS, versión **1.25.19**.
 
 El paquete reúne la metadata backend que carga Initializer desde
 [configuration/backend_configuration](configuration/backend_configuration):
@@ -49,11 +49,16 @@ pertenencia al catálogo activo se administran exclusivamente en la fuente OCL i
 Los exports oficiales deben ubicarse como
 `15_SIHSALUS_barrios-santa-clotilde_concepts_2026-08-22-01.zip` y
 `65_SIHSALUS_barrios-santa-clotilde_mappings_2026-08-22-01.zip`. El validador rechaza archivos
-faltantes, contenido adicional o una versión/source diferente. El source principal `SIHSALUS/sihsalus`
-y su suscripción permanecen en `2026-07-16-02`; no se actualizan para incorporar este catálogo local.
-OCL conserva los registros retirados en el HEAD de `sihsalus` porque un administrador de la organización
-no puede purgar mappings. No se debe publicar ni bundlear una release futura de `sihsalus` que incluya
-esos UUIDs retirados hasta que soporte OCL los purgue o el proceso de export los excluya explícitamente.
+faltantes, contenido adicional o una versión/source diferente. El paquete incorpora la release
+`SIHSALUS/sihsalus/2026-09-09-1` con exclusión explícita de los once conceptos y diez mappings
+retirados de barrios. OCL conserva esos registros porque un administrador de la organización no
+puede purgar mappings. El proceso reproducible y sus identidades excluidas se documentan en
+[la auditoría de actualización OCL](docs/audits/2026-09-12-ocl-refresh.md).
+
+La suscripción remota permanece en `2026-07-16-02`: el importador remoto descarga el export oficial
+sin aplicar el filtro del paquete. Sus registros existentes son semánticamente idénticos y no elimina
+los dos conceptos nuevos que recibe Initializer. Una actualización posterior debe volver a comprobar
+esa compatibilidad antes de cambiar cualquiera de los dos pins.
 
 Este paquete distribuye únicamente la metadata backend y los exports OCL. La configuración efectiva de
 registro, búsqueda y banner se mantiene en `sihsalus-frontend/config/frontend.json`; no se empaqueta una
@@ -73,8 +78,8 @@ Su export de conceptos se carga desde
 `16_SIHSALUS_referencia-institucional_concepts_2026-08-25-01.zip`; la release no contiene mappings.
 
 El CSV temporal `concepts/referral_transport_concepts.csv` debe permanecer ausente para evitar una
-doble importación. El source principal `SIHSALUS/sihsalus` y su suscripción continúan en
-`2026-07-16-02`. El contrato verificable está en
+doble importación. Este catálogo conserva su release independiente del export principal.
+El contrato verificable está en
 `docs/contracts/referral-transport-terminology.md`.
 
 Running Spotless
@@ -97,7 +102,7 @@ If this command reports any violations, you can then run `mvn spotless:apply` to
 
 Remember, in most cases, you don't need to run these commands separately as Spotless will run automatically during the build process with `mvn clean package`.
 
-Versión del paquete: **1.25.18**.
+Versión del paquete: **1.25.19**.
 
 La revisión de los rangos de laboratorio y sus bloqueos clínicos se documentan en
 [`docs/audits/2026-09-10-laboratory-reference-ranges-pr-225.md`](docs/audits/2026-09-10-laboratory-reference-ranges-pr-225.md).

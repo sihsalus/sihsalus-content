@@ -25,10 +25,13 @@ EXPECTED_SIHSALUS_SUBSCRIPTION_URL = (
     "https://api.openconceptlab.org/orgs/SIHSALUS/sources/sihsalus/2026-07-16-02"
 )
 EXPECTED_SIHSALUS_CONCEPTS_EXPORT = (
-    OCL_DIR / "10_SIHSALUS_sihsalus_concepts_2026-07-16-02.zip"
+    OCL_DIR / "10_SIHSALUS_sihsalus_concepts_2026-09-09-1.zip"
 )
 EXPECTED_SIHSALUS_MAPPINGS_EXPORT = (
-    OCL_DIR / "60_SIHSALUS_sihsalus_mappings_2026-07-16-02.zip"
+    OCL_DIR / "60_SIHSALUS_sihsalus_mappings_2026-09-09-1.zip"
+)
+EXPECTED_SIHSALUS_CANONICAL_SHA256 = (
+    "cae14cffdce3d5ed882e97cc3ca6030d798788526b3baded304f472f7779e195"
 )
 OCCUPATIONS_SOURCE = "ocupaciones"
 OCCUPATIONS_ROOT_URL = "/orgs/SIHSALUS/sources/ocupaciones/concepts/1/"
@@ -387,6 +390,7 @@ def main():
 
     validate_mapping_integrity(concepts_by_url, mapping_records, errors)
     validate_default_name_collision_safety(concept_records, errors)
+    validate_sihsalus_export(exports_by_path, errors)
 
     validate_development_instruments(
         concepts_by_source[SIHSALUS_SOURCE], mappings_by_source[SIHSALUS_SOURCE], errors
@@ -411,6 +415,29 @@ def main():
 
     print(f"Validated {checked} OCL concepts and {len(mapping_records)} mapping endpoints.")
     return 0
+
+
+def validate_sihsalus_export(exports_by_path, errors):
+    concepts = exports_by_path.get(EXPECTED_SIHSALUS_CONCEPTS_EXPORT)
+    mappings = exports_by_path.get(EXPECTED_SIHSALUS_MAPPINGS_EXPORT)
+    if concepts is None or mappings is None:
+        errors.append("missing pinned sihsalus concepts/mappings exports")
+        return
+    if concepts.get("mappings") != [] or mappings.get("concepts") != []:
+        errors.append("sihsalus exports must separate concepts from mappings")
+    if {
+        key: value for key, value in concepts.items() if key not in {"concepts", "mappings"}
+    } != {
+        key: value for key, value in mappings.items() if key not in {"concepts", "mappings"}
+    }:
+        errors.append("sihsalus concepts/mappings release metadata differs")
+    combined = dict(concepts)
+    combined["mappings"] = mappings.get("mappings")
+    canonical = json.dumps(
+        combined, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
+    ).encode("utf-8")
+    if hashlib.sha256(canonical).hexdigest() != EXPECTED_SIHSALUS_CANONICAL_SHA256:
+        errors.append("sihsalus exports differ from the reviewed release with explicit neighborhood exclusions")
 
 
 def normalize_ocl_url(url):
@@ -812,7 +839,7 @@ def validate_neighborhood_terminology(exports_by_path, sihsalus_concepts, errors
         missing = sorted(str(path) for path in expected_main_exports - actual_main_exports)
         unexpected = sorted(str(path) for path in actual_main_exports - expected_main_exports)
         errors.append(
-            "the neighborhood catalog must not bump or replace the main sihsalus source exports: "
+            "the main sihsalus source must use the pinned concepts/mappings pair: "
             f"missing={missing}, unexpected={unexpected}"
         )
 
@@ -1277,7 +1304,7 @@ def validate_ocl_global_properties(errors):
 
     if properties.get("openconceptlab.subscriptionUrl") != EXPECTED_SIHSALUS_SUBSCRIPTION_URL:
         errors.append(
-            "openconceptlab.subscriptionUrl must point to the bundled SIHSALUS release "
+            "openconceptlab.subscriptionUrl must stay on the release without retired neighborhood UUIDs: "
             f"{EXPECTED_SIHSALUS_SUBSCRIPTION_URL}"
         )
     if properties.get("order.durationUnitsConceptUuid") != DURATION_UNITS_EXTERNAL_ID:

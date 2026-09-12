@@ -609,6 +609,43 @@ class Harness:
              search_http=200, restart_checked=previous is not None)
         return snapshot
 
+    def check_ocl_refresh(self, db, phase, previous=None):
+        """Verify additive OCL concepts and the independently owned neighborhood set."""
+        concepts = []
+        for identifier, concept_class, name in (
+                ("3fb84698-488a-447d-acbc-72e8665cffdc", "Misc", "1:512"),
+                ("d14f251d-82a1-4ecf-aa45-f17f57a193db", "Finding", "Cuatro cruces")):
+            rows = self.query(db, "SELECT c.concept_id,c.uuid,c.retired,cc.name,dt.name,n.name FROM concept c "
+                "JOIN concept_class cc ON cc.concept_class_id=c.class_id "
+                "JOIN concept_datatype dt ON dt.concept_datatype_id=c.datatype_id "
+                "LEFT JOIN concept_name n ON n.concept_id=c.concept_id AND n.voided=0 "
+                "AND n.locale='es' AND n.concept_name_type='FULLY_SPECIFIED' WHERE c.uuid=" + sql_string(identifier))
+            require(len(rows) == 1, "ocl_refresh_concept_missing_or_duplicated")
+            fields = rows[0].split("\t")
+            require(len(fields) == 6 and re.fullmatch(r"[1-9][0-9]*", fields[0])
+                    and fields[1:] == [identifier, "0", concept_class, "N/A", name], "ocl_refresh_concept_invalid")
+            concepts.append(tuple(rows))
+        neighborhood_uuid = "0fd3e744-6d2c-4cb3-9b7e-1f88899635d9"
+        root = self.query(db, "SELECT concept_id,uuid,retired,is_set FROM concept WHERE uuid=" + sql_string(neighborhood_uuid))
+        require(len(root) == 1, "ocl_refresh_neighborhood_set_missing_or_duplicated")
+        fields = root[0].split("\t")
+        require(len(fields) == 4 and re.fullmatch(r"[1-9][0-9]*", fields[0])
+                and fields[1:] == [neighborhood_uuid, "0", "1"], "ocl_refresh_neighborhood_set_invalid")
+        members = self.query(db, "SELECT s.concept_set_id,s.uuid,m.concept_id,m.uuid,m.retired "
+            "FROM concept_set s JOIN concept m ON m.concept_id=s.concept_id "
+            "WHERE s.concept_set=" + fields[0] + " ORDER BY m.uuid,s.concept_set_id")
+        fields = [row.split("\t") for row in members]
+        require(len(fields) == 10 and all(len(row) == 5 for row in fields)
+                and len({row[3] for row in fields}) == 10
+                and all(re.fullmatch(r"[1-9][0-9]*", row[0]) and UUID_PATTERN.fullmatch(row[1])
+                    and re.fullmatch(r"[1-9][0-9]*", row[2]) and UUID_PATTERN.fullmatch(row[3])
+                    and row[4] == "0" for row in fields), "ocl_refresh_neighborhood_members_invalid")
+        snapshot = (tuple(concepts), tuple(root), tuple(members))
+        require(previous is None or snapshot == previous, "ocl_refresh_changed_on_restart")
+        emit("ocl_refresh", "PASSED", phase=phase, concepts=2, neighborhood_sets=1,
+             neighborhood_members=10, restart_checked=previous is not None)
+        return snapshot
+
     def create_fixtures(self, backend):
         for index in range(2):
             code, person = self.request(backend, "POST", "/person", {
@@ -667,6 +704,7 @@ class Harness:
         require(self.candidate_recorded(db), "fresh_candidate_history_missing")
         self.check_emrapi_roles(db)
         self.check_clinical_drug(backend, db, "fresh")
+        self.check_ocl_refresh(db, "fresh")
         self.create_fixtures(backend)
         self.check_admission(db, self.candidate_privileges)
         self.rbac(backend, db)
@@ -724,6 +762,7 @@ class Harness:
         self.check_admission(db)
         self.assert_state(db, expected, "upgrade_changed_unapproved_rbac_or_references")
         clinical_drug = self.check_clinical_drug(backend, db, "upgrade")
+        ocl_refresh = self.check_ocl_refresh(db, "upgrade")
         state, history = self.state(db), self.history(db)
         self.rbac(backend, db)
         self.docker("stop", "--time", "30", backend, timeout=45)
@@ -734,6 +773,7 @@ class Harness:
         self.assert_state(db, state, "second_start_changed_rbac")
         require(self.history(db) == history, "second_start_changed_history")
         self.check_clinical_drug(backend, db, "idempotence", previous=clinical_drug)
+        self.check_ocl_refresh(db, "idempotence", previous=ocl_refresh)
         self.docker("stop", "--time", "30", backend, timeout=45)
         self.remove_container(backend)
         backend, _ = self.start_backend("current-policy", self.candidate_config, data_volume=volume)

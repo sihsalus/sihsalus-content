@@ -39,6 +39,13 @@ hasta que el personal de la plataforma OCL los purgue o el proceso de export los
 El validador bloquea cualquier duplicación bundleada, incluso retirada, para evitar que una importación
 posterior reintroduzca o altere el catálogo.
 
+Desde la candidata `1.25.19`, el paquete incluye el export principal `2026-09-09-1` con
+exclusiones explícitas verificadas antes de dividir el ZIP. Solo se excluyen las once identidades
+de conceptos y diez de mappings retirados que pertenecen a este catálogo. El manifiesto,
+la reproducción y los hashes constan en [la auditoría OCL](../audits/2026-09-12-ocl-refresh.md).
+El filtro rechaza registros activos o distintos de los revisados; no es una eliminación general
+de registros retirados.
+
 ## Corte desde `ADDRESS_3`
 
 `person_address.address3` se utilizó previamente para almacenar el barrio como texto libre. La primera
@@ -60,5 +67,9 @@ Para agregar o corregir un barrio:
 5. Ejecutar todos los validadores del content package y una importación desde una base limpia antes de
    desplegar.
 
-El global property `openconceptlab.subscriptionUrl` sigue apuntando a la release aprobada del source
-principal. Los barrios se cargan desde sus ZIPs estáticos y no justifican actualizar `sihsalus`.
+El global property `openconceptlab.subscriptionUrl` permanece en `2026-07-16-02`, porque el
+importador remoto no aplica las exclusiones del paquete. Esa versión no contiene los UUID de barrios
+ni elimina conceptos ausentes: es compatible con los dos conceptos activos adicionales del export
+principal `2026-09-09-1`. Los barrios se cargan exclusivamente desde sus ZIPs estáticos.
+Si una futura release principal modifica registros existentes, se debe revisar también la suscripción
+para evitar que vuelva a sobrescribirlos con metadata anterior.
