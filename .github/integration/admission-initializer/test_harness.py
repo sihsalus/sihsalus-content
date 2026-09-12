@@ -270,11 +270,11 @@ class HarnessContracts(unittest.TestCase):
         self.assertIs(self.runtime.module_status("owned"), False)
         for code, body in ((200, []), (200, self.module(uuid="other")),
                            (200, self.module(version="other")), (200, self.module(started="false")),
-                           (401, None), (302, None), (500, None)):
+                           (401, None), (403, None), (500, None)):
             with self.subTest(code=code, body=body), self.assertRaises(HarnessFailure):
                 self.runtime.request.return_value = (code, body)
                 self.runtime.module_status("owned")
-        for code in (None, 502, 503, 504):
+        for code in (None, 302, 502, 503, 504):
             with self.subTest(code=code), self.assertRaisesRegex(HarnessFailure, "^module_state_unavailable$"):
                 self.runtime.request.return_value = (code, None)
                 self.runtime.module_status("owned")
@@ -434,13 +434,22 @@ class HarnessContracts(unittest.TestCase):
 
     def test_lifecycle_waits_for_real_module_after_completion_log(self):
         self.setup_lifecycle(harness.COMPLETION)
-        self.runtime.module_status = Mock(side_effect=[HarnessFailure("module_state_unavailable"), True])
+        self.runtime.request = Mock(side_effect=[(302, None), (200, self.module())])
         with patch.object(harness.time, "sleep"), patch.object(harness, "emit") as emit:
             self.runtime.wait_initializer("new-container", "upgrade")
-        self.assertEqual(self.runtime.module_status.call_count, 2)
+        self.assertEqual(self.runtime.request.call_count, 2)
         self.runtime.lifecycle_logs.assert_called_with("new-container")
         emit.assert_any_call("upgrade", "PASSED", initializer_started=True)
         self.assertEqual(sum(call.args[1] == "PASSED" for call in emit.call_args_list), 1)
+
+    def test_persistent_module_redirect_never_proves_startup(self):
+        self.setup_lifecycle(harness.COMPLETION)
+        self.runtime.request = Mock(return_value=(302, None))
+        with patch.object(harness.time, "monotonic", side_effect=[0, 0, 1, 31]), \
+                patch.object(harness.time, "sleep"), patch.object(harness, "emit") as emit:
+            with self.assertRaisesRegex(HarnessFailure, "^initializer_lifecycle_not_proven_before_timeout$"):
+                self.runtime.wait_initializer("new-container", "fresh_candidate")
+        self.assertFalse(any(call.args[1] == "PASSED" for call in emit.call_args_list))
 
     def test_lifecycle_reads_unique_attempt_file_when_completion_is_absent_from_console(self):
         filename = "admission-initializer-" + "a" * 32 + "-retry.log"

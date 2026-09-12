@@ -303,7 +303,9 @@ class Harness:
 
     def module_status(self, backend):
         code, body = self.request(backend, "GET", "/module/initializer?v=full")
-        require(code not in (None, 502, 503, 504), "module_state_unavailable")
+        # The installation filter can still redirect after Initializer finishes.
+        # Do not follow it or accept it as readiness; the startup deadline applies.
+        require(code not in (None, 302, 502, 503, 504), "module_state_unavailable")
         require(code == 200, "module_state_http_" + str(code))
         require(isinstance(body, dict), "module_state_malformed")
         require(body.get("uuid") == "initializer", "initializer_module_missing")

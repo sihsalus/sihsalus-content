@@ -152,8 +152,11 @@ containing the run nonce and phase; the effective runtime property must match.
 The reader never opens the default `initializer.log` or another phase's file,
 so a restored baseline completion cannot validate a later attempt. A missing
 file remains pending; an unreadable or symlinked file fails. Successful startups
-also require the actual module/version from REST. A transient unavailable endpoint
-is polled within the deadline; malformed responses or wrong versions fail.
+also require the actual module/version from REST. A transient unavailable endpoint,
+including the installation filter's HTTP 302, is polled within the existing deadline
+without following redirects. Only a valid HTTP 200 module response can prove
+readiness; persistent redirects time out, and authentication errors, malformed
+responses or wrong versions fail.
 
 For the expected rejection, Core's
 [Listener](https://github.com/openmrs/openmrs-core/blob/4dda0f50a60991a5af9a4b36508e69bb3561c8a6/web/src/main/java/org/openmrs/web/Listener.java)
