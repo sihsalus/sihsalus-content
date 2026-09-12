@@ -38,6 +38,15 @@ STATE_TABLES = {
     "role_role": "parent_role,child_role", "user_role": "user_id,role",
     "patientflags_tag_role": "tag_id,role", "stockmgmt_user_role_scope": "user_role_scope_id",
 }
+CLINICAL_DRUG = {
+    "uuid": "07c2b995-5619-4d82-8b55-e4cdf96f94d1",
+    "name": "ÁCIDO URSODESOXICÓLICO 250 mg - Tableta",
+    "concept": "00d9cb0c-4aef-4614-ab38-a9978e3d62e1",
+    "name_es": "ÁCIDO URSODESOXICÓLICO",
+    "name_en": "Ursodeoxycholic acid",
+    "dosage_form": "bd1e9059-62b4-4967-a804-a63eda4f8657",
+    "strength": "250 mg",
+}
 
 
 def emit(stage, status, **safe):
@@ -243,7 +252,8 @@ class Harness:
     def query(self, db, sql):
         self.owned("container", db)
         result = self.docker("exec", "-i", db, "mariadb", "--defaults-extra-file=/run/admission-mysql.cnf",
-            "--batch", "--skip-column-names", DATABASE, data=sql.encode(), timeout=120)
+            "--default-character-set=utf8mb4", "--batch", "--skip-column-names", DATABASE,
+            data=sql.encode(), timeout=120)
         return result.stdout.decode().splitlines()
 
     def import_baseline(self, db):
@@ -547,6 +557,58 @@ class Harness:
                 + ",".join(sql_string(role) for role in EMRAPI_ROLES) + ") ORDER BY role") == expected,
                 "emrapi_role_identity_mismatch")
 
+    def check_clinical_drug(self, backend, db, phase, previous=None):
+        """Verify the catalog entry in storage and the prescribing search response."""
+        drug = CLINICAL_DRUG
+        names = ",".join(sql_string(drug[key]) for key in ("name_es", "name_en"))
+        concepts = self.query(db,
+            "SELECT c.concept_id,c.uuid,c.retired,cc.name,dt.name FROM concept c "
+            "JOIN concept_class cc ON cc.concept_class_id=c.class_id "
+            "JOIN concept_datatype dt ON dt.concept_datatype_id=c.datatype_id "
+            "WHERE c.uuid=" + sql_string(drug["concept"]) + " OR EXISTS (SELECT 1 FROM concept_name n "
+            "WHERE n.concept_id=c.concept_id AND n.voided=0 AND n.name IN (" + names + ")) "
+            "ORDER BY c.concept_id")
+        require(len(concepts) == 1, "clinical_drug_concept_missing_or_duplicated")
+        concept = concepts[0].split("\t")
+        require(len(concept) == 5 and re.fullmatch(r"[1-9][0-9]*", concept[0])
+                and concept[1:] == [drug["concept"], "0", "Drug", "N/A"],
+                "clinical_drug_concept_invalid")
+        require(self.query(db, "SELECT locale,name FROM concept_name WHERE concept_id=" + concept[0]
+                + " AND voided=0 AND concept_name_type='FULLY_SPECIFIED' ORDER BY locale,name")
+                == ["en\t" + drug["name_en"], "es\t" + drug["name_es"]],
+                "clinical_drug_concept_names_invalid")
+        presentations = self.query(db,
+            "SELECT d.drug_id,d.uuid,d.name,d.retired,d.strength,c.uuid,f.uuid,f.retired,"
+            "EXISTS (SELECT 1 FROM concept_name n WHERE n.concept_id=f.concept_id "
+            "AND n.voided=0 AND n.locale='es' AND n.name='Tableta') FROM drug d "
+            "JOIN concept c ON c.concept_id=d.concept_id "
+            "LEFT JOIN concept f ON f.concept_id=d.dosage_form WHERE d.uuid=" + sql_string(drug["uuid"])
+            + " OR c.uuid=" + sql_string(drug["concept"]) + " OR d.name=" + sql_string(drug["name"])
+            + " ORDER BY d.drug_id")
+        require(len(presentations) == 1, "clinical_drug_presentation_missing_or_duplicated")
+        presentation = presentations[0].split("\t")
+        require(len(presentation) == 9 and re.fullmatch(r"[1-9][0-9]*", presentation[0])
+                and presentation[1:] == [drug["uuid"], drug["name"], "0", drug["strength"],
+                    drug["concept"], drug["dosage_form"], "0", "1"], "clinical_drug_presentation_invalid")
+        code, body = self.request(backend, "GET",
+            "/drug?q=URSODESOX&v=custom:(uuid,display,name,strength,dosageForm:(display,uuid),concept:(display,uuid))")
+        require(code == 200 and isinstance(body, dict) and isinstance(body.get("results"), list)
+                and all(isinstance(item, dict) for item in body["results"]), "clinical_drug_search_invalid")
+        matches = [item for item in body["results"] if item.get("uuid") == drug["uuid"]]
+        require(len(matches) == 1, "clinical_drug_search_missing_or_duplicated")
+        match = matches[0]
+        require(match.get("name") == drug["name"] and match.get("strength") == drug["strength"]
+                and isinstance(match.get("display"), str) and bool(match["display"].strip())
+                and all(isinstance(match.get(key), dict) and match[key].get("uuid") == drug[target]
+                    and isinstance(match[key].get("display"), str) and bool(match[key]["display"].strip())
+                    for key, target in (("concept", "concept"), ("dosageForm", "dosage_form"))),
+                "clinical_drug_search_entry_invalid")
+        snapshot = (tuple(concepts), tuple(presentations))
+        require(previous is None or snapshot == previous, "clinical_drug_changed_on_restart")
+        emit("clinical_drug", "PASSED", phase=phase, concepts=1, presentations=1,
+             search_http=200, restart_checked=previous is not None)
+        return snapshot
+
     def create_fixtures(self, backend):
         for index in range(2):
             code, person = self.request(backend, "POST", "/person", {
@@ -604,6 +666,7 @@ class Harness:
         self.assert_checksums(backend, self.candidate_role_md5)
         require(self.candidate_recorded(db), "fresh_candidate_history_missing")
         self.check_emrapi_roles(db)
+        self.check_clinical_drug(backend, db, "fresh")
         self.create_fixtures(backend)
         self.check_admission(db, self.candidate_privileges)
         self.rbac(backend, db)
@@ -660,6 +723,7 @@ class Harness:
         require(self.candidate_recorded(db), "candidate_history_missing")
         self.check_admission(db)
         self.assert_state(db, expected, "upgrade_changed_unapproved_rbac_or_references")
+        clinical_drug = self.check_clinical_drug(backend, db, "upgrade")
         state, history = self.state(db), self.history(db)
         self.rbac(backend, db)
         self.docker("stop", "--time", "30", backend, timeout=45)
@@ -669,6 +733,7 @@ class Harness:
         self.assert_checksums(backend)
         self.assert_state(db, state, "second_start_changed_rbac")
         require(self.history(db) == history, "second_start_changed_history")
+        self.check_clinical_drug(backend, db, "idempotence", previous=clinical_drug)
         self.docker("stop", "--time", "30", backend, timeout=45)
         self.remove_container(backend)
         backend, _ = self.start_backend("current-policy", self.candidate_config, data_volume=volume)

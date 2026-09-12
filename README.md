@@ -1,6 +1,6 @@
 # SIHSALUS Content Package
 
-SIHSALUS Content Package para OpenMRS, con la versión candidata **1.25.17**, no publicada.
+SIHSALUS Content Package para OpenMRS, versión **1.25.18**.
 
 El paquete reúne la metadata backend que carga Initializer desde
 [configuration/backend_configuration](configuration/backend_configuration):
@@ -25,6 +25,10 @@ Maven toma el nombre y la versión de [pom.xml](pom.xml) al filtrar ese archivo;
 Los [contratos](docs/contracts), las [auditorías históricas](docs/audits) y los
 [validadores](.github/scripts) documentan las restricciones y comprobaciones de la metadata.
 El [workflow de construcción](.github/workflows/main.yml) contiene los comandos de validación usados en CI.
+
+Las presentaciones adicionales de medicamentos usan los CSV nativos de
+Initializer. Sus identidades estables y fuentes están documentadas en
+[el catálogo clínico](docs/clinical-drug-catalog.md).
 
 ## Identidad institucional del Hospital Santa Clotilde
 
@@ -93,7 +97,7 @@ If this command reports any violations, you can then run `mvn spotless:apply` to
 
 Remember, in most cases, you don't need to run these commands separately as Spotless will run automatically during the build process with `mvn clean package`.
 
-Versión candidata del paquete: **1.25.17**, no publicada.
+Versión del paquete: **1.25.18**.
 
 La revisión de los rangos de laboratorio y sus bloqueos clínicos se documentan en
 [`docs/audits/2026-09-10-laboratory-reference-ranges-pr-225.md`](docs/audits/2026-09-10-laboratory-reference-ranges-pr-225.md).

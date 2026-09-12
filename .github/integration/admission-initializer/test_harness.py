@@ -34,6 +34,22 @@ def completed(code=0, stdout=b"", stderr=b""):
     return subprocess.CompletedProcess(["synthetic"], code, stdout, stderr)
 
 
+def clinical_drug_result():
+    concept = "00d9cb0c-4aef-4614-ab38-a9978e3d62e1"
+    drug = "07c2b995-5619-4d82-8b55-e4cdf96f94d1"
+    tablet = "bd1e9059-62b4-4967-a804-a63eda4f8657"
+    name = "ÁCIDO URSODESOXICÓLICO 250 mg - Tableta"
+    rows = [
+        ["310\t" + concept + "\t0\tDrug\tN/A"],
+        ["en\tUrsodeoxycholic acid", "es\tÁCIDO URSODESOXICÓLICO"],
+        ["410\t" + drug + "\t" + name + "\t0\t250 mg\t" + concept + "\t" + tablet + "\t0\t1"],
+    ]
+    response = {"results": [{"uuid": drug, "name": name, "display": "synthetic-private-display",
+        "strength": "250 mg", "concept": {"uuid": concept, "display": "ÁCIDO URSODESOXICÓLICO"},
+        "dosageForm": {"uuid": tablet, "display": "Tableta"}}]}
+    return rows, response
+
+
 class HarnessContracts(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="admission-harness-unit-")
@@ -636,6 +652,94 @@ class HarnessContracts(unittest.TestCase):
                 self.runtime.assert_state("owned-db", {"role": ["a", "b"], "user_role": []}, "unexpected_rbac")
         emit.assert_called_once_with("rbac_snapshot", "FAILED", table="user_role",
                                      expected_present=True, actual_present=False, removed_rows=0, added_rows=0)
+
+    def test_clinical_drug_search_and_restart_require_the_same_persisted_entities(self):
+        rows, response = clinical_drug_result()
+        self.runtime.query = Mock(side_effect=rows * 2)
+        self.runtime.request = Mock(return_value=(200, response))
+        with patch.object(harness, "emit") as emit:
+            previous = self.runtime.check_clinical_drug("owned", "db", "upgrade")
+            self.assertEqual(self.runtime.check_clinical_drug("owned", "db", "idempotence", previous), previous)
+        self.assertTrue(previous[0][0].startswith("310\t"))
+        self.assertTrue(previous[1][0].startswith("410\t"))
+        self.runtime.request.assert_called_with("owned", "GET",
+            "/drug?q=URSODESOX&v=custom:(uuid,display,name,strength,dosageForm:(display,uuid),concept:(display,uuid))")
+        emit.assert_any_call("clinical_drug", "PASSED", phase="idempotence", concepts=1,
+                             presentations=1, search_http=200, restart_checked=True)
+        self.assertNotIn("synthetic-private-display", str(emit.call_args_list))
+        self.assertNotIn("URSODESOX", str(emit.call_args_list))
+        for table in (0, 2):
+            with self.subTest(recreated_table=table), patch.object(harness, "emit") as emit:
+                changed, response = clinical_drug_result()
+                changed[table][0] = "999" + changed[table][0][changed[table][0].index("\t"):]
+                self.runtime.query = Mock(side_effect=changed)
+                with self.assertRaisesRegex(HarnessFailure, "^clinical_drug_changed_on_restart$"):
+                    self.runtime.check_clinical_drug("owned", "db", "idempotence", previous)
+                emit.assert_not_called()
+
+    def test_database_queries_preserve_accented_catalog_names(self):
+        statement = "SELECT 'ÁCIDO URSODESOXICÓLICO'"
+        self.runtime.owned = Mock()
+        self.runtime.docker = Mock(return_value=completed(stdout="ÁCIDO URSODESOXICÓLICO\n".encode()))
+        self.assertEqual(self.runtime.query("owned-db", statement), ["ÁCIDO URSODESOXICÓLICO"])
+        self.runtime.owned.assert_called_once_with("container", "owned-db")
+        call = self.runtime.docker.call_args
+        self.assertIn("--default-character-set=utf8mb4", call.args)
+        self.assertEqual(call.kwargs["data"], statement.encode("utf-8"))
+
+    def test_clinical_drug_rejects_missing_duplicate_retired_or_incorrect_metadata(self):
+        cases = [(0, 1, "wrong-uuid"), (0, 2, "1"), (0, 3, "Test"), (0, 4, "Text"),
+                 (2, 1, "wrong-uuid"), (2, 2, "Free text"), (2, 3, "1"), (2, 4, "500 mg"),
+                 (2, 5, "wrong-concept"), (2, 6, "wrong-form"), (2, 7, "1"), (2, 8, "0")]
+        for table, column, invalid in cases:
+            with self.subTest(table=table, column=column):
+                rows, _ = clinical_drug_result()
+                fields = rows[table][0].split("\t")
+                fields[column] = invalid
+                rows[table][0] = "\t".join(fields)
+                self.runtime.query = Mock(side_effect=rows)
+                with self.assertRaisesRegex(HarnessFailure, "^clinical_drug_(concept|presentation)_invalid$"):
+                    self.runtime.check_clinical_drug("owned", "db", "fresh")
+        for table in (0, 2):
+            for count in (0, 2):
+                with self.subTest(table=table, count=count):
+                    rows, _ = clinical_drug_result()
+                    rows[table] *= count
+                    self.runtime.query = Mock(side_effect=rows)
+                    with self.assertRaisesRegex(HarnessFailure, "^clinical_drug_.*missing_or_duplicated$"):
+                        self.runtime.check_clinical_drug("owned", "db", "fresh")
+        rows, _ = clinical_drug_result()
+        rows[1] = ["en\tUrsodeoxycholic acid"]
+        self.runtime.query = Mock(side_effect=rows)
+        with self.assertRaisesRegex(HarnessFailure, "^clinical_drug_concept_names_invalid$"):
+            self.runtime.check_clinical_drug("owned", "db", "fresh")
+
+    def test_clinical_drug_search_rejects_free_text_missing_and_malformed_results(self):
+        _, duplicate = clinical_drug_result()
+        duplicate["results"] *= 2
+        invalid_bodies = [None, {}, {"results": None}, {"results": [None]}, {"results": []},
+                          {"results": [{"display": "Free text"}]}, duplicate]
+        for body in invalid_bodies:
+            with self.subTest(body=body):
+                rows, _ = clinical_drug_result()
+                self.runtime.query = Mock(side_effect=rows)
+                self.runtime.request = Mock(return_value=(200, body))
+                with self.assertRaisesRegex(HarnessFailure, "^clinical_drug_search_"):
+                    self.runtime.check_clinical_drug("owned", "db", "fresh")
+        for field, invalid in (("name", "wrong"), ("strength", "500 mg"), ("display", " "),
+                               ("concept", None), ("dosageForm", {"uuid": "wrong", "display": "Tablet"})):
+            with self.subTest(field=field):
+                rows, body = clinical_drug_result()
+                body["results"][0][field] = invalid
+                self.runtime.query = Mock(side_effect=rows)
+                self.runtime.request = Mock(return_value=(200, body))
+                with self.assertRaisesRegex(HarnessFailure, "^clinical_drug_search_entry_invalid$"):
+                    self.runtime.check_clinical_drug("owned", "db", "fresh")
+        rows, body = clinical_drug_result()
+        self.runtime.query = Mock(side_effect=rows)
+        self.runtime.request = Mock(return_value=(403, body))
+        with self.assertRaisesRegex(HarnessFailure, "^clinical_drug_search_invalid$"):
+            self.runtime.check_clinical_drug("owned", "db", "fresh")
 
     def test_internal_requests_never_follow_redirects_retry_or_pass_auth_in_argv(self):
         self.runtime.owned = Mock()

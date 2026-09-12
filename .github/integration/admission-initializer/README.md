@@ -139,6 +139,12 @@ admission privileges. It creates its own two synthetic people/users and runs
 the same native REST read, 403 purge-denial and 204 persisted-void assertions.
 It does not reuse the upgrade scenario's database or snapshots.
 
+Both scenarios also verify the additional ursodeoxycholic acid concept and
+250 mg tablet presentation after loading. SQL checks their active state,
+identities and references; REST checks the medication search representation
+consumed by the frontend. The upgrade restart must preserve those records
+without duplicates. See the [catalog contract](../../../docs/clinical-drug-catalog.md).
+
 The rejection fixture uses `Manage Roles`, which Core creates via `@AddOnStartup`.
 Core defines `Purge Relationships` but does not create it on a clean installation;
 the harness neither requires nor creates that privilege. Its absence does not
