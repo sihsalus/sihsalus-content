@@ -1,0 +1,120 @@
+{
+  "source": {
+    "id": "sihsalus",
+    "owner": "SIHSALUS",
+    "owner_type": "Organization",
+    "url": "/orgs/SIHSALUS/sources/sihsalus/"
+  },
+  "version": "2026-09-09-1",
+  "reason": "Retired neighborhood identities are owned exclusively by SIHSALUS/barrios-santa-clotilde; preserve all other source records.",
+  "official_export_sha256": "73dc1e9ad96df19495417f510d16332f040417a29a71a826fd0c74ed965295c0",
+  "concepts": [
+    {
+      "id": "4475",
+      "external_id": "1975805f-a096-4583-aacc-ab439c79e1cd",
+      "sha256": "47f9065c85fece9969ba2d1614fc18f79c3c79501a4461f901ff1442d938fe37"
+    },
+    {
+      "id": "4476",
+      "external_id": "6db9db1a-b772-4cc7-b261-41ea0957e0f7",
+      "sha256": "adbe41ce95c2b754c349f24e9b856907d2ed509900182c0afe1db021e75c0e82"
+    },
+    {
+      "id": "4477",
+      "external_id": "d31430ca-4892-43b9-aba5-0f0c51aea497",
+      "sha256": "09cf9e681642b3f20cb0b04c3ce8eebbc5acef66cc80d5afddee9463f7e60ff9"
+    },
+    {
+      "id": "4478",
+      "external_id": "4f0c3fd5-100f-4d2e-9478-100169d952da",
+      "sha256": "b55f19d73200e33f3e41da7f8c2e456cea93fe39beb971de8a838bb703792bf6"
+    },
+    {
+      "id": "4479",
+      "external_id": "30a01fac-2c8e-4313-b675-3c389a255db5",
+      "sha256": "891d6b9327e326b702b14aaa5b505011a05cb5ac4fa15c1fa146b9efbc6feb9a"
+    },
+    {
+      "id": "4480",
+      "external_id": "4bc7352e-f2b1-4e4b-a625-ca1d043e10a9",
+      "sha256": "db3295628084e9aa4f96e224c6c9e360cf6149ea9e37584d9ca6b82a5b3776d5"
+    },
+    {
+      "id": "4481",
+      "external_id": "a65d66bd-b0a6-4ada-9270-e55ba200e4ca",
+      "sha256": "5f8852c520c780d0b4b9a8c0fac752d4df586087b0ed9e869ab7930b30092211"
+    },
+    {
+      "id": "4482",
+      "external_id": "b77b4e56-64c7-427f-9d6b-87ce54291653",
+      "sha256": "8b75cfc7808fe177015f28807f0d286970d7007b5a851527ff32e399a8841920"
+    },
+    {
+      "id": "4483",
+      "external_id": "81fc260c-9a5f-4182-b7ac-d50f0960370b",
+      "sha256": "45528ca60f014a79b9e027691434bc5afc6973278bdbcfada4824a46ee40c8c3"
+    },
+    {
+      "id": "4484",
+      "external_id": "ef33a561-cdea-4218-a360-723d16ccdd08",
+      "sha256": "176fdf6c17c8b644aaeb7f5d61ab1254d15d980f2a3b0f7d0b9de2312adcb5c7"
+    },
+    {
+      "id": "4485",
+      "external_id": "0fd3e744-6d2c-4cb3-9b7e-1f88899635d9",
+      "sha256": "9b4291421338c42dab5a0bd2196a31ef44a61265649c353bc5a51268fc8dda0d"
+    }
+  ],
+  "mappings": [
+    {
+      "id": "5517",
+      "external_id": "fdddfa6b-8d3d-4766-9357-0e7afeae7fec",
+      "sha256": "8141b9c806997a0d7c858b459278ee868bba5bb6cde17242a173073ea543807a"
+    },
+    {
+      "id": "5518",
+      "external_id": "7a05a719-6cab-4182-a379-e9cc93c122d6",
+      "sha256": "32b8b0545dd78843312d11c7055f7fdd43f783743b0d9674269ea51feca538da"
+    },
+    {
+      "id": "5519",
+      "external_id": "f7678ecc-8507-41f8-a76f-54564a682a4d",
+      "sha256": "454c352744e03a65778f95000d78f8e15338f3be22f8c549d212b1a71e3c26d8"
+    },
+    {
+      "id": "5520",
+      "external_id": "51677364-e915-4f50-87cf-9b753530eb7b",
+      "sha256": "345266340ef7579d6c4a7be8c7feb8b8d3d14122b2e31aafb26e51d3a68c7605"
+    },
+    {
+      "id": "5521",
+      "external_id": "3376566c-3334-45f8-a182-f6bb8bc9b7f1",
+      "sha256": "0524085306d2329a398ee7aef26c1804b7f948262dfa016daeb9357b7351c9c6"
+    },
+    {
+      "id": "5522",
+      "external_id": "a977173c-8a86-4ff5-ac1f-fc7f29bb9ce0",
+      "sha256": "e1d966b960ec26165552b2f50786d4c83c8f8cde234180e31088fddfe9a1dd5d"
+    },
+    {
+      "id": "5523",
+      "external_id": "6777f84e-862a-4ef4-9678-fa4690aecca7",
+      "sha256": "449d9386ea7cc38cf04a40d4f95acd7865d002fea7a63f6665cf03192cd72c04"
+    },
+    {
+      "id": "5524",
+      "external_id": "dd0cf897-f383-47dc-a92e-e2f27727167c",
+      "sha256": "6260be2f02aa2257a44f301bbe5edb7f455e780c0effa2f820d5cf7696c60e1e"
+    },
+    {
+      "id": "5525",
+      "external_id": "c291f22f-cce5-4166-a577-f57b87b08caf",
+      "sha256": "33cfdf0c186b33b38f50190cbcd6767ec2595e331db3cc2c068e2e85a737e524"
+    },
+    {
+      "id": "5526",
+      "external_id": "d784cdb3-a3b8-4a9a-90df-3d964726eadb",
+      "sha256": "64ad1f1cb547ff064e82a1e58202878be65a0bc049bbc81b0196dae5a98ea5d9"
+    }
+  ]
+}

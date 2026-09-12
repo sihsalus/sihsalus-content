@@ -50,6 +50,16 @@ def clinical_drug_result():
     return rows, response
 
 
+def ocl_refresh_result():
+    return [
+        ["510\t3fb84698-488a-447d-acbc-72e8665cffdc\t0\tMisc\tN/A\t1:512"],
+        ["511\td14f251d-82a1-4ecf-aa45-f17f57a193db\t0\tFinding\tN/A\tCuatro cruces"],
+        ["512\t0fd3e744-6d2c-4cb3-9b7e-1f88899635d9\t0\t1"],
+        [f"{610 + index}\t10000000-0000-4000-8000-{index:012d}\t{710 + index}"
+         f"\t20000000-0000-4000-8000-{index:012d}\t0" for index in range(10)],
+    ]
+
+
 class HarnessContracts(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="admission-harness-unit-")
@@ -686,6 +696,62 @@ class HarnessContracts(unittest.TestCase):
         call = self.runtime.docker.call_args
         self.assertIn("--default-character-set=utf8mb4", call.args)
         self.assertEqual(call.kwargs["data"], statement.encode("utf-8"))
+
+    def test_ocl_refresh_checks_active_concepts_and_preserves_all_catalog_identities_on_restart(self):
+        self.runtime.query = Mock(side_effect=ocl_refresh_result() * 2)
+        with patch.object(harness, "emit") as emit:
+            previous = self.runtime.check_ocl_refresh("db", "upgrade")
+            self.assertEqual(self.runtime.check_ocl_refresh("db", "idempotence", previous), previous)
+        self.assertTrue(all(call.args[1].startswith("SELECT ") for call in self.runtime.query.call_args_list))
+        emit.assert_any_call("ocl_refresh", "PASSED", phase="idempotence", concepts=2,
+                             neighborhood_sets=1, neighborhood_members=10, restart_checked=True)
+        self.assertNotIn("Cuatro cruces", str(emit.call_args_list))
+        self.assertNotIn("3fb84698", str(emit.call_args_list))
+        for table, column, changed in ((0, 0, "999"), (1, 0, "999"), (2, 0, "999"),
+                                      (3, 0, "999"), (3, 2, "999"),
+                                      (3, 1, "30000000-0000-4000-8000-000000000000"),
+                                      (3, 3, "30000000-0000-4000-8000-000000000000")):
+            with self.subTest(table=table, column=column), patch.object(harness, "emit") as emit:
+                rows = ocl_refresh_result()
+                fields = rows[table][0].split("\t")
+                fields[column] = changed
+                rows[table][0] = "\t".join(fields)
+                self.runtime.query = Mock(side_effect=rows)
+                with self.assertRaisesRegex(HarnessFailure, "^ocl_refresh_changed_on_restart$"):
+                    self.runtime.check_ocl_refresh("db", "idempotence", previous)
+                emit.assert_not_called()
+
+    def test_ocl_refresh_rejects_missing_or_duplicate_concepts_set_and_members(self):
+        for table in range(4):
+            for count in (0, 2):
+                with self.subTest(table=table, count=count), patch.object(harness, "emit") as emit:
+                    rows = ocl_refresh_result()
+                    rows[table] *= count
+                    self.runtime.query = Mock(side_effect=rows)
+                    with self.assertRaisesRegex(HarnessFailure, "^ocl_refresh_"):
+                        self.runtime.check_ocl_refresh("db", "fresh")
+                    emit.assert_not_called()
+        rows = ocl_refresh_result()
+        rows[3][1] = rows[3][0]
+        self.runtime.query = Mock(side_effect=rows)
+        with self.assertRaisesRegex(HarnessFailure, "^ocl_refresh_neighborhood_members_invalid$"):
+            self.runtime.check_ocl_refresh("db", "fresh")
+
+    def test_ocl_refresh_rejects_retired_records_wrong_types_and_missing_spanish_names(self):
+        cases = [(table, column, value) for table in (0, 1)
+                 for column, value in ((1, "wrong-uuid"), (2, "1"), (3, "Test"),
+                                       (4, "Coded"), (5, "NULL"))]
+        cases.extend([(2, 1, "wrong-uuid"), (2, 2, "1"), (2, 3, "0"), (3, 4, "1")])
+        for table, column, invalid in cases:
+            with self.subTest(table=table, column=column), patch.object(harness, "emit") as emit:
+                rows = ocl_refresh_result()
+                fields = rows[table][0].split("\t")
+                fields[column] = invalid
+                rows[table][0] = "\t".join(fields)
+                self.runtime.query = Mock(side_effect=rows)
+                with self.assertRaisesRegex(HarnessFailure, "^ocl_refresh_.*invalid$"):
+                    self.runtime.check_ocl_refresh("db", "fresh")
+                emit.assert_not_called()
 
     def test_clinical_drug_rejects_missing_duplicate_retired_or_incorrect_metadata(self):
         cases = [(0, 1, "wrong-uuid"), (0, 2, "1"), (0, 3, "Test"), (0, 4, "Text"),

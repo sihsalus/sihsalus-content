@@ -29,9 +29,11 @@ El validador fija source, versión, release, inventario, UUIDs, códigos, nombre
 datatype, URLs y unicidad dentro del bundle. También exige que
 `configuration/backend_configuration/concepts/referral_transport_concepts.csv` permanezca ausente.
 
-El source principal `SIHSALUS/sihsalus` y `openconceptlab.subscriptionUrl` continúan en
-`2026-07-16-02`. Esta migración no publica una release del source principal ni modifica sus mappings
-`Q-AND-A`; el frontend coordinado utiliza explícitamente los tres UUIDs como respuestas permitidas.
+Este catálogo conserva su release independiente del source principal. Su migración no modifica los
+mappings `Q-AND-A` de `sihsalus`; el frontend coordinado utiliza explícitamente los tres UUIDs
+como respuestas permitidas. La candidata `1.25.19` incorpora el export principal `2026-09-09-1`
+con las exclusiones de barrios documentadas en [la auditoría OCL](../audits/2026-09-12-ocl-refresh.md);
+`openconceptlab.subscriptionUrl` permanece en `2026-07-16-02`.
 
 ## Actualización
 

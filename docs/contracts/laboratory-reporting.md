@@ -1,0 +1,127 @@
+# Captura de laboratorio y compatibilidad con la normativa peruana
+
+Revisión: **2026-09-12**. Aplicación en la candidata **1.25.19**.
+Este contrato distingue el contenido requerido del informe, los puntos de corte
+diagnósticos y la representación informática. Una release OCL publicada no
+demuestra por sí sola compatibilidad con los tres.
+
+## Fuentes y alcance
+
+- **NTS 072-MINSA/DGSP-V.01**, aprobada por
+  [RM 627-2008/MINSA](https://www.gob.pe/institucion/minsa/normas-legales/354769-627-2008-):
+  procedimientos validados, documentación técnica, control de calidad y formato
+  institucional de resultados (§5.1, 5.7, 5.9 y 6.1).
+  [Texto oficial, PDF pp. 12–16](https://mef.gob.pe/contenidos/inv_publica/docs/normas/normasv/snip/2015/Documentos_MINSA/26A_RM_N_627_2008_MINSA_Unidad_Productora_de_Servicios_de_Patologia_Clinica.pdf#page=12).
+- **Manual INS de procedimientos de laboratorio para el diagnóstico de los
+  parásitos intestinales del hombre**, segunda edición de septiembre de 2014,
+  Serie de Normas Técnicas 37, `MPR-CNSP-015`, ISBN 978-612-310-040-7.
+  [PDF INS](https://repositorio.ins.gob.pe/server/api/core/bitstreams/b47fe475-130d-496e-9f08-43f9f1f7e09f/content).
+  Algunas fichas fechadas en 2014 enlazan la edición anterior de 2003; se verificó
+  la edición dentro del documento.
+- **NTS 213-MINSA/DGIESP-2024**, RM 251-2024 y modificatoria RM 429-2024.
+  Se consultó la edición consolidada MINSA de abril de 2025,
+  [tabla 13, p. 43](https://www.diresapuno.gob.pe/wp-content/uploads/2025/06/NTS-N%C2%B0-213-MINSA-DGIESP-2024.pdf#page=43).
+
+La búsqueda en fuentes oficiales no localizó una norma sustitutoria posterior
+para estas referencias hasta la fecha indicada. No es una certificación exhaustiva
+de vigencia ni de cumplimiento clínico del paquete.
+
+## Parasitología
+
+El manual INS requiere identificar el parásito observado, su estadio y densidad
+(§3.2.1.4, PDF p. 13). Su reporte incluye método, identificación a género o especie
+según lo observado, forma evolutiva y cantidad; admite modalidades cualitativas
+y semicuantitativas (§10, PDF pp. 60–61). Kato–Katz informa huevos por gramo
+(§5.4, PDF pp. 29–31), una medida distinta de cruces por campo.
+
+De ello se deriva el siguiente diseño de captura, no un datatype ordenado
+literalmente por la norma:
+
+- Conservar los conceptos históricos de hallazgo macroscópico `5282`
+  (`6576cf12-ca50-4234-be46-ac74a4e7814d`) y microscópico `5286`
+  (`a0d91c80-4e2f-4f12-8007-3a5c40931bf8`) como `Coded`.
+- El informe completo debe permitir método y hallazgos repetibles con
+  identificación, estadio y cantidad/modalidad/unidad, además de descripción
+  complementaria. Los dos campos históricos por sí solos no cubren ese informe.
+- Permitir identificación a género sin exigir una especie no demostrada.
+  Separar negativo, pendiente, no realizado y muestra no evaluable. Nunca
+  completar un negativo automáticamente por ausencia de hallazgos registrados.
+- Una representación narrativa o un formulario nuevo necesita conceptos y
+  versión propios, conservando los resultados históricos.
+
+El validador implementado protege las identidades y datatypes históricos.
+No acredita que el frontend ya capture todos los elementos del informe INS;
+esa implementación coordinada permanece pendiente.
+
+## Urobilinógeno y creatinina urinaria
+
+La GT 091-DIRIS-LE/2024, aprobada en febrero de 2025, describe lectura
+colorimétrica y uroanálisis cualitativo o semicuantitativo. Su alcance es el
+primer nivel de DIRIS Lima Este: no establece un datatype nacional ni acredita
+el método utilizado en Santa Clotilde.
+[Guía oficial, p. interna 6/15](https://cdn.www.gob.pe/uploads/document/file/7633650/6472347-resolucion-directoral-000045-2025-dg.pdf).
+
+Urobilinógeno `2470` (`267b3f53-10ff-498f-a37e-f33b945bd1ce`) conserva
+`Numeric`, compatible con su formulario numérico actual. Una variante categórica
+requiere otra identidad y las respuestas del método efectivamente utilizado.
+
+Creatinina urinaria `5400` (`bc79bdb5-5bbe-4864-a2ed-81c7ad77ff88`) conserva
+su magnitud histórica declarada `mg/24h`. Normalizar por peso produce
+`mg/kg/24h`; requiere otra identidad y los datos necesarios para el cálculo.
+Un cambio de etiqueta no convierte valores previos.
+El [inserto del fabricante, p. 2](https://www.wiener-lab.com.ar/VademecumDocumentos/Vademecum%20espanol/creatinina_cinetica_aa_liquida_sp.pdf)
+ilustra esa diferencia, sin acreditar su uso en el hospital.
+
+La guarda de CI acepta la escritura histórica `Units` únicamente para detectar
+un cambio de magnitud; esto no demuestra que OpenMRS importe la unidad.
+La clave admitida por el importador es `units`. Esa metadata ya se corrigió en
+HEAD remoto, junto con la recuperación de la magnitud histórica de `5400`.
+Las dos filas CSV que declaran `mg/kg/24h` bajo ese UUID siguen pendientes de una
+definición coordinada de la medición y no se corrigieron con una conversión supuesta.
+
+## Hemoglobina
+
+La tabla 13 define puntos de corte de anemia, no límites analíticos universales.
+Se corrigen cuatro límites inferiores que excluían la igualdad:
+
+| Fila | Antes | Corregido, g/dL |
+| --- | --- | --- |
+| 24–59 meses | 11.1 | 11.0 |
+| Gestación, primer trimestre | 11.1 | 11.0 |
+| Gestación, segundo trimestre | 10.6 | 10.5 |
+| Gestación, tercer trimestre | 11.1 | 11.0 |
+
+Core considera bajo un valor `< normalLow` y normal la igualdad, siempre que
+no supere el límite superior. El frontend utiliza el mismo comparador.
+[Core 2.8.9](https://github.com/openmrs/openmrs-core/blob/4dda0f50a60991a5af9a4b36508e69bb3561c8a6/api/src/main/java/org/openmrs/validator/ObsValidator.java#L402),
+[frontend](https://github.com/sihsalus/sihsalus-frontend/blob/1fc71e13d8f9fae2409ae60b6c194b336dcc9345/packages/libs/esm-patient-common-lib/src/results/helpers.ts#L59).
+
+Se retiró de HEAD remoto el máximo OCL de 20 g/dL: contradice los rangos actuales
+y no se encontró un mandato normativo que lo establezca. La release publicada
+anterior conserva su contenido. Mantener provisionalmente crítico
+22 y absoluto 30 tampoco los convierte en valores aprobados por MINSA.
+Los límites analíticos requieren el método, equipo/reactivo y procedimiento local.
+La guarda de CI exige coherencia entre límites absolutos OCL y CSV; no determina
+la validez clínica de esos límites.
+
+La NTS exige conservar Hb observada y ajustada cuando corresponde ajuste por
+altitud (§5.3.2–5.3.3, p. 22). Este cambio no sobrescribe el valor observado
+ni implementa una conversión automática.
+
+## Pendientes de la actualización completa
+
+Las filas de prematuridad no comprueban esa condición; la edad gestacional
+40–48 semanas no identifica puerperio. Corregir los cuatro puntos de corte no
+resuelve esos problemas de selección de población ni los intervalos altos.
+La [auditoría previa](../audits/2026-09-10-laboratory-reference-ranges-pr-225.md)
+mantiene el detalle de estos problemas.
+
+Para completar laboratorio se necesita el procedimiento/formato institucional,
+los métodos y equipos/reactivos aplicados y sus intervalos verificados. Las
+referencias de otros laboratorios o fabricantes no sustituyen esos datos.
+Por eso se conserva la release anterior de laboratorio y no se escribe una
+nueva release OCL con supuestos sobre métodos o pacientes.
+Las [correcciones ya aplicadas en HEAD remoto](../audits/2026-09-12-ocl-remote-corrections.md)
+resuelven tipos históricos, unidades y respuestas incompatibles, y documentan
+los puntos de corte de Hb. Su verificación de metadata no reemplaza la validación
+funcional y clínica de una futura release completa.

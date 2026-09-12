@@ -145,6 +145,14 @@ identities and references; REST checks the medication search representation
 consumed by the frontend. The upgrade restart must preserve those records
 without duplicates. See the [catalog contract](../../../docs/clinical-drug-catalog.md).
 
+The OCL refresh has a separate read-only SQL check in fresh, upgrade and the
+upgrade restart: both added UUIDs must exist once, stay active, retain their
+Spanish fully specified names and classes, and import as datatype `N/A`.
+OCL 3.2.0 normalizes the export's literal `None` to `N/A`; the check verifies
+the resulting database values. The neighborhood set must remain active with
+ten active members. Concept IDs and the catalog snapshot must survive the
+restart unchanged. Logs expose only fixed counts and the phase result.
+
 The rejection fixture uses `Manage Roles`, which Core creates via `@AddOnStartup`.
 Core defines `Purge Relationships` but does not create it on a clean installation;
 the harness neither requires nor creates that privilege. Its absence does not

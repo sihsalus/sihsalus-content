@@ -60,12 +60,18 @@ jobs:
         run: python3 .github/scripts/validate_stock_foundation.py
       - name: Validate OCL exports
         run: python3 .github/scripts/validate_ocl_exports.py
+      - name: Test laboratory capture compatibility
+        run: python3 .github/scripts/test_laboratory_capture_validation.py
+      - name: Test reproducible OCL export exclusions
+        run: python3 .github/scripts/test_split_ocl_export.py
       - name: Test neighborhood catalog validator
         run: python3 .github/scripts/test_neighborhood_catalog_validation.py
       - name: Test referral transport catalog validator
         run: python3 .github/scripts/test_referral_transport_catalog_validation.py
       - name: Validate reference ranges
         run: bash .github/scripts/validate_reference_ranges.sh
+      - name: Test reference range compatibility
+        run: bash .github/scripts/test_reference_ranges.sh
       - name: Validate chart vitals encounter contract
         run: python3 .github/scripts/validate_chart_vitals_contract.py
       - name: Validate form/concept terminology integrity
