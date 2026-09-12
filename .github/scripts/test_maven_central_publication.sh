@@ -45,8 +45,8 @@ auto_publish = configuration.findtext("m:autoPublish", namespaces=namespace)
 wait_until = configuration.findtext("m:waitUntil", namespaces=namespace)
 if auto_publish != "true":
     raise SystemExit(f"Expected autoPublish=true, found {auto_publish!r}")
-if wait_until != "published":
-    raise SystemExit(f"Expected waitUntil=published, found {wait_until!r}")
+if wait_until != "validated":
+    raise SystemExit(f"Expected waitUntil=validated, found {wait_until!r}")
 PY
 
 fake_curl="${tmp_dir}/curl"
