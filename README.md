@@ -2,22 +2,29 @@
 
 SIHSALUS Content Package para OpenMRS, con la versión candidata **1.25.17**, no publicada.
 
-The contents of a typical Content Package are:
-* **Configuration**
-    * This folder holds [Initializer compatible configuration metadata]([url](https://github.com/mekomsolutions/openmrs-module-initializer/blob/main/README.md)) that make up the content package. For example, in the /config directory, this includes:
-        * **Forms** (in /ampathforms)
-        * **Concepts** (in [/ocl]([url](https://github.com/mekomsolutions/openmrs-module-initializer/blob/main/README.md#:~:text=Open%20Concept%20Lab%20(ZIP%20Files))), [/concepts]([url](https://github.com/mekomsolutions/openmrs-module-initializer/blob/main/readme/concepts.md)))
-        * **Programmatic Metadata** such as:
-            * Programs (in [/programs]([url](https://github.com/mekomsolutions/openmrs-module-initializer/blob/main/readme/prog.md)))
-            * Encounter types (in [/encountertypes]([url](https://github.com/mekomsolutions/openmrs-module-initializer/blob/main/readme/et.md)))
-            * Workflows (in [/programworkflows]([url](https://github.com/mekomsolutions/openmrs-module-initializer/blob/main/readme/prog.md)))
-            * Identifiers and other metadata
-* **content.properties File**
-    * Contents: This file specifies the required ESMs and OMODs (frontend modules and backend modules) that make up the Content Package.
-    * Importance:
-        * The content.properties file is important because when Implementers add this Content Package to their distribution, the content.properties file will automatically be read and compared with their existing distro.properties file.
-        * An automatic distro Build Helper Tool then fetches the content package's information and extracts the content into the Implementation's distro.properties file.
-        * **Dependencies** are especially important here, as the Build Helper Tool will add any dependencies from the Content Package into an Implementation's distro.properties file.
+El paquete reúne la metadata backend que carga Initializer desde
+[configuration/backend_configuration](configuration/backend_configuration):
+
+- [Formularios AMPATH](configuration/backend_configuration/ampathforms) y su
+  [guía de nombres e identidades](configuration/backend_configuration/ampathforms/Readme).
+- Terminología: [exports OCL](configuration/backend_configuration/ocl),
+  [conceptos locales](configuration/backend_configuration/concepts) y
+  [conjuntos de conceptos](configuration/backend_configuration/conceptsets).
+- Metadata de atención: [programas](configuration/backend_configuration/programs),
+  [tipos de encuentro](configuration/backend_configuration/encountertypes) y
+  [flujos de programas](configuration/backend_configuration/programworkflows).
+- Configuración institucional y de acceso, incluidos
+  [ubicaciones](configuration/backend_configuration/locations),
+  [identificadores de paciente](configuration/backend_configuration/patientidentifiertypes) y
+  [roles](configuration/backend_configuration/roles).
+
+[content.properties](content.properties) declara el nombre, la versión y las dependencias del paquete.
+Maven toma el nombre y la versión de [pom.xml](pom.xml) al filtrar ese archivo;
+[assembly.xml](assembly.xml) define el contenido del ZIP distribuible.
+
+Los [contratos](docs/contracts), las [auditorías históricas](docs/audits) y los
+[validadores](.github/scripts) documentan las restricciones y comprobaciones de la metadata.
+El [workflow de construcción](.github/workflows/main.yml) contiene los comandos de validación usados en CI.
 
 ## Identidad institucional del Hospital Santa Clotilde
 
