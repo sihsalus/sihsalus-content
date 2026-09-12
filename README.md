@@ -117,6 +117,10 @@ CI protege las identidades históricas y la coherencia de límites entre OCL y C
 La selección de prematuridad/puerperio y los parámetros del método siguen pendientes;
 este cambio no acredita cumplimiento clínico completo.
 
+En OCL remoto también se aplicaron correcciones a 30 conceptos y 12 mappings de
+laboratorio. El [registro de cambios y comprobaciones](docs/audits/2026-09-12-ocl-remote-corrections.md)
+distingue HEAD actualizado, versiones publicadas y el export que conserva el paquete.
+
 ## Validación y publicación
 
 El CI ejecuta en paralelo la validación del paquete, la integración MariaDB/Liquibase

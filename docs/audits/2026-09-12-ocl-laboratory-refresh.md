@@ -8,6 +8,12 @@ existentes, la unidad declarada de creatinina urinaria y el límite absoluto de
 hemoglobina; también modifica paneles y respuestas. El paquete conserva los dos
 ZIPs de laboratorio anteriores mientras se acuerda una actualización coordinada.
 
+Después de esta revisión se aplicaron
+[30 correcciones de conceptos y 12 de mappings en HEAD remoto](2026-09-12-ocl-remote-corrections.md).
+La release `2026-09-10-3` examinada aquí conserva su contenido; sus hallazgos no
+deben confundirse con el estado posterior de HEAD. La actualización completa
+del paquete sigue pendiente de las validaciones descritas.
+
 Esta revisión compara metadata y código. No consultó pacientes ni observaciones
 de ningún entorno y no afirma que existan observaciones para los conceptos
 afectados. La publicación de una release OCL no acredita su compatibilidad con

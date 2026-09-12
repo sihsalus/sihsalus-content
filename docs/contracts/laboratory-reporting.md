@@ -74,9 +74,10 @@ ilustra esa diferencia, sin acreditar su uso en el hospital.
 
 La guarda de CI acepta la escritura histórica `Units` únicamente para detectar
 un cambio de magnitud; esto no demuestra que OpenMRS importe la unidad.
-La clave admitida por el importador es `units`. La corrección de esa metadata
-y las dos filas CSV que declaran `mg/kg/24h` bajo el UUID anterior siguen
-pendientes de una definición coordinada de la medición.
+La clave admitida por el importador es `units`. Esa metadata ya se corrigió en
+HEAD remoto, junto con la recuperación de la magnitud histórica de `5400`.
+Las dos filas CSV que declaran `mg/kg/24h` bajo ese UUID siguen pendientes de una
+definición coordinada de la medición y no se corrigieron con una conversión supuesta.
 
 ## Hemoglobina
 
@@ -95,8 +96,9 @@ no supere el límite superior. El frontend utiliza el mismo comparador.
 [Core 2.8.9](https://github.com/openmrs/openmrs-core/blob/4dda0f50a60991a5af9a4b36508e69bb3561c8a6/api/src/main/java/org/openmrs/validator/ObsValidator.java#L402),
 [frontend](https://github.com/sihsalus/sihsalus-frontend/blob/1fc71e13d8f9fae2409ae60b6c194b336dcc9345/packages/libs/esm-patient-common-lib/src/results/helpers.ts#L59).
 
-No se incorpora el máximo OCL de 20 g/dL: contradice los rangos actuales y no se
-encontró un mandato normativo que lo establezca. Mantener provisionalmente crítico
+Se retiró de HEAD remoto el máximo OCL de 20 g/dL: contradice los rangos actuales
+y no se encontró un mandato normativo que lo establezca. La release publicada
+anterior conserva su contenido. Mantener provisionalmente crítico
 22 y absoluto 30 tampoco los convierte en valores aprobados por MINSA.
 Los límites analíticos requieren el método, equipo/reactivo y procedimiento local.
 La guarda de CI exige coherencia entre límites absolutos OCL y CSV; no determina
@@ -119,3 +121,7 @@ los métodos y equipos/reactivos aplicados y sus intervalos verificados. Las
 referencias de otros laboratorios o fabricantes no sustituyen esos datos.
 Por eso se conserva la release anterior de laboratorio y no se escribe una
 nueva release OCL con supuestos sobre métodos o pacientes.
+Las [correcciones ya aplicadas en HEAD remoto](../audits/2026-09-12-ocl-remote-corrections.md)
+resuelven tipos históricos, unidades y respuestas incompatibles, y documentan
+los puntos de corte de Hb. Su verificación de metadata no reemplaza la validación
+funcional y clínica de una futura release completa.
