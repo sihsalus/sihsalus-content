@@ -9,6 +9,11 @@ LOCATION_TAGS_PATH = CONFIG_DIR / "locationtags" / "locationtags.csv"
 LOCATIONS_PATH = CONFIG_DIR / "locations" / "sihsalus-locations.csv"
 ROLES_CORE_PATH = CONFIG_DIR / "roles" / "roles-core.csv"
 ROLES_PERU_HCE_PATH = CONFIG_DIR / "roles" / "roles_peru_hce.csv"
+# EMRAPI creates and maintains these roles before Initializer runs.
+EMRAPI_ROLES = {
+    "Privilege Level: Full": "ab2160f6-0941-430c-9752-6714353fbd3c",
+    "Privilege Level: High": "f089471c-e00b-468e-96e8-46aea1b339af",
+}
 MODULE_LOCATION_TAGS = {"Appointment Location", "Queue Location"}
 CARE_UPSS_TAG_NAME = "Care UPSS"
 CARE_UPSS_TAG_UUID = "f1fa0d61-ca3e-4cf1-a58b-b3458f7db1b3"
@@ -315,6 +320,20 @@ def main():
                     f"{path}:{line_number}: expected {header_width} columns, "
                     f"found {len(row)}"
                 )
+
+        normalized_header = [column.strip().lower() for column in rows[0]]
+        if "role name" in normalized_header and "uuid" in normalized_header:
+            role_index = normalized_header.index("role name")
+            uuid_index = normalized_header.index("uuid")
+            for line_number, row in enumerate(rows[1:], start=2):
+                if len(row) == header_width and (
+                    row[role_index].strip() in EMRAPI_ROLES
+                    or row[uuid_index].strip().lower() in EMRAPI_ROLES.values()
+                ):
+                    errors.append(
+                        f"{path}:{line_number}: EMRAPI-owned privilege level roles "
+                        "must not be redefined by Initializer"
+                    )
 
         if path == LOCATION_TAGS_PATH:
             uuid_index = rows[0].index("Uuid")

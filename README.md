@@ -106,9 +106,10 @@ La subida de versión no acredita su validación clínica ni levanta los control
 ## Validación y publicación
 
 El CI ejecuta en paralelo la validación del paquete, la integración MariaDB/Liquibase
-y la actualización con Initializer real. Un fallo de integración no oculta los
-resultados del build. La publicación en Maven Central exige que los tres controles
-pasen en el mismo commit de `main` o `pre-release`; los PR solo validan.
+y los escenarios independientes de actualización e instalación nueva con Initializer
+real. Un fallo de integración no oculta los resultados del build ni cancela el otro
+escenario. La publicación en Maven Central exige que el build, MariaDB/Liquibase y
+ambos escenarios pasen en el mismo commit de `main` o `pre-release`; los PR solo validan.
 
 Después de que `publish` confirme el POM y ZIP en Maven Central, el mismo
 workflow llama a `Validate with SIHSALUS` usando el mismo commit del paquete.
@@ -146,6 +147,13 @@ No publicar ni desplegar hasta completar los controles de
 el resultado de Initializer ni sus permisos efectivos. El modo predeterminado
 de Initializer puede continuar tras errores; la configuración de parada ante
 errores debe coordinarse y verificarse fuera de este paquete.
+
+EMRAPI mantiene los roles `Privilege Level: Full` y `Privilege Level: High`;
+sus dos filas se retiran de `roles-core.csv` para evitar que Initializer también
+reescriba sus permisos. Se conservan sus UUID, las referencias por herencia y el
+catálogo de privilegios. El [contrato de Admisión](docs/contracts/admission-role-reconciliation.md)
+documenta esta responsabilidad y las comprobaciones de actualización e instalación
+nueva. Ambos ensayos usan datos sintéticos y no acreditan aceptación clínica ni despliegue.
 
 ## Contrato preparatorio para PDF de resultados de laboratorio
 

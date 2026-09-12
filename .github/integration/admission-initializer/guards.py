@@ -21,6 +21,10 @@ OWNER_LABEL = "org.sihsalus.admission-initializer"
 CANONICAL_ROLE = "Admision"
 LEGACY_ROLE = "SIHSALUS Admision"
 CANONICAL_UUID = "71dcb611-756a-4ad3-a9bb-73b6cfe28066"
+EMRAPI_ROLES = {
+    "Privilege Level: Full": "ab2160f6-0941-430c-9752-6714353fbd3c",
+    "Privilege Level: High": "f089471c-e00b-468e-96e8-46aea1b339af",
+}
 CHANGESET = "reconcile-admission-role-20260907"
 INITIALIZER_VERSION = "2.13.0-sihsalus.1"
 CONFIG_PREFIX = "configuration/backend_configuration"

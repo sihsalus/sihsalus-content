@@ -21,8 +21,13 @@ Only inside that disposable GitHub-hosted runner, run:
 
 ```sh
 ADMISSION_INITIALIZER_DISPOSABLE=github-runner-only \
+  ADMISSION_INITIALIZER_SCENARIO=upgrade \
   python3 -B .github/integration/admission-initializer/harness.py
 ```
+
+Use `ADMISSION_INITIALIZER_SCENARIO=fresh` for the independent fresh-candidate
+scenario. CI runs both matrix jobs with `fail-fast: false`; both must pass on
+the same candidate SHA before publication.
 
 The runner guard also requires GitHub's `GITHUB_ACTIONS`, `CI`,
 `RUNNER_ENVIRONMENT`, `RUNNER_OS`, `GITHUB_REPOSITORY`, `GITHUB_SHA`, and
@@ -48,8 +53,18 @@ must match both a random resource prefix and its ownership label.
 - Applied baseline: 1.25.15, source `8000b27f48bf124fe9a553d4ba41c678e9acc231`.
 - Candidate: checked-out SHA and its release version from `pom.xml`, greater
   than 1.25.15. The historical migration still produces the approved 58-entry
-  admission policy. The current CSV adds only `app:home.libroAtenciones`, for
-  59 privileges; any other policy change requires a separate review.
+  admission policy. The current admission policy adds only
+  `app:home.libroAtenciones`, for 59 privileges; any other policy change requires
+  a separate review.
+
+The candidate removes only the `Privilege Level: Full` and `Privilege Level: High`
+rows from `roles-core.csv`. The pinned
+[EMRAPI activator](https://github.com/openmrs/openmrs-module-emrapi/blob/a06a2efd651435609a1c4b39ef35501b3401ff5d/api/src/main/java/org/openmrs/module/emrapi/EmrApiActivator.java#L78)
+owns these roles, creates them when absent and maintains their privileges. Its
+[constants](https://github.com/openmrs/openmrs-module-emrapi/blob/a06a2efd651435609a1c4b39ef35501b3401ff5d/api/src/main/java/org/openmrs/module/emrapi/EmrApiConstants.java#L79)
+retain both historical UUIDs. Other roles can still inherit them by name, and
+the privilege catalog remains intact. Initializer no longer rewrites these two
+roles when another row changes the CSV checksum.
 
 The backend probe never starts OpenMRS: it overrides the entrypoint with only
 `id -u; id -g`, uses no network, a read-only root filesystem and no capabilities.
@@ -70,21 +85,28 @@ files, and special files are rejected.
 
 ## Required runtime evidence
 
+The `upgrade` scenario requires:
+
 1. **Baseline:** bootstrap a fresh synthetic database with complete 1.25.15
    configuration and strict `fail_on_error`, verify real current-attempt
    completion, the actual started Initializer module/version, effective runtime
    properties and system flags, real Liquibase history and roles checksum.
+   Restart the same baseline with its existing data and checksums before
+   seeding migration fixtures. Require another complete startup, unchanged history
+   and checksums, both EMRAPI role UUIDs and the 58-entry admission policy.
    Create two synthetic people and users; no patient is required. Stop the
    backend before capturing owned database and application-data snapshots.
+   This captures the baseline after EMRAPI has maintained its roles on restart.
 2. **Historical unchanged-CSV upgrade:** restore the baseline snapshots, seed the two
    approved 57-permission identities and synthetic user references, then load
    candidate configuration with only `roles-core.csv` replaced by the exact
    baseline file. This explicit historical fixture is not the current packaged
    configuration. The pre-existing roles CSV checksum must still match unchanged
    bytes while the new changeSet produces exactly the approved 58
-   permissions. Compare all RBAC rows and supported optional references against
-   the explicit allowed transformation, preserving unrelated multiplicities and
-   Stock identity/audit fields. Require real changeSet history and full loader
+   permissions. Compare all RBAC rows, including Full/High, and supported optional
+   references against the explicit allowed transformation, preserving unrelated
+   multiplicities and Stock identity/audit fields. No role groups are excluded.
+   Require real changeSet history and full loader
    completion. Restart with the same data and checksums and require unchanged
    RBAC and complete journal rows, including execution metadata.
 3. **Current candidate CSV:** start the reconciled database with the complete,
@@ -109,6 +131,14 @@ files, and special files are rejected.
    same configuration, data and checksums. Require full completion, 58 approved
    permissions and the newly loaded canary role with its actual checksum.
 
+The independent `fresh` scenario starts the complete candidate configuration
+against an empty owned database. It requires full Initializer completion and
+the actual module/version, effective strict settings, candidate changeSet
+history, the candidate roles checksum, both EMRAPI role UUIDs and exactly 59
+admission privileges. It creates its own two synthetic people/users and runs
+the same native REST read, 403 purge-denial and 204 persisted-void assertions.
+It does not reuse the upgrade scenario's database or snapshots.
+
 The rejection fixture uses `Manage Roles`, which Core creates via `@AddOnStartup`.
 Core defines `Purge Relationships` but does not create it on a clean installation;
 the harness neither requires nor creates that privilege. Its absence does not
@@ -122,8 +152,11 @@ containing the run nonce and phase; the effective runtime property must match.
 The reader never opens the default `initializer.log` or another phase's file,
 so a restored baseline completion cannot validate a later attempt. A missing
 file remains pending; an unreadable or symlinked file fails. Successful startups
-also require the actual module/version from REST. A transient unavailable endpoint
-is polled within the deadline; malformed responses or wrong versions fail.
+also require the actual module/version from REST. A transient unavailable endpoint,
+including the installation filter's HTTP 302, is polled within the existing deadline
+without following redirects. Only a valid HTTP 200 module response can prove
+readiness; persistent redirects time out, and authentication errors, malformed
+responses or wrong versions fail.
 
 For the expected rejection, Core's
 [Listener](https://github.com/openmrs/openmrs-core/blob/4dda0f50a60991a5af9a4b36508e69bb3561c8a6/web/src/main/java/org/openmrs/web/Listener.java)
@@ -194,16 +227,18 @@ and their `MD5SUM` provide the XML execution evidence.
 
 ## Resources, diagnostics and limits
 
-Only one backend (4 GiB, 2 CPUs) and one database (1 GiB, 1 CPU) run concurrently.
-Baseline snapshots are reused for independent upgrade and rejection branches.
-Each backend startup allows at most 35 minutes, sharing an 80-minute total
-harness budget; cleanup has a separate three-minute global budget and at most
-45 seconds per Docker operation. The recommended workflow timeout is 90 minutes.
+Each scenario runs on its own runner with only one backend (4 GiB, 2 CPUs) and
+one database (1 GiB, 1 CPU) concurrently. Within `upgrade`, baseline snapshots
+are reused for the upgrade and rejection branches. Each backend startup allows
+at most 35 minutes, sharing an 80-minute total budget per scenario; cleanup has
+a separate three-minute global budget and at most 45 seconds per Docker
+operation. Each matrix job has a 90-minute timeout.
 A cold full baseline can exhaust these budgets; timeout is a failed validation,
 not permission to reduce the loader scope or accept partial startup.
 
 Stdout contains only sanitized JSON phase results, public source identifiers,
-checksums and fixed diagnostic codes. Preserve only that JSONL as a CI artifact,
+checksums and fixed diagnostic codes. Preserve only that JSONL in the separate
+`admission-initializer-{scenario}-{sha}` CI artifacts,
 never raw application logs, Docker inspections, HTTP bodies, SQL dumps or the
 private run directory. A failed RBAC snapshot comparison identifies only the
 fixed table name, table presence and counts of added/removed whole rows; it never
