@@ -1,6 +1,6 @@
 # SIHSALUS Content Package
 
-SIHSALUS Content Package para OpenMRS, con la versión candidata **1.25.17**, no publicada.
+SIHSALUS Content Package para OpenMRS, versión **1.25.18**.
 
 El paquete reúne la metadata backend que carga Initializer desde
 [configuration/backend_configuration](configuration/backend_configuration):
@@ -97,7 +97,7 @@ If this command reports any violations, you can then run `mvn spotless:apply` to
 
 Remember, in most cases, you don't need to run these commands separately as Spotless will run automatically during the build process with `mvn clean package`.
 
-Versión candidata del paquete: **1.25.17**, no publicada.
+Versión del paquete: **1.25.18**.
 
 La revisión de los rangos de laboratorio y sus bloqueos clínicos se documentan en
 [`docs/audits/2026-09-10-laboratory-reference-ranges-pr-225.md`](docs/audits/2026-09-10-laboratory-reference-ranges-pr-225.md).

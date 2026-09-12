@@ -26,3 +26,10 @@ La aceptación del frontend comprueba que la búsqueda devuelva un medicamento
 activo con concepto `Drug`, concentración y forma farmacéutica; no acepta
 texto libre. Antes de publicar, debe pasar además la carga completa del
 paquete por Initializer y una recarga sin duplicar el concepto o presentación.
+
+El ensayo de CI con backend real comprueba esa carga en una instalación nueva
+y en una actualización. Consulta las identidades, clase, tipo, concentración y
+forma farmacéutica persistidas; después del reinicio exige que se conserven sin
+duplicados. La búsqueda REST usa la misma representación que el buscador de
+medicamentos del frontend. Estos controles usan una base desechable y no
+sustituyen la aceptación de médicos en DEV/QLTY.
