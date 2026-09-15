@@ -73,6 +73,7 @@ class HarnessContracts(unittest.TestCase):
             "GITHUB_SHA": "a" * 40, "RUNNER_TEMP": str(self.root),
         }
         self.runtime = object.__new__(harness.Harness)
+        self.runtime.hospital_roles = []
 
     def test_explicit_hosted_runner_authority_required_before_subprocess(self):
         self.assertEqual(guards.validate_runner(self.env), self.root)
@@ -652,6 +653,43 @@ class HarnessContracts(unittest.TestCase):
         emit.assert_any_call("rbac_snapshot", "FAILED", table="patientflags_tag_role",
                              expected_present=True, actual_present=True, removed_rows=1, added_rows=0)
         self.assertNotIn("synthetic-private", str(emit.call_args_list))
+
+    def test_hospital_role_upgrade_preserves_local_uuid_and_every_external_reference(self):
+        self.runtime.hospital_roles = [{"Role name": "SIHSALUS Soporte", "Uuid": "canonical",
+            "Description": "Reviewed support", "Inherited roles": "", "Privileges": "Get Patients;Manage Roles"}]
+        self.runtime.query = Mock(side_effect=[["role", "description", "uuid"], ["role", "privilege"]])
+        before = {"role": ["SIHSALUS Soporte\tOld\tlocal", "Other\tKeep\tother"],
+            "role_privilege": ["SIHSALUS Soporte\tUnapproved", "Other\tKeep"],
+            "role_role": ["Other\tSIHSALUS Soporte", "SIHSALUS Soporte\tChild"],
+            "user_role": ["42\tSIHSALUS Soporte"], "patientflags_tag_role": ["1\tOther"] * 2,
+            "stockmgmt_user_role_scope": ["7\tSIHSALUS Soporte\tuuid\t2026-01-01"]}
+        actual = self.runtime.expected_hospital_role_state("owned", before)
+        self.assertEqual(actual["role"], ["Other\tKeep\tother", "SIHSALUS Soporte\tReviewed support\tlocal"])
+        self.assertEqual(actual["role_privilege"], ["Other\tKeep", "SIHSALUS Soporte\tGet Patients", "SIHSALUS Soporte\tManage Roles"])
+        self.assertEqual(actual["role_role"], ["SIHSALUS Soporte\tChild"])
+        for table in ("user_role", "patientflags_tag_role", "stockmgmt_user_role_scope"):
+            self.assertEqual(actual[table], before[table])
+        self.assertIn("SIHSALUS Soporte\tOld\tlocal", before["role"])
+
+    def test_hospital_role_upgrade_rejects_canonical_uuid_owned_by_another_name(self):
+        self.runtime.hospital_roles = [{"Role name": "SIHSALUS Soporte", "Uuid": "canonical",
+            "Description": "Reviewed", "Inherited roles": "", "Privileges": "Get Patients"}]
+        self.runtime.query = Mock(side_effect=[["role", "description", "uuid"], ["role", "privilege"]])
+        with self.assertRaisesRegex(HarnessFailure, "hospital_role_uuid_collision"):
+            self.runtime.expected_hospital_role_state("owned", {"role": ["Other\tKeep\tcanonical"],
+                "role_privilege": [], "role_role": [], "user_role": []})
+
+    def test_emrapi_refresh_adds_only_declared_compatibility_and_then_is_stable(self):
+        self.runtime.hospital_compatibility = {"app:home.editar"}
+        before = {"role_privilege": ["Other\tKeep", "Privilege Level: Full\tapp:home.editar"],
+                  "user_role": ["42\tOther"], "patientflags_tag_role": ["1\tOther"] * 2}
+        expected = self.runtime.expected_emrapi_refresh(before)
+        self.assertEqual(expected["role_privilege"], ["Other\tKeep",
+            "Privilege Level: Full\tapp:home.editar", "Privilege Level: High\tapp:home.editar"])
+        self.assertEqual(expected["user_role"], before["user_role"])
+        self.assertEqual(expected["patientflags_tag_role"], before["patientflags_tag_role"])
+        self.assertEqual(self.runtime.expected_emrapi_refresh(expected), expected)
+        self.assertEqual(len(before["role_privilege"]), 2)
 
     def test_state_comparison_distinguishes_missing_tables_and_ignores_row_order(self):
         self.runtime.state = Mock(return_value={"role": ["b", "a"]})

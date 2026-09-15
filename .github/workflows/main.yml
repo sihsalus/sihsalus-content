@@ -46,6 +46,10 @@ jobs:
         run: python3 .github/scripts/validate_csv_widths.py
       - name: Test CSV role contract validator
         run: python3 .github/scripts/test_csv_widths.py
+      - name: Validate hospital functional access profiles
+        run: python3 .github/scripts/validate_hospital_access_profiles.py
+      - name: Test hospital access drift safeguards
+        run: python3 .github/scripts/test_hospital_access_profiles.py
       - name: Validate Hospital Santa Clotilde institutional metadata
         run: python3 .github/scripts/validate_hospital_institution_metadata.py
       - name: Test Hospital Santa Clotilde institutional metadata validator
