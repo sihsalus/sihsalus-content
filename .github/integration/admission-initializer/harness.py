@@ -38,6 +38,8 @@ STATE_TABLES = {
     "role_role": "parent_role,child_role", "user_role": "user_id,role",
     "patientflags_tag_role": "tag_id,role", "stockmgmt_user_role_scope": "user_role_scope_id",
 }
+HOSPITAL_ROLES_FILE = "roles/roles_hospital_operations.csv"
+HOSPITAL_COMPATIBILITY_FILE = "privileges/privileges_hospital_compatibility.csv"
 CLINICAL_DRUG = {
     "uuid": "07c2b995-5619-4d82-8b55-e4cdf96f94d1",
     "name": "ÁCIDO URSODESOXICÓLICO 250 mg - Tableta",
@@ -212,6 +214,16 @@ class Harness:
         self.privileges = admission_privileges(baseline)
         self.candidate_privileges = admission_privileges(candidate, CURRENT_ADMISSION_ADDITIONS)
         require(self.candidate_privileges == self.privileges | CURRENT_ADMISSION_ADDITIONS, "unreviewed_current_admission_policy")
+        with (candidate / HOSPITAL_ROLES_FILE).open(encoding="utf-8-sig", newline="") as handle:
+            self.hospital_roles = list(csv.DictReader(handle))
+        require({row["Role name"] for row in self.hospital_roles} == {
+            "SIHSALUS Admision Hospitalaria", "SIHSALUS Laboratorio", "SIHSALUS Soporte"},
+            "hospital_role_scope_changed")
+        with (candidate / HOSPITAL_COMPATIBILITY_FILE).open(encoding="utf-8-sig", newline="") as handle:
+            self.hospital_compatibility = {row["Privilege name"] for row in csv.DictReader(handle)}
+        require(len(self.hospital_compatibility) == 5 and
+                all(name.startswith("app:") for name in self.hospital_compatibility),
+                "hospital_compatibility_scope_changed")
         self.baseline_config, self.candidate_config = self.directory / "config-baseline", self.directory / "config-candidate"
         assemble(self.image_config, original, baseline, self.baseline_config)
         receipt = assemble(self.image_config, original, candidate, self.candidate_config)
@@ -537,11 +549,58 @@ class Harness:
                     transformed.append("\t".join(data[column] for column in columns))
             # Stock IDs and every audit column remain part of each whole row.
             expected[table] = sorted(transformed)
-        return expected
+        return self.expected_hospital_role_state(db, expected)
+
+    def expected_hospital_role_state(self, db, before):
+        """Add the reviewed native CSV delta without discarding unrelated rows.
+
+        Initializer preserves an existing role's UUID when it resolves by name.
+        All user, Patient Flags, and stock-scope references remain exact rows.
+        """
+        if not self.hospital_roles:
+            return before
+        expected = {table: list(rows) for table, rows in before.items()}
+        columns = [row.split("\t", 1)[0] for row in self.query(db, "SHOW COLUMNS FROM role")]
+        require(set(columns) == {"role", "description", "uuid"}, "hospital_role_schema_changed")
+        grants_columns = [row.split("\t", 1)[0] for row in self.query(db, "SHOW COLUMNS FROM role_privilege")]
+        require(grants_columns == ["role", "privilege"], "hospital_grants_schema_changed")
+        role_index = columns.index("role")
+        uuid_index = columns.index("uuid")
+        for row in self.hospital_roles:
+            name, identifier = row["Role name"], row["Uuid"]
+            require(not row["Inherited roles"].strip(), "hospital_role_inheritance_unreviewed")
+            existing = [value.split("\t") for value in expected["role"] if value.split("\t")[role_index] == name]
+            require(len(existing) <= 1, "hospital_role_name_collision")
+            require(not any(value.split("\t")[uuid_index] == identifier and value.split("\t")[role_index] != name
+                            for value in expected["role"]), "hospital_role_uuid_collision")
+            if existing:
+                identifier = existing[0][uuid_index]
+            expected["role"] = [value for value in expected["role"] if value.split("\t")[role_index] != name]
+            values = {"role": name, "description": row["Description"], "uuid": identifier}
+            expected["role"].append("\t".join(values[column] for column in columns))
+            expected["role_privilege"] = [value for value in expected["role_privilege"] if value.split("\t")[0] != name]
+            expected["role_privilege"].extend(name + "\t" + privilege for privilege in row["Privileges"].split(";") if privilege)
+            # Only the child's inherited parents are replaced by RoleLineProcessor.
+            expected["role_role"] = [value for value in expected["role_role"] if value.split("\t")[1] != name]
+        return {table: sorted(rows) for table, rows in expected.items()}
 
     @staticmethod
     def normalized_state(state):
         return {table: sorted(rows) for table, rows in state.items()}
+
+    def expected_emrapi_refresh(self, before):
+        # EMRAPI contextRefreshed precedes Initializer. Its pinned implementation
+        # classifies lowercase app: names as API privileges (only 'App: ' and
+        # 'Task: ' are excluded), and adds these five safe compatibility names
+        # to both module-owned privilege levels on the next startup.
+        expected = {table: list(rows) for table, rows in before.items()}
+        grants = expected["role_privilege"]
+        for role in EMRAPI_ROLES:
+            for privilege in self.hospital_compatibility:
+                value = role + "\t" + privilege
+                if value not in grants:
+                    grants.append(value)
+        return self.normalized_state(expected)
 
     def check_admission(self, db, privileges=None):
         require(self.query(db, "SELECT role,uuid FROM role WHERE role IN ('Admision','SIHSALUS Admision')") == [CANONICAL_ROLE + "\t" + CANONICAL_UUID], "final_admission_identity_mismatch")
@@ -725,6 +784,12 @@ class Harness:
             + ",".join(sql_string(item["uuid"]) for item in self.fixtures) + ");\n"
             "DELETE FROM user_role WHERE role='Admision' AND user_id=(SELECT user_id FROM users WHERE uuid="
             + sql_string(self.fixtures[0]["uuid"]) + ");\nCOMMIT;")
+        if not bad:
+            # Existing-name/different-UUID compatibility observed in QLTY.
+            # This fixture exists only in the owned disposable CI database.
+            self.query(db, "INSERT INTO role(role,description,uuid) VALUES "
+                       "('SIHSALUS Soporte','Synthetic pre-existing support'," + sql_string(str(uuid.uuid4())) + ");"
+                       "INSERT INTO role_privilege(role,privilege) VALUES ('SIHSALUS Soporte','Get Patients');")
 
     def rbac(self, backend, db):
         code, readable = self.request(backend, "GET", "/relationshiptype?limit=1", restricted=True)
@@ -770,7 +835,8 @@ class Harness:
         backend, _ = self.start_backend("idempotence", self.historical_config, data_volume=volume)
         self.wait_initializer(backend, "idempotence")
         self.assert_checksums(backend)
-        self.assert_state(db, state, "second_start_changed_rbac")
+        state = self.expected_emrapi_refresh(state)
+        self.assert_state(db, state, "second_start_changed_unapproved_rbac")
         require(self.history(db) == history, "second_start_changed_history")
         self.check_clinical_drug(backend, db, "idempotence", previous=clinical_drug)
         self.check_ocl_refresh(db, "idempotence", previous=ocl_refresh)
