@@ -1,6 +1,6 @@
 # Historia social: alcohol y tabaco
 
-El paquete 1.25.21 incorpora un formulario AMPATH independiente para historia social.
+El paquete 1.25.23 incorpora un formulario AMPATH independiente para historia social.
 Reutiliza preguntas y respuestas existentes en `SIHSALUS/sihsalus/2026-09-09-1`;
 no añade ni reinterpreta conceptos OCL. El frontend debe usar el mismo componente
 para la entrada desde Consulta Externa y desde Historia Social.
