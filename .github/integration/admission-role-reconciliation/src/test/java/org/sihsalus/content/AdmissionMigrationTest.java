@@ -236,6 +236,9 @@ public class AdmissionMigrationTest {
 
     private String assertRejectedWithoutRbacMutation() throws Exception {
         Map<String, List<List<String>>> before = snapshot();
+        var publishedHistory = "1".equals(scalar("SELECT COUNT(*) FROM information_schema.tables "
+            + "WHERE table_schema = DATABASE() AND table_name = 'liquibasechangelog'"))
+            ? rows("SELECT * FROM liquibasechangelog WHERE ID = ?", RECONCILE) : List.of();
         Exception failure = assertThrows(Exception.class, this::update);
         StringBuilder causes = new StringBuilder();
         for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
@@ -244,7 +247,11 @@ public class AdmissionMigrationTest {
         assertTrue("Failure must come from the admission changeset, not an unrelated fixture error: " + causes,
             (causes.toString().contains(RECONCILE) || causes.toString().contains(OPERATIONAL_RECONCILE) || causes.toString().contains(SUPPLEMENT_RETIREMENT)));
         assertEquals(before, snapshot());
-        assertEquals("0", scalar("SELECT COUNT(*) FROM liquibasechangelog WHERE ID = ?", RECONCILE));
+        assertEquals("A rejected candidate must preserve the exact published history",
+            publishedHistory, rows("SELECT * FROM liquibasechangelog WHERE ID = ?", RECONCILE));
+        if (causes.toString().contains(SUPPLEMENT_RETIREMENT)) {
+            assertEquals("0", scalar("SELECT COUNT(*) FROM liquibasechangelog WHERE ID = ?", SUPPLEMENT_RETIREMENT));
+        }
         return causes.toString();
     }
 
