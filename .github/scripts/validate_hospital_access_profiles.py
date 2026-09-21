@@ -15,7 +15,6 @@ ROOT = Path(__file__).resolve().parents[2]
 CONTRACT = Path("docs/contracts/hospital-access-profiles.json")
 CONFIG = Path("configuration/backend_configuration")
 OPERATIONS = {
-    "SIHSALUS Admision Hospitalaria": "5aaa1628-a7be-5a4f-847c-a1c593bd364e",
     "SIHSALUS Laboratorio": "cf57784d-c859-40ee-b3f2-a3075388d6d4",
     "SIHSALUS Soporte": "ac0ac0e6-2520-4181-9023-7891a82dabd2",
 }
@@ -90,13 +89,13 @@ def validate(root=ROOT):
     if set(contract["moduleOwnedRoles"]) != {"Anonymous", "Authenticated", "Provider"}:
         raise ValueError("Unexpected module-owned role reference")
     roles = load_roles(root)
-    if "SIHSALUS Admision" in roles:
-        raise ValueError("Do not recreate the legacy admission alias")
+    if "SIHSALUS Admision" in roles or "SIHSALUS Admision Hospitalaria" in roles:
+        raise ValueError("Do not recreate the legacy admission alias or supplement")
     if set(roles) & set(contract["moduleOwnedRoles"]):
         raise ValueError("Initializer must not overwrite module-owned role references")
     operation_rows = read_csv(root / contract["roleFile"])
     if {row["Role name"] for row in operation_rows} != set(OPERATIONS):
-        raise ValueError("Hospital operations CSV must contain only its three owned roles")
+        raise ValueError("Hospital operations CSV must contain only its two owned roles")
     for name, identifier in OPERATIONS.items():
         if roles[name]["uuid"] != identifier:
             raise ValueError("Unstable hospital role UUID: " + name)

@@ -1,9 +1,11 @@
 # Reconciliación de identidades del rol de Admisión
 
-Estado: ampliación candidata `1.25.22`, pendiente de CI del SHA final y revisión
-independiente. La reconciliación `20260907` ya está publicada; se conserva
-literalmente, con sus checksums y guardas. La versión `1.25.21` corresponde al
-PR separado #233; esta candidata no incorpora esa propuesta de accesos.
+Estado: ampliación candidata `1.25.24` en el PR #233, pendiente de revisión
+independiente y aceptación funcional. Integra la migración propuesta en #234
+y retira el suplemento de Admisión de la propuesta anterior de #233.
+La reconciliación `20260907` ya está publicada; se conserva literalmente,
+con sus checksums y guardas. Los resultados de CI corresponden al SHA del PR;
+no equivalen a un despliegue en el hospital.
 
 ## Única fuente de permisos y alias operativo
 
@@ -34,6 +36,33 @@ la reconciliación publicada mantiene su validación. El registro de la
 preparación sin cambios puede quedar confirmado aunque la guarda posterior
 rechace otra entrada: no se promete atomicidad entre changeSets. El historial
 anterior nunca se reescribe ni se eliminan checksums.
+
+## Retiro del suplemento hospitalario
+
+`retire-admission-hospital-supplement-20260921`, posterior a la normalización
+histórica, retira exclusivamente `SIHSALUS Admision Hospitalaria` con UUID
+`5aaa1628-a7be-5a4f-847c-a1c593bd364e` y los 15 privilegios exactos de la fixture
+`admission-supplement-privileges.txt`. Esa fixture solo identifica la entrada
+legada; el suplemento ya no se provisiona ni se asigna en el contrato funcional.
+
+El destino debe ser `Admision` con el UUID canónico y los 58 privilegios de la
+base o los 59 actuales. Cada usuario del suplemento debe tener ya ese rol.
+La migración elimina únicamente las asignaciones y privilegios del suplemento
+y después su definición, en una transacción; no modifica usuarios ni concede
+acceso canónico a una persona que no lo tenía. El alias antiguo debe haberse
+reconciliado antes. Una instalación sin suplemento no requiere cambios.
+
+Las guardas rechazan políticas alteradas, identidades ambiguas, referencias o
+esquemas desconocidos y herencias. El uso del suplemento en Patient Flags o en
+ámbitos de inventario requiere revisión explícita: no se traslada automáticamente
+porque podría ampliar visibilidad. Se conserva el historial publicado y se
+requiere una ventana exclusiva de mantenimiento de metadatos. Los fallos
+inyectados deben revertir también el retiro de asignaciones; repetir una carga
+exitosa no modifica datos ni vuelve a crear el suplemento.
+
+El resultado funcional pasa de 91 a 76 permisos efectivos, incluidos login e
+implícitos. Esta reducción es deliberada y requiere validación con Admisión;
+no se restablecen los 15 permisos mediante un segundo rol de compatibilidad.
 
 ## Corrección respecto de la primera candidata
 

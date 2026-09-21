@@ -672,6 +672,11 @@ class HarnessContracts(unittest.TestCase):
                 "2\tSIHSALUS Admision", "2\tSIHSALUS Admision", "3\tOther", "3\tOther"],
             "stockmgmt_user_role_scope": ["7\tSIHSALUS Admision\tfixed-uuid\t2026-01-01", "8\tOther\tother-uuid\tNULL"],
         }
+        # The operational upgrade has both the historical alias and its later
+        # supplement. Retirement removes only the latter's reviewed rows.
+        before["role"].append("SIHSALUS Admision Hospitalaria\tsupplement\tfixed-supplement")
+        before["role_privilege"].append("SIHSALUS Admision Hospitalaria\tDelete Visits")
+        before["user_role"].extend(["1\tSIHSALUS Admision Hospitalaria", "2\tSIHSALUS Admision Hospitalaria"])
         expected = self.runtime.expected_upgrade_state("owned-db", before)
         self.assertEqual(expected["role"], sorted(["Admision\tkept-description\t" + CANONICAL_UUID, "Other\tkept\tother"]))
         self.assertEqual(expected["role_privilege"], ["Admision\tApproved", "Admision\tDelete Relationships", "Other\tUnchanged"])
@@ -723,6 +728,24 @@ class HarnessContracts(unittest.TestCase):
         with self.assertRaisesRegex(HarnessFailure, "hospital_role_uuid_collision"):
             self.runtime.expected_hospital_role_state("owned", {"role": ["Other\tKeep\tcanonical"],
                 "role_privilege": [], "role_role": [], "user_role": []})
+
+    def test_canonical_laboratory_delta_is_applied_only_with_current_roles_csv(self):
+        self.runtime.hospital_roles = []
+        laboratory = [{"Role name": "Laboratorio", "Uuid": "lab",
+            "Description": "Laboratory", "Inherited roles": "", "Privileges": "Add Observations;Get Patient Programs"}]
+        self.runtime.query = Mock(side_effect=[["role", "description", "uuid"], ["role", "privilege"]])
+        before = {"role": ["Laboratorio\tLaboratory\tlab", "Other\tKeep\tother"],
+            "role_privilege": ["Laboratorio\tAdd Observations", "Other\tKeep"],
+            "role_role": [], "user_role": ["42\tLaboratorio"]}
+        historical = self.runtime.expected_hospital_role_state("owned", before)
+        self.assertEqual(historical, before)
+        self.runtime.query.assert_not_called()
+        current = self.runtime.expected_hospital_role_state("owned", before, laboratory)
+        self.assertEqual(current["role_privilege"],
+                         ["Laboratorio\tAdd Observations", "Laboratorio\tGet Patient Programs", "Other\tKeep"])
+        for table in ("role", "role_role", "user_role"):
+            self.assertEqual(current[table], before[table])
+        self.assertNotIn("Laboratorio\tGet Patient Programs", before["role_privilege"])
 
     def test_emrapi_refresh_adds_only_declared_compatibility_and_then_is_stable(self):
         self.runtime.hospital_compatibility = {"app:home.editar"}

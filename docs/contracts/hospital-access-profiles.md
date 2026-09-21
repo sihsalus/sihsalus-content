@@ -11,7 +11,7 @@ sincronización automática hacia todos los entornos.
 
 | Cuenta funcional | Referencia y composición | Permisos efectivos base |
 | --- | --- | ---: |
-| `admision` | `Admision` + `SIHSALUS Admision Hospitalaria` + `SIHSALUS Login` | 91 |
+| `admision` | `Admision` + `SIHSALUS Login` | 76 |
 | `consulta.externa` | Perfil de consulta de cuentas hospitalarias activas: `Provider` + `SIHSALUS Consulta Externa` + `SIHSALUS Login` | 169 |
 | `enfermeria.triaje` | `Provider` + `SIHSALUS Enfermero Triaje` + `SIHSALUS Login` | 66 |
 | `farmacia` | `Farmacia` + `Inventory Dispensing` + `Inventory Manager` + `Inventory Reporting` + `Provider` + `SIHSALUS Login` | 103 |
@@ -24,10 +24,15 @@ roles implícitos: una verificación debe considerar su unión y comprobar la
 autorización con sesiones reales. Los totales orientan la lectura; el criterio
 de aceptación es la igualdad de los nombres de permisos, sensible a mayúsculas.
 
-Admisión recibe 15 capacidades adicionales mediante un suplemento de asignación
-explícita. No cambia el contrato histórico de `Admision` ni se recrea el alias
-`SIHSALUS Admision`. Esto evita ampliar los accesos de personas que comparten el
-rol base y respeta la [migración de admisión](admission-role-reconciliation.md).
+Admisión utiliza únicamente el rol funcional canónico `Admision`, con sus 59
+privilegios de `roles-core.csv`. Esta candidata retira el suplemento
+`SIHSALUS Admision Hospitalaria` y sus 15 capacidades adicionales; los permisos
+efectivos del perfil pasan de 91 a 76. La
+[migración de admisión](admission-role-reconciliation.md) reconoce su definición
+exacta y solo elimina sus asignaciones si cada usuario conserva el rol canónico.
+Una política modificada, herencia o uso del suplemento en otro módulo bloquea
+la operación para revisión. No se crean ni eliminan cuentas. Esta reducción de
+acceso exige aceptación funcional antes de promover el contenido.
 
 Consulta externa reproduce el perfil activo. La cuenta genérica retirada del
 hospital tenía permisos adicionales de FUA y no es la referencia. Su definición
@@ -87,7 +92,7 @@ mecanismo de cada entorno; este contenido no cambia contraseñas.
 
 ## Propiedad de los metadatos y aplicación
 
-Initializer carga los tres roles de `roles_hospital_operations.csv` y las cinco
+Initializer carga los dos roles de `roles_hospital_operations.csv` y las cinco
 definiciones de `privileges_hospital_compatibility.csv`. Estas últimas conservan
 nombres de permisos de interfaz de la referencia hospitalaria; declararlos no
 implementa nuevas operaciones de backend. El contenido no asigna automáticamente
@@ -135,16 +140,21 @@ los seis perfiles con la referencia completa. Rechaza ciclos, identidades
 duplicadas, permisos desconocidos, superroles y contaminación administrativa de
 los perfiles funcionales. Los tests introducen desviaciones deliberadas para
 comprobar estas barreras. Los allowlists de colas y FUA incluyen únicamente los
-UUID adicionales revisados de soporte y del suplemento de admisión.
+UUID adicional revisado de soporte. El suplemento de Admisión queda prohibido
+en los CSV de provisión y en el contrato funcional.
 
 La integración existente con Initializer incorpora el delta exacto de estos
-tres roles a su comparación completa de tablas, incluyendo una identidad de
+dos roles a su comparación completa de tablas, incluyendo una identidad de
 soporte preexistente con UUID diferente. EMRAPI clasifica los nombres `app:` en
 minúsculas como permisos de API y agrega las cinco definiciones nuevas a sus
 roles Full/High en el siguiente arranque; esa transición se declara expresamente
 en el resultado esperado. Los genéricos no heredan esos roles. La integración
 conserva las comprobaciones de referencias ajenas y multiplicidades y exige que
-el siguiente arranque solo aplique el cambio previsto de admisión.
+el siguiente arranque conserve ese estado. Una fase posterior carga el CSV
+actual y permite únicamente el permiso de Libro de Atenciones de Admisión y
+la lectura de programas del rol canónico de Laboratorio. El escenario operativo
+crea el alias antiguo y el suplemento conocidos, comprueba su retiro y verifica
+que un reinicio no los vuelva a crear.
 Solo se ejecuta en contenedores desechables propiedad del runner de GitHub.
 
 ```sh

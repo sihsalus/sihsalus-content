@@ -69,11 +69,10 @@ CLINICAL_ROLE_NAME = "SIHSALUS Consulta Externa"
 FUA_OPERATOR_ROLE_UUID = "68256ae6-d81c-4ef9-bda9-fc1471022cd3"
 FUA_OPERATOR_ROLE_NAME = "Digitadores FUA"
 SUPER_ADMIN_ROLE_UUID = "227fa2ff-f7ed-49f8-9fec-3ca63814df9e"
-# Explicit hospital baseline: support is an administrative profile; admission's
-# queue-clear capability belongs to its separately assigned operational supplement.
-# Neither role is a general inheritance parent. See hospital-access-profiles.json.
+# Explicit hospital baseline: support is an administrative profile and is not
+# a general inheritance parent. Canonical admission has no queue-clear supplement.
+# See hospital-access-profiles.json.
 HOSPITAL_SUPPORT_ROLE_UUID = "ac0ac0e6-2520-4181-9023-7891a82dabd2"
-HOSPITAL_ADMISSION_SUPPLEMENT_UUID = "5aaa1628-a7be-5a4f-847c-a1c593bd364e"
 QUEUE_READER_ROLE_UUID = "7f9a9321-0c35-4130-895c-dbca7401be64"
 QUEUE_READER_ROLE_NAME = "Colas Servicio Medico"
 NURSE_ROLE_UUID = "e70120b5-000c-4e6f-94a5-a139c2b4b25c"
@@ -151,7 +150,6 @@ SENSITIVE_UI_PRIVILEGE_ASSIGNMENTS = {
         "72dd34eb-0295-4684-ab3f-1ccb0cfaab20",
         QUEUE_ATTENTION_EDITOR_ROLE_UUID,
         HOSPITAL_SUPPORT_ROLE_UUID,
-        HOSPITAL_ADMISSION_SUPPLEMENT_UUID,
     },
 }
 ALLOWED_DIRECT_QUEUE_MUTATION_ASSIGNMENTS = set(TARGET_ROLES) | {

@@ -1,6 +1,6 @@
 # SIHSALUS Content Package
 
-SIHSALUS Content Package para OpenMRS, versión **1.25.22**.
+SIHSALUS Content Package para OpenMRS, versión **1.25.24**.
 
 El paquete reúne la metadata backend que carga Initializer desde
 [configuration/backend_configuration](configuration/backend_configuration):
@@ -102,7 +102,7 @@ If this command reports any violations, you can then run `mvn spotless:apply` to
 
 Remember, in most cases, you don't need to run these commands separately as Spotless will run automatically during the build process with `mvn clean package`.
 
-Versión del paquete: **1.25.22**.
+Versión del paquete: **1.25.24**.
 
 ## Confirmación de pago al registrar llegada
 

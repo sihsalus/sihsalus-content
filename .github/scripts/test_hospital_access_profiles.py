@@ -68,8 +68,13 @@ class HospitalAccessProfilesTest(unittest.TestCase):
             validate(self.root)
 
     def test_supplement_does_not_recreate_admission_migration_alias(self):
-        self.change_role("SIHSALUS Admision Hospitalaria", lambda r: r.update(**{"Role name": "SIHSALUS Admision"}))
+        self.change_role("SIHSALUS Laboratorio", lambda r: r.update(**{"Role name": "SIHSALUS Admision"}))
         with self.assertRaisesRegex(ValueError, "legacy admission alias"):
+            validate(self.root)
+
+    def test_admission_supplement_cannot_be_provisioned_again(self):
+        self.change_role("SIHSALUS Laboratorio", lambda r: r.update(**{"Role name": "SIHSALUS Admision Hospitalaria"}))
+        with self.assertRaisesRegex(ValueError, "alias or supplement"):
             validate(self.root)
 
     def test_role_uuid_collision_is_rejected(self):

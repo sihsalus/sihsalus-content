@@ -126,3 +126,14 @@ Core 2.3.6 and starts MySQL 5.7.31, despite its README's MariaDB description.
 
 No green result here authorizes environment access, proves an Initializer
 startup, supplies clinical approval, or changes release/deployment gates.
+
+## Hospital admission supplement retirement
+
+The candidate also retires the exact 15-privilege supplement after the published
+normalization. Real MariaDB tests cover both supported canonical policies
+(58/59), unchanged users and unrelated references, restart idempotence, rejected
+unpaired users, altered grants/UUIDs, inheritance and module usage, and an
+injected deletion failure with full transaction rollback and successful retry.
+The frozen supplement fixture recognizes legacy input; it does not provision a
+second operational policy. No synthetic fixture may be run against an existing
+environment.

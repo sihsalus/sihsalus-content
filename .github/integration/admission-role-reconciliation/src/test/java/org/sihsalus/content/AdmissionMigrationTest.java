@@ -44,6 +44,9 @@ public class AdmissionMigrationTest {
     static final String CANONICAL_UUID = "71dcb611-756a-4ad3-a9bb-73b6cfe28066";
     static final String RECONCILE = "reconcile-admission-role-20260907";
     static final String OPERATIONAL_RECONCILE = "reconcile-admission-operational-alias-20260921";
+    static final String SUPPLEMENT_RETIREMENT = "retire-admission-hospital-supplement-20260921";
+    static final String SUPPLEMENT = "SIHSALUS Admision Hospitalaria";
+    static final String SUPPLEMENT_UUID = "5aaa1628-a7be-5a4f-847c-a1c593bd364e";
     static final String HISTORICAL = "normalize-admission-role-name-20260722";
     static final String CHANGELOG = "configuration/liquibase/liquibase.xml";
     private static final String OWNER = UUID.randomUUID().toString();
@@ -239,7 +242,7 @@ public class AdmissionMigrationTest {
             causes.append(cause.getMessage());
         }
         assertTrue("Failure must come from the admission changeset, not an unrelated fixture error: " + causes,
-            (causes.toString().contains(RECONCILE) || causes.toString().contains(OPERATIONAL_RECONCILE)));
+            (causes.toString().contains(RECONCILE) || causes.toString().contains(OPERATIONAL_RECONCILE) || causes.toString().contains(SUPPLEMENT_RETIREMENT)));
         assertEquals(before, snapshot());
         assertEquals("0", scalar("SELECT COUNT(*) FROM liquibasechangelog WHERE ID = ?", RECONCILE));
         return causes.toString();
@@ -288,12 +291,12 @@ public class AdmissionMigrationTest {
         int removed = 0;
         for (int index = changes.getLength() - 1; index >= 0; index--) {
             Element change = (Element) changes.item(index);
-            if (RECONCILE.equals(change.getAttribute("id")) || OPERATIONAL_RECONCILE.equals(change.getAttribute("id"))) {
+            if (RECONCILE.equals(change.getAttribute("id")) || OPERATIONAL_RECONCILE.equals(change.getAttribute("id")) || SUPPLEMENT_RETIREMENT.equals(change.getAttribute("id"))) {
                 change.getParentNode().removeChild(change);
                 removed++;
             }
         }
-        assertEquals("Both later reconciliation changesets are absent from the historical release", 2, removed);
+        assertEquals("All three later reconciliation changesets are absent from the historical release", 3, removed);
         if (includeWithdrawnReconciliation) {
             Document withdrawn;
             try (var input = getClass().getResourceAsStream("/withdrawn-reconciliation.xml")) {
@@ -403,6 +406,119 @@ public class AdmissionMigrationTest {
         execute("DROP TRIGGER fixture_reject_legacy_delete");
         update();
         assertCanonical();
+    }
+
+    private void admissionSupplement(boolean currentPolicy, boolean optional) throws Exception {
+        role(CANONICAL, CANONICAL_UUID, false);
+        // Actually execute published history before introducing the later supplement.
+        Path xml = resourceRoot.resolve(CHANGELOG);
+        String full = Files.readString(xml);
+        String previous = full.replaceFirst("(?s)\\s*<changeSet id=\"" + SUPPLEMENT_RETIREMENT + "\".*?</changeSet>", "");
+        assertNotEquals(full, previous);
+        Files.writeString(xml, previous);
+        update();
+        Files.writeString(xml, full);
+        if (currentPolicy) {
+            execute("INSERT INTO privilege VALUES ('app:home.libroAtenciones')");
+            execute("INSERT INTO role_privilege VALUES (?, 'app:home.libroAtenciones')", CANONICAL);
+        }
+        if (optional) optionalTables();
+        execute("INSERT INTO role VALUES (?, 'Synthetic reviewed supplement', ?)", SUPPLEMENT, SUPPLEMENT_UUID);
+        List<String> privileges = Files.readAllLines(Path.of(getClass()
+            .getResource("/admission-supplement-privileges.txt").toURI()), StandardCharsets.UTF_8);
+        assertEquals(15, new TreeSet<>(privileges).size());
+        for (String privilege : privileges) {
+            if ("0".equals(scalar("SELECT COUNT(*) FROM privilege WHERE privilege = ?", privilege))) {
+                execute("INSERT INTO privilege VALUES (?)", privilege);
+            }
+            execute("INSERT INTO role_privilege VALUES (?, ?)", SUPPLEMENT, privilege);
+        }
+        execute("INSERT INTO user_role VALUES (1, ?), (1, ?), (2, ?), (2, ?)", CANONICAL, SUPPLEMENT, CANONICAL, SUPPLEMENT);
+    }
+
+    @Test
+    public void retiresSupplementWithoutChangingCanonicalPolicyUsersOrUnrelatedReferences() throws Exception {
+        admissionSupplement(true, true);
+        execute("INSERT INTO patientflags_tag_role VALUES (10, ?)", CANONICAL);
+        var grants = rows("SELECT * FROM role_privilege WHERE role = ? ORDER BY privilege", CANONICAL);
+        var users = rows("SELECT * FROM users ORDER BY user_id");
+        var tags = rows("SELECT * FROM patientflags_tag_role ORDER BY tag_id");
+        update();
+        assertEquals("0", scalar("SELECT COUNT(*) FROM role WHERE role = ?", SUPPLEMENT));
+        assertEquals("0", scalar("SELECT COUNT(*) FROM role_privilege WHERE role = ?", SUPPLEMENT));
+        assertEquals(grants, rows("SELECT * FROM role_privilege WHERE role = ? ORDER BY privilege", CANONICAL));
+        assertEquals(users, rows("SELECT * FROM users ORDER BY user_id"));
+        assertEquals(tags, rows("SELECT * FROM patientflags_tag_role ORDER BY tag_id"));
+        assertEquals(List.of(List.of("1", CANONICAL), List.of("2", CANONICAL)), rows("SELECT * FROM user_role ORDER BY user_id"));
+        var state = snapshot();
+        var history = rows("SELECT * FROM liquibasechangelog ORDER BY ORDEREXECUTED");
+        update();
+        assertEquals(state, snapshot());
+        assertEquals(history, rows("SELECT * FROM liquibasechangelog ORDER BY ORDEREXECUTED"));
+    }
+
+    @Test
+    public void supplementRetirementAlsoSupportsThe58PrivilegeBaselineWithoutOptionalModules() throws Exception {
+        admissionSupplement(false, false);
+        update();
+        assertCanonical();
+        assertEquals("0", scalar("SELECT COUNT(*) FROM role WHERE role = ?", SUPPLEMENT));
+    }
+
+    @Test
+    public void supplementNeverConvertsAnUnpairedAssignmentIntoCanonicalAccess() throws Exception {
+        admissionSupplement(true, false);
+        execute("DELETE FROM user_role WHERE user_id = 2 AND role = ?", CANONICAL);
+        assertRejectedWithoutRbacMutation();
+    }
+
+    @Test
+    public void changedSupplementPrivilegesFailWithoutMutation() throws Exception {
+        admissionSupplement(true, false);
+        execute("DELETE FROM role_privilege WHERE role = ? AND privilege = 'Delete Visits'", SUPPLEMENT);
+        assertRejectedWithoutRbacMutation();
+    }
+
+    @Test
+    public void foreignSupplementUuidFailsWithoutMutation() throws Exception {
+        admissionSupplement(true, false);
+        execute("UPDATE role SET uuid = 'synthetic-unreviewed-identity' WHERE role = ?", SUPPLEMENT);
+        assertRejectedWithoutRbacMutation();
+    }
+
+    @Test
+    public void supplementUsedForPatientFlagsRequiresReviewInsteadOfRetargetingVisibility() throws Exception {
+        admissionSupplement(true, true);
+        execute("INSERT INTO patientflags_tag_role VALUES (10, ?)", SUPPLEMENT);
+        assertRejectedWithoutRbacMutation();
+    }
+
+    @Test
+    public void supplementUsedForStockRequiresReviewInsteadOfRetargetingScope() throws Exception {
+        admissionSupplement(true, true);
+        execute("INSERT INTO stockmgmt_user_role_scope VALUES (10, ?, 'synthetic-scope', 1, NOW(), 'preserve')", SUPPLEMENT);
+        assertRejectedWithoutRbacMutation();
+    }
+
+    @Test
+    public void supplementInheritanceFailsWithoutMutation() throws Exception {
+        admissionSupplement(true, false);
+        role("Synthetic Child", "synthetic-child", false);
+        execute("INSERT INTO role_role VALUES (?, 'Synthetic Child')", SUPPLEMENT);
+        assertRejectedWithoutRbacMutation();
+    }
+
+    @Test
+    public void supplementDeleteFailureRollsBackAssignmentsAndAllowsRetry() throws Exception {
+        admissionSupplement(true, false);
+        execute("CREATE TRIGGER fixture_reject_legacy_delete BEFORE DELETE ON role FOR EACH ROW BEGIN "
+            + "IF OLD.role = 'SIHSALUS Admision Hospitalaria' THEN SIGNAL SQLSTATE '45000' "
+            + "SET MESSAGE_TEXT = 'synthetic supplement rollback injection'; END IF; END");
+        assertTrue(assertRejectedWithoutRbacMutation().contains("synthetic supplement rollback injection"));
+        assertEquals("0", scalar("SELECT COUNT(*) FROM liquibasechangelog WHERE ID = ?", SUPPLEMENT_RETIREMENT));
+        execute("DROP TRIGGER fixture_reject_legacy_delete");
+        update();
+        assertEquals("0", scalar("SELECT COUNT(*) FROM role WHERE role = ?", SUPPLEMENT));
     }
 
     @Test

@@ -39,6 +39,8 @@ STATE_TABLES = {
     "role_role": "parent_role,child_role", "user_role": "user_id,role",
     "patientflags_tag_role": "tag_id,role", "stockmgmt_user_role_scope": "user_role_scope_id",
 }
+ADMISSION_SUPPLEMENT = "SIHSALUS Admision Hospitalaria"
+SUPPLEMENT_CHANGESET = "retire-admission-hospital-supplement-20260921"
 HOSPITAL_ROLES_FILE = "roles/roles_hospital_operations.csv"
 HOSPITAL_COMPATIBILITY_FILE = "privileges/privileges_hospital_compatibility.csv"
 CLINICAL_DRUG = {
@@ -218,7 +220,7 @@ class Harness:
         with (candidate / HOSPITAL_ROLES_FILE).open(encoding="utf-8-sig", newline="") as handle:
             self.hospital_roles = list(csv.DictReader(handle))
         require({row["Role name"] for row in self.hospital_roles} == {
-            "SIHSALUS Admision Hospitalaria", "SIHSALUS Laboratorio", "SIHSALUS Soporte"},
+            "SIHSALUS Laboratorio", "SIHSALUS Soporte"},
             "hospital_role_scope_changed")
         with (candidate / ROLES_FILE).open(encoding="utf-8-sig", newline="") as handle:
             laboratory = [row for row in csv.DictReader(handle) if row["Role name"] == "Laboratorio"]
@@ -230,7 +232,7 @@ class Harness:
                 set(laboratory[0]["Privileges"].split(";")) ==
                 set(old_laboratory[0]["Privileges"].split(";")) | {"Get Patient Programs"},
                 "unreviewed_laboratory_privilege_delta")
-        self.hospital_roles.extend(laboratory)
+        self.canonical_laboratory = laboratory
         with (candidate / HOSPITAL_COMPATIBILITY_FILE).open(encoding="utf-8-sig", newline="") as handle:
             self.hospital_compatibility = {row["Privilege name"] for row in csv.DictReader(handle)}
         require(len(self.hospital_compatibility) == 5 and
@@ -545,6 +547,8 @@ class Harness:
                 values = row.split("\t")
                 require(len(values) == len(columns), "snapshot_column_shape_changed")
                 data = dict(zip(columns, values))
+                if table in ("role", "role_privilege", "user_role") and data.get("role") == ADMISSION_SUPPLEMENT:
+                    continue
                 if table == "role" and data["role"] == LEGACY_ROLE:
                     continue
                 if table == "role_privilege" and data["role"] in (CANONICAL_ROLE, LEGACY_ROLE):
@@ -572,13 +576,14 @@ class Harness:
             expected[table] = sorted(transformed)
         return self.expected_hospital_role_state(db, expected)
 
-    def expected_hospital_role_state(self, db, before):
+    def expected_hospital_role_state(self, db, before, roles=None):
         """Add the reviewed native CSV delta without discarding unrelated rows.
 
         Initializer preserves an existing role's UUID when it resolves by name.
         All user, Patient Flags, and stock-scope references remain exact rows.
         """
-        if not self.hospital_roles:
+        roles = self.hospital_roles if roles is None else roles
+        if not roles:
             return before
         expected = {table: list(rows) for table, rows in before.items()}
         columns = [row.split("\t", 1)[0] for row in self.query(db, "SHOW COLUMNS FROM role")]
@@ -587,7 +592,7 @@ class Harness:
         require(grants_columns == ["role", "privilege"], "hospital_grants_schema_changed")
         role_index = columns.index("role")
         uuid_index = columns.index("uuid")
-        for row in self.hospital_roles:
+        for row in roles:
             name, identifier = row["Role name"], row["Uuid"]
             require(not row["Inherited roles"].strip(), "hospital_role_inheritance_unreviewed")
             existing = [value.split("\t") for value in expected["role"] if value.split("\t")[role_index] == name]
@@ -841,6 +846,22 @@ class Harness:
             + sql_string(self.fixtures[0]["uuid"]) + ");\nCOMMIT;")
         require(set(self.query(db, "SELECT privilege FROM role_privilege WHERE role='SIHSALUS Admision'")) == set(privileges), "operational_fixture_policy_mismatch")
 
+    def seed_admission_supplement(self, db):
+        source = ROOT / ".github/integration/admission-role-reconciliation/src/test/resources/admission-supplement-privileges.txt"
+        privileges = source.read_text().splitlines()
+        require(len(privileges) == 15 and len(set(privileges)) == 15, "invalid_supplement_fixture")
+        required = ",".join(sql_string(privilege) for privilege in privileges)
+        require(set(self.query(db, "SELECT privilege FROM privilege WHERE privilege IN (" + required + ")")) == set(privileges),
+                "supplement_fixture_privilege_missing")
+        self.query(db,
+            "START TRANSACTION;\n"
+            "INSERT INTO role(role,description,uuid) VALUES (" + sql_string(ADMISSION_SUPPLEMENT)
+            + ",'Synthetic reviewed supplement','5aaa1628-a7be-5a4f-847c-a1c593bd364e');\n"
+            "INSERT INTO role_privilege(role,privilege) SELECT " + sql_string(ADMISSION_SUPPLEMENT)
+            + ",privilege FROM privilege WHERE privilege IN (" + required + ");\n"
+            "INSERT INTO user_role(user_id,role) SELECT user_id," + sql_string(ADMISSION_SUPPLEMENT)
+            + " FROM users WHERE uuid IN (" + ",".join(sql_string(item["uuid"]) for item in self.fixtures) + ");\nCOMMIT;")
+
     def rbac(self, backend, db):
         code, readable = self.request(backend, "GET", "/relationshiptype?limit=1", restricted=True)
         require(code == 200 and isinstance(readable, dict) and isinstance(readable.get("results"), list), "admission_read_denied")
@@ -870,6 +891,7 @@ class Harness:
         self.import_baseline(db)
         if operational:
             self.seed_operational_alias(db)
+            self.seed_admission_supplement(db)
         else:
             self.seed(db)
         expected = self.expected_upgrade_state(db, self.state(db))
@@ -878,6 +900,9 @@ class Harness:
         self.assert_checksums(backend)
         require(self.candidate_recorded(db), "candidate_history_missing")
         require(self.candidate_recorded(db, OPERATIONAL_CHANGESET), "operational_history_missing")
+        require(self.candidate_recorded(db, SUPPLEMENT_CHANGESET), "supplement_retirement_history_missing")
+        require(self.query(db, "SELECT COUNT(*) FROM role WHERE role=" + sql_string(ADMISSION_SUPPLEMENT)) == ["0"],
+                "admission_supplement_recreated")
         self.check_arrival_payment(db)
         self.check_admission(db)
         self.assert_state(db, expected, "upgrade_changed_unapproved_rbac_or_references")
@@ -902,6 +927,7 @@ class Harness:
         self.assert_checksums(backend, self.candidate_role_md5)
         self.check_admission(db, self.candidate_privileges)
         state["role_privilege"].extend(CANONICAL_ROLE + "\t" + privilege for privilege in CURRENT_ADMISSION_ADDITIONS)
+        state = self.expected_hospital_role_state(db, state, self.canonical_laboratory)
         self.assert_state(db, state, "current_csv_changed_unapproved_rbac")
         require(self.history(db) == history, "current_csv_changed_migration_history")
         self.rbac(backend, db)

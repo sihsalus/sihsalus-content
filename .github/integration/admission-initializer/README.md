@@ -304,3 +304,14 @@ successful run on the exact candidate SHA supplies the integration evidence
 above. Even that result is a bounded synthetic role/relationship smoke, not
 general clinical acceptance, deployed-environment evidence, domain-owner
 approval, or authorization to bypass repository merge/release requirements.
+
+## Canonical admission and Laboratory update
+
+The operational scenario also seeds the recognized admission supplement and
+verifies its retirement without losing canonical user assignments. Both the
+historical CSV restart and the final candidate load must leave it absent.
+The historical roles CSV retains its exact baseline checksum; the subsequent
+current-policy phase expects only the approved admission logbook grant and
+`Get Patient Programs` on canonical `Laboratorio`. The separately loaded native
+hospital CSV contains only operational Laboratory and Support roles. Whole-table
+comparisons still include unrelated identities, assignments and module scopes.

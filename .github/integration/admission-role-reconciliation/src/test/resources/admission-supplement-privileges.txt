@@ -1,0 +1,15 @@
+Delete Visits
+Get Observations
+Get Patient Programs
+Get Queue Rooms
+Manage Appointment Services
+Manage Queue Rooms
+Manage Queues
+app:hoja.clinica
+app:hoja.clinica.citas
+app:hoja.clinica.citas.editar
+app:hoja.clinica.resumen
+app:hoja.clinica.visitas
+app:hoja.clinica.visitas.editar
+app:home.colasAtencion.limpiar
+app:home.libroAtenciones.editar
