@@ -1,11 +1,39 @@
 # Reconciliación de identidades del rol de Admisión
 
-Estado: CANDIDATA EN REVISIÓN — NO PUBLICAR NI DESPLEGAR.
+Estado: ampliación candidata `1.25.22`, pendiente de CI del SHA final y revisión
+independiente. La reconciliación `20260907` ya está publicada; se conserva
+literalmente, con sus checksums y guardas. La versión `1.25.21` corresponde al
+PR separado #233; esta candidata no incorpora esa propuesta de accesos.
 
-El PR #223 se revisa separadamente del permiso `Delete Relationships`, publicado
-en #222 / `1.25.15`. La candidata `1.25.16` requiere CI del SHA final, aprobación
-independiente y los controles de actualización siguientes. Declarar una versión
-en esta rama no la reserva en Maven Central ni aprueba su publicación.
+## Única fuente de permisos y alias operativo
+
+`configuration/backend_configuration/roles/roles-core.csv` define el rol
+canónico `Admision` y sus 59 privilegios actuales. La migración nueva
+`reconcile-admission-operational-alias-20260921` reconoce una entrada histórica
+adicional: `Admision` con su UUID canónico y exactamente los 58 privilegios de
+`1.25.15`, junto con `SIHSALUS Admision` con los 55 privilegios exactos de
+`admission-operational-legacy-privileges.txt`. Esa fixture reconoce una entrada
+de migración; no define un segundo rol ni una política de ejecución.
+
+Después de validar esquema, políticas, UUID, herencias e historial, traslada las
+asignaciones de usuarios y las referencias admitidas al rol canónico, y elimina
+el alias en una transacción. No copia sus privilegios al rol destino. Conserva
+los UUID e información de auditoría de los alcances, evita nuevas referencias
+duplicadas y no modifica datos clínicos. Un fallo revierte esa transacción.
+
+El resultado SQL conserva los 58 permisos canónicos; el changeSet publicado
+valida ese resultado e Initializer aplica después el CSV actual de 59 permisos.
+Respecto de la entrada antigua de 55, la política final retira 15 permisos y
+agrega 19. Es una normalización explícita de acceso, no una unión de permisos.
+No se mantienen overrides de roles por servidor ni un alias de compatibilidad.
+
+Solo se admite ese conjunto exacto de 55 permisos con un destino canónico de
+58; cualquier diferencia, herencia o referencia no soportada bloquea la carga.
+Para las entradas originales de 57/58, la preparación nueva no cambia RBAC y
+la reconciliación publicada mantiene su validación. El registro de la
+preparación sin cambios puede quedar confirmado aunque la guarda posterior
+rechace otra entrada: no se promete atomicidad entre changeSets. El historial
+anterior nunca se reescribe ni se eliminan checksums.
 
 ## Corrección respecto de la primera candidata
 
@@ -33,7 +61,7 @@ una reparación de un estado parcialmente migrado ni se borra su historial.
 Se reconocen únicamente `Admision`, `SIHSALUS Admision` y el UUID canónico
 `71dcb611-756a-4ad3-a9bb-73b6cfe28066`. El UUID nunca se toma de un tercer rol.
 
-Cada identidad existente debe tener exactamente los 58 privilegios del rol
+Para la reconciliación publicada, cada identidad restante debe tener exactamente los 58 privilegios del rol
 canónico de `1.25.15`, o esa misma lista sin `Delete Relationships`
 (el contrato inmediatamente anterior a #222). La fixture histórica está fijada
 en `admission-role-1.25.15.csv` y no se deriva del CSV actual. No se admiten otros permisos,
@@ -146,8 +174,8 @@ valida permisos efectivos de cuentas clínicas.
 El ensayo adicional `admission-initializer.yml` usa el backend publicado fijado
 por digest y bases desechables en runners GitHub hospedados. Conserva la
 configuración ajena al paquete SIH de esa imagen y sustituye únicamente archivos
-propios verificados. Ejecuta dos escenarios independientes, `upgrade` y `fresh`;
-el fallo de uno no cancela el otro y ambos deben pasar antes de publicar.
+propios verificados. Ejecuta tres escenarios independientes, `upgrade`, `fresh` y `operational`;
+el fallo de uno no cancela los otros y los tres deben pasar antes de publicar.
 
 `upgrade` arranca la baseline `1.25.15` y la reinicia sin cambiar contenido,
 historial ni checksums, antes de crear el snapshot y sembrar la migración.
@@ -157,9 +185,16 @@ Admisión, comparando todas las filas RBAC y referencias contempladas. Incluye
 rechazo de una política incompatible, un CSV canario posterior que debe quedar
 sin cargar, reintento sin borrar checksums e idempotencia.
 
+`operational` usa una baseline real `1.25.15` con el alias de 55 permisos,
+cuentas exclusivamente sintéticas y UUID aleatorio para el alias. Comprueba
+transferencia de referencias, política canónica, reinicio idempotente y accesos
+permitidos/denegados por REST. Las actualizaciones y la instalación limpia
+exigen también el atributo de visita de confirmación de pago activo, FreeText,
+con cardinalidad 0..1; HTTP 200 no sustituye esta comprobación.
+
 `fresh` inicia el candidato completo sobre una base vacía independiente y exige
 carga finalizada, historial y checksum reales, los UUID de Full/High y los 59
-permisos de Admisión. Ambos escenarios verifican mediante REST lectura, purga
+permisos de Admisión. Los tres escenarios verifican mediante REST lectura, purga
 denegada con 403 sin modificar la relación activa y anulación con 204 que
 persiste `voided=1`. Sus resultados deben leerse por fase: definir el ensayo no
 equivale a haberlo aprobado ni sustituye aceptación clínica o revisión operativa.

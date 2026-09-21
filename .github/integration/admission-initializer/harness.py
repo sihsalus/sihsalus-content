@@ -29,6 +29,7 @@ from guards import (
 )
 
 ROOT = Path(__file__).resolve().parents[3]
+OPERATIONAL_CHANGESET = "reconcile-admission-operational-alias-20260921"
 COMPLETION = "OpenMRS config loading process completed."
 ABORT = "The loading of the 'liquibase' configuration file was aborted:"
 FILE_ABORT = re.compile(r"The (?:pre-)?loading of the '[^'\r\n]+' configuration file was aborted:")
@@ -478,12 +479,21 @@ class Harness:
     def history(self, db):
         return self.query(db, "SELECT * FROM liquibasechangelog ORDER BY ID,AUTHOR,FILENAME")
 
-    def candidate_recorded(self, db):
-        records = self.query(db, "SELECT MD5SUM,EXECTYPE FROM liquibasechangelog WHERE ID=" + sql_string(CHANGESET))
+    def candidate_recorded(self, db, identifier=CHANGESET):
+        records = self.query(db, "SELECT MD5SUM,EXECTYPE FROM liquibasechangelog WHERE ID=" + sql_string(identifier))
         if not records:
             return False
         require(len(records) == 1 and re.fullmatch(r"\d+:[0-9a-f]{32}\tEXECUTED", records[0]), "candidate_history_invalid")
         return True
+
+    def assert_rejected_history(self, db, before):
+        # The new preparatory changeset is a no-op outside the 55-permission
+        # input. Its own committed record precedes the original guard's failure.
+        after = self.history(db)
+        preparatory = [row for row in after if row.split("\t", 1)[0] == OPERATIONAL_CHANGESET]
+        require(len(preparatory) == 1 and self.candidate_recorded(db, OPERATIONAL_CHANGESET)
+                and [row for row in after if row not in preparatory] == before,
+                "rejected_migration_changed_history")
 
     def state(self, db):
         existing = set(self.query(db, "SHOW TABLES"))
@@ -556,6 +566,13 @@ class Harness:
         require(self.query(db, "SELECT role,uuid FROM role WHERE role IN ("
                 + ",".join(sql_string(role) for role in EMRAPI_ROLES) + ") ORDER BY role") == expected,
                 "emrapi_role_identity_mismatch")
+
+    def check_arrival_payment(self, db):
+        rows = self.query(db, "SELECT retired,min_occurs,max_occurs,datatype "
+            "FROM visit_attribute_type WHERE uuid='090eb9b3-a306-450f-8623-9fc00b8d82fa'")
+        require(rows == ["0\t0\t1\torg.openmrs.customdatatype.datatype.FreeTextDatatype"],
+                "arrival_payment_metadata_invalid")
+        emit("arrival_payment_metadata", "PASSED", active=True, min_occurs=0, max_occurs=1)
 
     def check_clinical_drug(self, backend, db, phase, previous=None):
         """Verify the catalog entry in storage and the prescribing search response."""
@@ -702,6 +719,8 @@ class Harness:
         self.wait_initializer(backend, "fresh_candidate")
         self.assert_checksums(backend, self.candidate_role_md5)
         require(self.candidate_recorded(db), "fresh_candidate_history_missing")
+        require(self.candidate_recorded(db, OPERATIONAL_CHANGESET), "fresh_operational_history_missing")
+        self.check_arrival_payment(db)
         self.check_emrapi_roles(db)
         self.check_clinical_drug(backend, db, "fresh")
         self.check_ocl_refresh(db, "fresh")
@@ -726,6 +745,26 @@ class Harness:
             "DELETE FROM user_role WHERE role='Admision' AND user_id=(SELECT user_id FROM users WHERE uuid="
             + sql_string(self.fixtures[0]["uuid"]) + ");\nCOMMIT;")
 
+    def seed_operational_alias(self, db):
+        """Reviewed metadata shape only; accounts and identities are synthetic."""
+        self.check_admission(db)
+        source = ROOT / ".github/integration/admission-role-reconciliation/src/test/resources/admission-operational-legacy-privileges.txt"
+        privileges = source.read_text().splitlines()
+        require(len(privileges) == 55 and len(set(privileges)) == 55, "invalid_operational_fixture")
+        required = ",".join(sql_string(privilege) for privilege in privileges)
+        require(set(self.query(db, "SELECT privilege FROM privilege WHERE privilege IN (" + required + ")")) == set(privileges), "operational_fixture_privilege_missing")
+        self.query(db,
+            "START TRANSACTION;\n"
+            "INSERT INTO role(role,description,uuid) VALUES ('SIHSALUS Admision','Synthetic operational alias',"
+            + sql_string(str(uuid.uuid4())) + ");\n"
+            "INSERT INTO role_privilege(role,privilege) SELECT 'SIHSALUS Admision',privilege FROM privilege WHERE privilege IN ("
+            + required + ");\n"
+            "INSERT INTO user_role(user_id,role) SELECT user_id,'SIHSALUS Admision' FROM users WHERE uuid IN ("
+            + ",".join(sql_string(item["uuid"]) for item in self.fixtures) + ");\n"
+            "DELETE FROM user_role WHERE role='Admision' AND user_id=(SELECT user_id FROM users WHERE uuid="
+            + sql_string(self.fixtures[0]["uuid"]) + ");\nCOMMIT;")
+        require(set(self.query(db, "SELECT privilege FROM role_privilege WHERE role='SIHSALUS Admision'")) == set(privileges), "operational_fixture_policy_mismatch")
+
     def rbac(self, backend, db):
         code, readable = self.request(backend, "GET", "/relationshiptype?limit=1", restricted=True)
         require(code == 200 and isinstance(readable, dict) and isinstance(readable.get("results"), list), "admission_read_denied")
@@ -749,16 +788,21 @@ class Harness:
         require(self.query(db, "SELECT voided FROM relationship WHERE uuid=" + sql_string(identifier)) == ["1"], "allowed_void_not_persisted")
         emit("rbac", "PASSED", authorized_read=200, denied_purge=403, authorized_void=204)
 
-    def upgrade(self):
-        emit("upgrade", "RUNNING")
+    def upgrade(self, operational=False):
+        emit("operational_upgrade" if operational else "upgrade", "RUNNING")
         db = self.start_database("upgrade")
         self.import_baseline(db)
-        self.seed(db)
+        if operational:
+            self.seed_operational_alias(db)
+        else:
+            self.seed(db)
         expected = self.expected_upgrade_state(db, self.state(db))
         backend, volume = self.start_backend("upgrade", self.historical_config, restore=True)
         self.wait_initializer(backend, "upgrade")
         self.assert_checksums(backend)
         require(self.candidate_recorded(db), "candidate_history_missing")
+        require(self.candidate_recorded(db, OPERATIONAL_CHANGESET), "operational_history_missing")
+        self.check_arrival_payment(db)
         self.check_admission(db)
         self.assert_state(db, expected, "upgrade_changed_unapproved_rbac_or_references")
         clinical_drug = self.check_clinical_drug(backend, db, "upgrade")
@@ -812,7 +856,7 @@ class Harness:
         self.wait_initializer(backend, "reject", reject=True)
         self.assert_checksums(backend)
         self.assert_state(db, before, "rejected_migration_changed_rbac")
-        require(self.history(db) == history, "rejected_migration_changed_history")
+        self.assert_rejected_history(db, history)
         require(not self.candidate_recorded(db), "rejected_migration_was_recorded")
         require(self.query(db, "SELECT COUNT(*) FROM role WHERE uuid=" + sql_string(canary_uuid)) == ["0"], "later_roles_loader_ran_after_rejection")
         canary_checksum = "configuration_checksums/roles/zz-admission-initializer-canary.checksum"
@@ -872,15 +916,16 @@ def main(scenario="upgrade"):
     signal.signal(signal.SIGTERM, interrupted)
     signal.signal(signal.SIGINT, interrupted)
     try:
-        require(scenario in ("upgrade", "fresh"), "invalid_initializer_scenario")
+        require(scenario in ("upgrade", "fresh", "operational"), "invalid_initializer_scenario")
         harness = Harness(os.environ)
         harness.prepare()
         if scenario == "fresh":
             harness.fresh()
         else:
             harness.baseline()
-            harness.upgrade()
-            harness.rejection()
+            harness.upgrade(operational=True) if scenario == "operational" else harness.upgrade()
+            if scenario == "upgrade":
+                harness.rejection()
         success = True
     except HarnessFailure as error:
         emit("harness", "FAILED", reason=str(error))

@@ -43,6 +43,7 @@ public class AdmissionMigrationTest {
     static final String LEGACY = "SIHSALUS Admision";
     static final String CANONICAL_UUID = "71dcb611-756a-4ad3-a9bb-73b6cfe28066";
     static final String RECONCILE = "reconcile-admission-role-20260907";
+    static final String OPERATIONAL_RECONCILE = "reconcile-admission-operational-alias-20260921";
     static final String HISTORICAL = "normalize-admission-role-name-20260722";
     static final String CHANGELOG = "configuration/liquibase/liquibase.xml";
     private static final String OWNER = UUID.randomUUID().toString();
@@ -238,7 +239,7 @@ public class AdmissionMigrationTest {
             causes.append(cause.getMessage());
         }
         assertTrue("Failure must come from the admission changeset, not an unrelated fixture error: " + causes,
-            causes.toString().contains(RECONCILE));
+            (causes.toString().contains(RECONCILE) || causes.toString().contains(OPERATIONAL_RECONCILE)));
         assertEquals(before, snapshot());
         assertEquals("0", scalar("SELECT COUNT(*) FROM liquibasechangelog WHERE ID = ?", RECONCILE));
         return causes.toString();
@@ -287,12 +288,12 @@ public class AdmissionMigrationTest {
         int removed = 0;
         for (int index = changes.getLength() - 1; index >= 0; index--) {
             Element change = (Element) changes.item(index);
-            if (RECONCILE.equals(change.getAttribute("id"))) {
+            if (RECONCILE.equals(change.getAttribute("id")) || OPERATIONAL_RECONCILE.equals(change.getAttribute("id"))) {
                 change.getParentNode().removeChild(change);
                 removed++;
             }
         }
-        assertEquals("Exactly one atomic reconciliation changeset is expected", 1, removed);
+        assertEquals("Both later reconciliation changesets are absent from the historical release", 2, removed);
         if (includeWithdrawnReconciliation) {
             Document withdrawn;
             try (var input = getClass().getResourceAsStream("/withdrawn-reconciliation.xml")) {
@@ -317,6 +318,91 @@ public class AdmissionMigrationTest {
         TransformerFactory.newInstance().newTransformer().transform(new DOMSource(document), new StreamResult(xml.toFile()));
         update();
         Files.copy(candidate, xml, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    private void operationalAlias(boolean optional) throws Exception {
+        duplicateRoles(false, optional);
+        execute("UPDATE role SET uuid = 'synthetic-operational-uuid' WHERE role = ?", LEGACY);
+        execute("UPDATE role SET uuid = ? WHERE role = ?", CANONICAL_UUID, CANONICAL);
+        execute("DELETE FROM role_privilege WHERE role = ?", LEGACY);
+        List<String> privileges = Files.readAllLines(Path.of(getClass()
+            .getResource("/admission-operational-legacy-privileges.txt").toURI()), StandardCharsets.UTF_8);
+        assertEquals(55, privileges.size());
+        assertEquals(55, new TreeSet<>(privileges).size());
+        for (String privilege : privileges) {
+            if ("0".equals(scalar("SELECT COUNT(*) FROM privilege WHERE privilege = ?", privilege))) {
+                execute("INSERT INTO privilege VALUES (?)", privilege);
+            }
+            execute("INSERT INTO role_privilege VALUES (?, ?)", LEGACY, privilege);
+        }
+    }
+
+    @Test
+    public void operationalAliasAdoptsCanonicalPolicyAndPreservesReferences() throws Exception {
+        operationalAlias(true);
+        var stockBefore = rows("SELECT user_role_scope_id, uuid, creator, date_created, audit_note FROM stockmgmt_user_role_scope ORDER BY user_role_scope_id");
+        var childrenBefore = rows("SELECT * FROM fixture_stock_scope_child ORDER BY child_id");
+        update();
+        assertCanonical();
+        assertEquals(List.of(List.of("1", CANONICAL), List.of("2", CANONICAL)), rows("SELECT * FROM user_role ORDER BY user_id"));
+        assertEquals(List.of(List.of("10", CANONICAL), List.of("20", CANONICAL)), rows("SELECT * FROM patientflags_tag_role ORDER BY tag_id"));
+        assertEquals(stockBefore, rows("SELECT user_role_scope_id, uuid, creator, date_created, audit_note FROM stockmgmt_user_role_scope ORDER BY user_role_scope_id"));
+        assertEquals(childrenBefore, rows("SELECT * FROM fixture_stock_scope_child ORDER BY child_id"));
+        assertEquals("0", scalar("SELECT COUNT(*) FROM role_privilege WHERE role = ? AND privilege IN ('Delete Visits', 'Manage Queues', 'app:home.libroAtenciones.editar')", CANONICAL));
+        var before = snapshot();
+        var history = rows("SELECT * FROM liquibasechangelog ORDER BY ORDEREXECUTED");
+        update();
+        assertEquals(before, snapshot());
+        assertEquals(history, rows("SELECT * FROM liquibasechangelog ORDER BY ORDEREXECUTED"));
+    }
+
+    @Test
+    public void operationalAliasWithoutOptionalModulesConverges() throws Exception {
+        operationalAlias(false);
+        update();
+        assertCanonical();
+        assertEquals("2", scalar("SELECT COUNT(*) FROM user_role WHERE role = ?", CANONICAL));
+    }
+
+    @Test
+    public void changedOperationalPolicyIsRejectedWithoutMutation() throws Exception {
+        operationalAlias(false);
+        execute("DELETE FROM role_privilege WHERE role = ? AND privilege = 'Delete Visits'", LEGACY);
+        execute("INSERT INTO privilege VALUES ('Synthetic Unexpected Access')");
+        execute("INSERT INTO role_privilege VALUES (?, 'Synthetic Unexpected Access')", LEGACY);
+        assertRejectedWithoutRbacMutation();
+    }
+
+    @Test
+    public void operationalAliasRequiresExistingCanonicalTarget() throws Exception {
+        operationalAlias(false);
+        execute("DELETE FROM user_role WHERE role = ?", CANONICAL);
+        execute("DELETE FROM role_privilege WHERE role = ?", CANONICAL);
+        execute("DELETE FROM role WHERE role = ?", CANONICAL);
+        assertRejectedWithoutRbacMutation();
+    }
+
+    @Test
+    public void operationalAliasRejectsUnknownReferencesBeforeMutation() throws Exception {
+        operationalAlias(false);
+        execute("CREATE TABLE fixture_unknown_role_reference (id INT PRIMARY KEY, role VARCHAR(50), "
+            + "CONSTRAINT fixture_unknown_role FOREIGN KEY (role) REFERENCES role(role)) ENGINE=InnoDB");
+        execute("INSERT INTO fixture_unknown_role_reference VALUES (1, ?)", LEGACY);
+        assertRejectedWithoutRbacMutation();
+    }
+
+    @Test
+    public void operationalAliasDeletionFailureRollsBackAllReferences() throws Exception {
+        operationalAlias(true);
+        execute("CREATE TRIGGER fixture_reject_legacy_delete BEFORE DELETE ON role FOR EACH ROW "
+            + "BEGIN IF OLD.role = 'SIHSALUS Admision' THEN SIGNAL SQLSTATE '45000' "
+            + "SET MESSAGE_TEXT = 'synthetic operational rollback injection'; END IF; END");
+        String failure = assertRejectedWithoutRbacMutation();
+        assertTrue(failure.contains("synthetic operational rollback injection"));
+        assertEquals("0", scalar("SELECT COUNT(*) FROM liquibasechangelog WHERE ID = ?", OPERATIONAL_RECONCILE));
+        execute("DROP TRIGGER fixture_reject_legacy_delete");
+        update();
+        assertCanonical();
     }
 
     @Test

@@ -26,8 +26,19 @@ ADMISSION_INITIALIZER_DISPOSABLE=github-runner-only \
 ```
 
 Use `ADMISSION_INITIALIZER_SCENARIO=fresh` for the independent fresh-candidate
-scenario. CI runs both matrix jobs with `fail-fast: false`; both must pass on
-the same candidate SHA before publication.
+scenario, or `ADMISSION_INITIALIZER_SCENARIO=operational` for the additional
+55-permission legacy alias upgrade from a real 1.25.15 baseline. CI runs all
+three jobs with `fail-fast: false`; all must pass on the same candidate SHA.
+The operational case uses synthetic accounts and a random alias UUID, transfers
+references to the existing canonical role, and checks the full RBAC snapshot,
+unchanged/current CSV loading, idempotence, and native allowed/denied access.
+It never copies the alias privileges into the canonical policy. Each successful
+upgrade/fresh installation also requires the arrival-payment visit attribute
+with its active FreeText 0..1 contract.
+
+The preparatory changeset is a recorded no-op outside the 55-permission input.
+When the original reconciliation rejects another policy, prior history and all
+RBAC rows must remain unchanged; only that preceding no-op record is allowed.
 
 The runner guard also requires GitHub's `GITHUB_ACTIONS`, `CI`,
 `RUNNER_ENVIRONMENT`, `RUNNER_OS`, `GITHUB_REPOSITORY`, `GITHUB_SHA`, and
