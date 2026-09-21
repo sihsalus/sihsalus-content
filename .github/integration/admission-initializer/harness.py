@@ -48,6 +48,39 @@ CLINICAL_DRUG = {
     "strength": "250 mg",
 }
 
+LOADER_DOMAINS = frozenset("""
+liquibase jsonkeyvalues conceptclasses conceptsources metadatasharing visittypes
+patientidentifiertypes relationshiptypes locationtags privileges encountertypes
+encounterroles proceduretypes roles globalproperties attributetypes providerroles
+systemtasks locations locationtagmaps addresshierarchy bahmniforms ocl concepts
+conceptsets conceptreferencerange billableservices paymentmodes cashpoints
+cashieritemprices flagpriorities flagtags flags programs programworkflows
+programworkflowstates personattributetypes idgen autogenerationoptions drugs
+orderfrequencies ordertypes appointmentspecialities appointmentservicedefinitions
+appointmentservicetypes queues datafiltermappings metadatasets metadatasetmembers
+metadatatermmappings cohorttypes cohortattributetypes fhirconceptsources
+fhirpatientidentifiersystems ampathforms ampathformstranslations htmlforms dispositions
+""".split())
+
+
+def loader_progress(logs):
+    """Report only pinned Initializer domain names and fixed failure categories."""
+    loading = re.findall(r"Loading file [^\r\n]*?/configuration/([a-z]+)/", logs)
+    completed = re.findall(r"The '([a-z]+)' configuration file has finished loading:", logs)
+    categories = {
+        "out_of_memory": "java.lang.OutOfMemoryError",
+        "connection_timeout": "java.net.SocketTimeoutException",
+        "connection_refused": "java.net.ConnectException",
+        "dns_failure": "java.net.UnknownHostException",
+        "database_deadlock": "Deadlock found when trying to get lock",
+        "database_lock_timeout": "Lock wait timeout exceeded",
+    }
+    return {
+        "initializer_last_loading_domain": loading[-1] if loading and loading[-1] in LOADER_DOMAINS else None,
+        "initializer_last_completed_domain": completed[-1] if completed and completed[-1] in LOADER_DOMAINS else None,
+        "initializer_failure_hints": [name for name, marker in categories.items() if marker in logs],
+    }
+
 
 def emit(stage, status, **safe):
     print(json.dumps({"stage": stage, "status": status, **safe}), flush=True)
@@ -420,7 +453,8 @@ class Harness:
                      installation_complete=installation_complete,
                      installation_action_counter=action_counter,
                      installation_completed_percentage=percentage,
-                     initializer_log_present=log_present, initializer_log_bytes=log_bytes)
+                     initializer_log_present=log_present, initializer_log_bytes=log_bytes,
+                     **loader_progress(logs))
                 next_diagnostic = now + 60
                 require(has_errors is not True, "installation_reported_errors")
             # A separate failure cannot be masked by the expected Liquibase
