@@ -140,6 +140,51 @@ class HarnessContracts(unittest.TestCase):
                                                              data_volume="volume")
                     self.assertEqual(runtime.baseline_dump.read_bytes(), b"synthetic-dump")
 
+    def test_operational_scenario_uses_real_baseline_and_always_cleans_up(self):
+        for cleanup_ok in (True, False):
+            with self.subTest(cleanup_ok=cleanup_ok), patch.object(harness, "Harness") as runtime, \
+                    patch.object(harness.signal, "signal"), patch.object(harness, "emit"):
+                instance = runtime.return_value
+                instance.cleanup.return_value = cleanup_ok
+                self.assertEqual(harness.main("operational"), 0 if cleanup_ok else 1)
+                instance.prepare.assert_called_once_with()
+                instance.baseline.assert_called_once_with()
+                instance.upgrade.assert_called_once_with(operational=True)
+                instance.fresh.assert_not_called()
+                instance.rejection.assert_not_called()
+                instance.cleanup.assert_called_once_with()
+
+    def test_rejection_preserves_prior_history_and_only_records_preparatory_noop(self):
+        before = ["historical\tauthor\tchecksum"]
+        preparatory = harness.OPERATIONAL_CHANGESET + "\tauthor\tchecksum"
+        self.runtime.candidate_recorded = Mock(return_value=True)
+        for rows, accepted in ((before + [preparatory], True), (before, False),
+                               (before + [preparatory, "unexpected"], False),
+                               (["historical\tchanged", preparatory], False)):
+            with self.subTest(rows=rows):
+                self.runtime.history = Mock(return_value=rows)
+                if accepted:
+                    self.runtime.assert_rejected_history("db", before)
+                else:
+                    with self.assertRaisesRegex(HarnessFailure, "^rejected_migration_changed_history$"):
+                        self.runtime.assert_rejected_history("db", before)
+
+    def test_arrival_payment_requires_one_active_optional_freetext_attribute(self):
+        valid = "0\t0\t1\torg.openmrs.customdatatype.datatype.FreeTextDatatype"
+        for rows in ([valid], [], [valid, valid], [valid.replace("0\t0", "1\t0")],
+                     [valid.replace("0\t0", "0\t1")], [valid.replace("0\t1", "0\t2")],
+                     [valid.replace("FreeText", "Integer")]):
+            with self.subTest(rows=rows), patch.object(harness, "emit") as emit:
+                self.runtime.query = Mock(return_value=rows)
+                if rows == [valid]:
+                    self.runtime.check_arrival_payment("db")
+                    emit.assert_called_once()
+                else:
+                    with self.assertRaisesRegex(HarnessFailure, "^arrival_payment_metadata_invalid$"):
+                        self.runtime.check_arrival_payment("db")
+                    emit.assert_not_called()
+                self.assertTrue(self.runtime.query.call_args.args[1].startswith("SELECT "))
+
     def test_external_docker_and_broad_or_symlink_temp_rejected(self):
         for key in ("DOCKER_HOST", "DOCKER_CONTEXT"):
             with self.subTest(key=key), self.assertRaises(HarnessFailure):

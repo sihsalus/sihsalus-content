@@ -63,6 +63,12 @@ evidence that its MariaDB assertions passed.
   CSV loaded afterward by Initializer; it is not an input to this migration.
   A missing native privilege or a later CSV grant applied before reconciliation
   causes a closed failure without changing RBAC.
+- The additional exact 55-permission operational alias with an existing canonical
+  58-permission target: user/tag reference transfer, preserved stock scope audit
+  data and children, optional modules absent, idempotence, and transaction rollback
+  with retry. Modified 55-entry policies, missing canonical targets and unknown
+  references fail closed. The frozen legacy list recognizes an input only; no
+  legacy privilege is copied into the runtime canonical policy.
 - Closed failures for an unrelated UUID owner, extra/missing privileges,
   inheritance in either direction, an unknown role foreign key, and a
   nontransactional optional table, additional copied columns, or a trailing-space
@@ -85,8 +91,8 @@ add exactly the approved logbook read permission. The guard test also compares
 the two CSV policies. Current CSV changes therefore cannot rewrite the historical
 fixtures or silently expand the SQL allowlist.
 
-The historical changelog fixture is the full candidate XML minus the new reconciliation
-changeset, executed first at the same logical path. It does not fabricate a
+The historical changelog fixture is the full candidate XML minus both reconciliation
+changesets, executed first at the same logical path. It does not fabricate a
 successful historical changeset by inserting a made-up checksum.
 Additional tests execute the six withdrawn 20260903 changesets, preserved from
 `9855170d45d922756e0719725fe06a36a3bbd960` in `withdrawn-reconciliation.xml`,
