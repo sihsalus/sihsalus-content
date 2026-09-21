@@ -34,6 +34,51 @@ no asigna una persona ni declara aprobada esa excepción. La condición propuest
 concluir las transiciones soportadas y mantener su historia congelada; cualquier
 nueva capacidad general debe resolverse en el componente responsable.
 
+## Publicación e inventario comprobados
+
+Comprobación del 21 de septiembre de 2026, entre las 23:10 y 23:17 UTC.
+El PR #223 fue fusionado el 8 de septiembre, como
+`1025f7339a98ba2a6837dd0f33ed2c2e14d9a436`, cuyo POM declara `1.25.16`.
+Sin embargo, los [metadatos de Maven Central](https://repo.maven.apache.org/maven2/io/github/proyecto-santaclotilde/sihsalus-content/maven-metadata.xml)
+no incluyen esa versión y su POM devolvió HTTP 404. El
+[build de ese merge](https://github.com/sihsalus/sihsalus-content/actions/runs/34186600014)
+terminó con fallo. Se inspeccionaron directamente los ZIP publicados:
+
+| Paquete | Changesets | Permisos de `Admision` en CSV | Reconciliación `20260907` |
+| --- | ---: | ---: | --- |
+| [1.25.15](https://repo.maven.apache.org/maven2/io/github/proyecto-santaclotilde/sihsalus-content/1.25.15/sihsalus-content-1.25.15.zip) | 9 | 58 | Ausente; contiene la normalización `20260722`. |
+| [1.25.17](https://repo.maven.apache.org/maven2/io/github/proyecto-santaclotilde/sihsalus-content/1.25.17/sihsalus-content-1.25.17.zip) | 10 | 59 | Presente, con el SHA256 congelado por las pruebas. |
+| [1.25.20](https://repo.maven.apache.org/maven2/io/github/proyecto-santaclotilde/sihsalus-content/1.25.20/sihsalus-content-1.25.20.zip) | 10 | 59 | Presente, con el mismo SHA256. |
+
+El bloque literal de la reconciliación tiene SHA256
+`d2deb4caccce550305b335840175e769e8bd3d35cd1185de1cd966f715b5eef8`.
+El XML completo de `1.25.17` y `1.25.20` también es idéntico. Ninguno de los
+tres ZIP inspeccionados contiene las dos migraciones candidatas `20260921`.
+Esto demuestra distribución de la migración histórica, no su ejecución por host.
+
+La inspección operativa fue de solo lectura y no devolvió datos clínicos ni
+identidades de usuarios. Se verificó OpenVPN conectado y la ruta privada antes
+de intentar acceder al servidor del hospital.
+
+| Entorno | Evidencia obtenida | Pendiente |
+| --- | --- | --- |
+| DEV | SSH disponible; backend saludable con tag `sha-7e09dce7d2dc8ae108435bff515232a5d3ce1812`; MariaDB `10.11.7` saludable. | Historial SQL, metadata instalada y referencias de roles. |
+| QLTY | SSH disponible; backend saludable con tag `sha-11fceb91c3c21f1261b88e5c61196be673b88dba`; MariaDB `10.11.7` saludable. | Historial SQL, metadata instalada y referencias de roles. |
+| Hospital | OpenVPN conectado; el intento SSH por la ruta privada devolvió `Network is unreachable`. | Identidad y estado del backend, historial y referencias. |
+
+Los comandos de consulta SQL de DEV/QLTY fueron bloqueados por el entorno local
+con `Operation not permitted` antes de conectar por SSH. No se obtuvo resultado
+SQL y no se aplicó ninguna migración. La imagen del backend y su healthcheck no
+demuestran qué metadata pudo cargarse después ni qué cambios fueron ejecutados.
+
+Para cerrar el inventario faltan los IDs, autores, rutas, fechas, estado y
+checksums de Admisión en los historiales existentes; las definiciones exactas de
+los tres roles implicados; y conteos de asignaciones, herencias y referencias
+en Patient Flags/Stock. Debe identificarse también cualquier esquema o trigger
+adicional. No hacen falta datos de pacientes, nombres de usuarios ni credenciales
+en el informe. Hasta obtener esa evidencia, las dos rutas candidatas conservan
+su condición de pendientes; no se eliminan suponiendo que nunca se ejecutaron.
+
 ## Limitación verificada de Initializer
 
 Se revisó el código del pin `3077975fb4f58c91ff3113d7fed1e3df88829476`,

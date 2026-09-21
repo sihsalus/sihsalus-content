@@ -1,11 +1,20 @@
 # Reconciliación de identidades del rol de Admisión
 
-Estado: CANDIDATA EN REVISIÓN — NO PUBLICAR NI DESPLEGAR.
+Estado: contrato histórico de la reconciliación incorporada por el
+[PR #223](https://github.com/sihsalus/sihsalus-content/pull/223), fusionado el
+8 de septiembre de 2026. Sus bytes se verificaron en los paquetes publicados
+`1.25.17` y `1.25.20`; no corresponde reescribir esa historia.
 
-El PR #223 se revisa separadamente del permiso `Delete Relationships`, publicado
-en #222 / `1.25.15`. La candidata `1.25.16` requiere CI del SHA final, aprobación
-independiente y los controles de actualización siguientes. Declarar una versión
-en esta rama no la reserva en Maven Central ni aprueba su publicación.
+`Delete Relationships` se publicó separadamente en #222 / `1.25.15`.
+La versión `1.25.16` declarada al fusionar #223 no aparece en Maven Central en
+la comprobación del 21 de septiembre. Un merge y una versión en el POM no prueban
+publicación ni ejecución en un entorno. La
+[auditoría de mantenibilidad](../audits/2026-09-21-admission-maintainability.md)
+registra las fuentes y los límites de esa verificación.
+
+Las ampliaciones del PR #233 siguen siendo candidatas. Su promoción requiere
+revisión, aceptación funcional y los controles de actualización de este contrato;
+la publicación de la migración histórica no aprueba esas ampliaciones.
 
 ## Corrección respecto de la primera candidata
 
