@@ -39,14 +39,6 @@ PORTABLE_POLICY_MARKERS = (
     "uuid-owner", "privileges", "inheritance", "role-names", "reference-role-names",
     "delete-relationships-privilege",
 )
-UNPUBLISHED_CHANGE_SET_IDS = {
-    "assert-admission-role-uuid-owner-20260903",
-    "merge-admission-role-core-references-20260903",
-    "merge-admission-role-patientflags-references-20260903",
-    "merge-admission-role-stock-references-20260903",
-    "finalize-admission-role-identity-20260903",
-    "assert-canonical-admission-role-identity-20260903",
-}
 
 # Frozen once from origin/main 8000b27f48bf124fe9a553d4ba41c678e9acc231.
 # Hashes cover each literal <changeSet ...>...</changeSet> block, not a SQLite
@@ -72,68 +64,14 @@ HISTORICAL_CHANGE_SET_SHA256 = {
         "bd6d8d59e7dc3dd79fff505477031ace5e37f4b26045387ee9a7e45823f05fa8",
 }
 
-# Independent approved policy: neither editing SQL and CSV together nor reading
-# privileges from the database may silently broaden the migration's allowlist.
-APPROVED_PRIVILEGES = frozenset({
-    "Add Patients",
-    "Add Patient Identifiers",
-    "Add People",
-    "Add Relationships",
-    "Add Visits",
-    "Appointments: Invite Providers",
-    "Delete Relationships",
-    "Edit Patient Identifiers",
-    "Edit Patients",
-    "Edit People",
-    "Edit Relationships",
-    "Edit Visits",
-    "Get Admission Locations",
-    "Get Beds",
-    "Get Concept Attribute Types",
-    "Get Concept Sources",
-    "Get Concepts",
-    "Get Encounters",
-    "Get Identifier Types",
-    "Get Location Attribute Types",
-    "Get Locations",
-    "Get Patient Identifiers",
-    "Get Patients",
-    "Get People",
-    "Get Person Attribute Types",
-    "Get Providers",
-    "Get Queue Entries",
-    "Get Queues",
-    "Get Relationship Types",
-    "Get Relationships",
-    "Get Visit Attribute Types",
-    "Get Visit Types",
-    "Get Visits",
-    "Manage Appointments",
-    "Manage Own Appointments",
-    "Manage Queue Entries",
-    "View Appointment Services",
-    "View Appointments",
-    "View Identifier Types",
-    "View Locations",
-    "View Navigation Menu",
-    "View Patient Identifiers",
-    "View Patients",
-    "View People",
-    "View Person Attribute Types",
-    "View Relationship Types",
-    "View Relationships",
-    "app:appointments.issueDate.edit",
-    "app:appointments.startDate.edit",
-    "app:home",
-    "app:home.admision",
-    "app:home.citas",
-    "app:home.citas.editar",
-    "app:home.colasAtencion",
-    "app:home.colasAtencion.editar",
-    "app:opciones.busquedaPaciente",
-    "app:opciones.registrarAcompanante",
-    "app:opciones.registrarPaciente",
-})
+# Share the frozen 1.25.15 fixture with MariaDB tests, not the current CSV.
+# The byte-level check below prevents this historical input from drifting with
+# the migration. Its source is recorded in the integration README.
+with HISTORICAL_ROLES_PATH.open(newline="", encoding="utf-8-sig") as handle:
+    historical_role, = csv.DictReader(handle)
+APPROVED_PRIVILEGES = frozenset(
+    privilege.strip() for privilege in historical_role["Privileges"].split(";")
+)
 PREVIOUS_PRIVILEGES = APPROVED_PRIVILEGES - {"Delete Relationships"}
 CURRENT_PRIVILEGES = APPROVED_PRIVILEGES | {"app:home.libroAtenciones"}
 
@@ -171,10 +109,6 @@ def get_policy_query(marker):
     return "".join(get_policy_check(marker).itertext()).strip()
 
 
-def without_sql_comments(sql):
-    return re.sub(r"/\*.*?\*/|--[^\n]*", "", sql, flags=re.DOTALL)
-
-
 def snapshot(connection):
     return tuple(connection.iterdump())
 
@@ -188,7 +122,7 @@ class AdmissionChangelogStructureTest(unittest.TestCase):
         )
         self.assertEqual(expected, ids)
 
-    def test_all_nine_historical_change_sets_are_byte_for_byte_unchanged(self):
+    def test_published_change_sets_are_byte_for_byte_unchanged(self):
         blocks = re.findall(
             r"<changeSet\b.*?</changeSet>",
             LIQUIBASE_PATH.read_text(encoding="utf-8"),
@@ -199,120 +133,21 @@ class AdmissionChangelogStructureTest(unittest.TestCase):
             identifier = ET.fromstring(block).get("id")
             self.assertNotIn(identifier, by_id)
             by_id[identifier] = hashlib.sha256(block.encode()).hexdigest()
-        for identifier, digest in HISTORICAL_CHANGE_SET_SHA256.items():
+        published = {
+            **HISTORICAL_CHANGE_SET_SHA256,
+            # Published by #223; its preconditions and SQL are now immutable too.
+            RECONCILIATION_ID:
+                "d2deb4caccce550305b335840175e769e8bd3d35cd1185de1cd966f715b5eef8",
+        }
+        for identifier, digest in published.items():
             with self.subTest(change_set=identifier):
                 self.assertEqual(digest, by_id.get(identifier))
 
-    def test_preconditions_halt_on_rejection_or_error_before_any_sql(self):
-        change_set = get_reconciliation()
-        preconditions = change_set.find(f"{{{NAMESPACE}}}preConditions")
-        self.assertIsNotNone(preconditions)
-        self.assertEqual("HALT", preconditions.get("onFail"))
-        self.assertEqual("HALT", preconditions.get("onError"))
-        children = list(change_set)
-        sql_elements = change_set.findall(f"{{{NAMESPACE}}}sql")
-        self.assertTrue(sql_elements)
-        self.assertTrue(all(
-            children.index(preconditions) < children.index(sql)
-            for sql in sql_elements
-        ))
-        checks = preconditions.findall(f".//{{{NAMESPACE}}}sqlCheck")
-        self.assertTrue(checks)
-        self.assertTrue(all(
-            check.get("expectedResult") == "0" for check in checks
-        ))
-        for marker in (
-            *PORTABLE_POLICY_MARKERS, "engines", "foreign-keys",
-            "legacy-history", "constraint-enforcement", "copied-table-columns",
-            "core-primary-keys", "role-uuid-constraint", "core-foreign-keys",
-            "privilege-foreign-key",
-            "patientflags-role-names", "stock-role-names",
-            "orphan-core-references", "orphan-patientflags-references",
-            "orphan-stock-references",
-        ):
-            with self.subTest(marker=marker):
-                self.assertTrue(any(
-                    f"/* admission:{marker} */" in "".join(check.itertext())
-                    for check in checks
-                ))
-
-    def test_history_guards_cover_both_journals_and_all_six_unpublished_changes(self):
-        checks = [
-            check for check in get_reconciliation().findall(
-                f".//{{{NAMESPACE}}}sqlCheck"
-            )
-            if "/* admission:legacy-history */" in "".join(check.itertext())
-        ]
-        self.assertEqual(2, len(checks))
-        journals = set()
-        for check in checks:
-            query = "".join(check.itertext())
-            self.assertEqual(
-                UNPUBLISHED_CHANGE_SET_IDS, set(re.findall(r"'([^']*)'", query))
-            )
-            journals.add(re.search(r"\bFROM\s+(\w+)", query).group(1))
-        self.assertEqual({"liquibasechangelog", "DATABASECHANGELOG"}, journals)
-
-    def test_single_change_set_requests_transactional_execution(self):
-        # A declared flag is not proof that MariaDB/Liquibase rolls back writes.
-        self.assertEqual("true", get_reconciliation().get("runInTransaction"))
-
-    def test_new_sql_neither_suppresses_write_errors_nor_changes_schema_or_inheritance(self):
-        sql = "\n".join(
-            "".join(item.itertext())
-            for item in get_reconciliation().findall(f"{{{NAMESPACE}}}sql")
-        )
-        sql = without_sql_comments(sql)
-        self.assertNotRegex(sql, r"(?i)\bINSERT\s+IGNORE\b")
-        self.assertNotRegex(
-            sql,
-            r"(?i)\b(?:CREATE|ALTER|DROP|TRUNCATE|RENAME)\s+"
-            r"(?:TABLE|PROCEDURE|FUNCTION|TRIGGER|DATABASE)\b",
-        )
-        self.assertNotRegex(
-            sql,
-            r"(?i)\b(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+role_role\b",
-        )
-
-    def test_portable_policy_checks_are_selects_not_a_migration_simulator(self):
-        for marker in PORTABLE_POLICY_MARKERS:
-            with self.subTest(marker=marker):
-                query = without_sql_comments(get_policy_query(marker)).strip()
-                self.assertRegex(query, r"(?i)^SELECT\b")
-                # Privilege literals include "Delete Relationships"; exclude
-                # quoted values when checking for SQL statement keywords.
-                statements = re.sub(r"'(?:''|[^'])*'", "''", query)
-                self.assertNotRegex(
-                    statements,
-                    r"(?i)\b(?:INSERT|UPDATE|DELETE|PREPARE|EXECUTE|COMMIT|ROLLBACK)\b",
-                )
-
-    def test_only_published_delete_relationships_is_added_to_an_existing_role(self):
-        # This is a statement-shape contract. The MariaDB harness, not SQLite,
-        # must prove the final 58 privileges, atomicity, and repeated execution.
-        sql = "\n".join(
-            "".join(item.itertext())
-            for item in get_reconciliation().findall(f"{{{NAMESPACE}}}sql")
-        )
-        statements = re.findall(
-            r"INSERT\s+INTO\s+role_privilege\b[^;]+;", sql, re.IGNORECASE
-        )
-        self.assertEqual(2, len(statements))
-        additions = [
-            statement for statement in statements
-            if "'Delete Relationships'" in statement
-        ]
-        self.assertEqual(1, len(additions))
+    def test_historical_policy_fixture_is_byte_for_byte_unchanged(self):
         self.assertEqual(
-            "INSERT INTO role_privilege (role, privilege) "
-            "SELECT 'Admision', 'Delete Relationships' "
-            "FROM role canonical WHERE canonical.role = 'Admision' "
-            "AND NOT EXISTS ( SELECT 1 FROM role_privilege existing_privilege "
-            "WHERE existing_privilege.role = 'Admision' "
-            "AND existing_privilege.privilege = 'Delete Relationships' );",
-            " ".join(additions[0].split()),
+            "7564e74ee357e422f8a33eff6b76c158c2da715ea7623b722b001702df0b579e",
+            hashlib.sha256(HISTORICAL_ROLES_PATH.read_bytes()).hexdigest(),
         )
-        self.assertNotRegex(sql, r"(?i)\bINSERT\s+INTO\s+privilege\b")
 
     def test_historical_sql_policy_and_current_csv_policy_remain_distinct(self):
         for path, expected in (
