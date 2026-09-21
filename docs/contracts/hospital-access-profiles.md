@@ -15,7 +15,7 @@ sincronización automática hacia todos los entornos.
 | `consulta.externa` | Perfil de consulta de cuentas hospitalarias activas: `Provider` + `SIHSALUS Consulta Externa` + `SIHSALUS Login` | 169 |
 | `enfermeria.triaje` | `Provider` + `SIHSALUS Enfermero Triaje` + `SIHSALUS Login` | 66 |
 | `farmacia` | `Farmacia` + `Inventory Dispensing` + `Inventory Manager` + `Inventory Reporting` + `Provider` + `SIHSALUS Login` | 103 |
-| `laboratorio` | `Provider` + `SIHSALUS Laboratorio` + `SIHSALUS Login` | 69 |
+| `laboratorio` | `Provider` + `SIHSALUS Laboratorio` + `SIHSALUS Login` | 70 |
 | `soporte` | `SIHSALUS Soporte` + `SIHSALUS Login` | 503 |
 
 Los conjuntos incluyen la herencia y los permisos implícitos de `Anonymous` y
@@ -44,6 +44,16 @@ Así no se añaden creación/lectura de adjuntos ni el marcador `Delete Observat
 que no forman parte de la referencia hospitalaria. Este marcador no equivale a
 prohibir toda anulación: `ObsService.voidObs` utiliza `Edit Observations`, que
 el perfil sí conserva. La purga es una operación independiente.
+
+La revisión del 21/09 añade únicamente `Get Patient Programs` a ambos perfiles
+de Laboratorio. Los criterios maternos de los rangos de referencia llaman a
+`ProgramWorkflowService.getPatientPrograms`, protegido por ese permiso en Core
+2.8.9. Sin él, incluso una mujer sin inscripción materna puede recibir un error
+de autorización al guardar temperatura: debe consultarse la inscripción antes
+de descartarla. No se conceden creación, edición o purga de inscripciones.
+La referencia hospitalaria anterior tenía 69 permisos efectivos; esta candidata
+tiene 70 y necesita aceptación en el entorno. No se presenta como una aplicación
+ya realizada ni como una ampliación de permisos para administrar alertas.
 
 Soporte es un perfil administrativo amplio: sus 503 permisos incluyen gestión
 de usuarios, roles, módulos, purgas y acceso clínico. Se asigna explícitamente al
@@ -148,3 +158,10 @@ mvn clean verify --batch-mode --file pom.xml
 La validación de metadatos y API no sustituye pruebas completas de atención,
 dispensación con existencias ni validación del receptor de auditoría. Los
 resultados de cada aplicación se adjuntan al PR sin datos personales.
+
+La atribución previa del 403 a Patient Flags se basó en el texto «evaluating
+criteria». La regresión de
+[`reference-range-access`](../../.github/integration/reference-range-access/README.md)
+reproduce ese texto y la excepción de autorización con el evaluador nativo de
+rangos de referencia, sin cargar Patient Flags. Esto corrige el diagnóstico de
+esa reproducción local; sigue pendiente repetir el guardado REST en DEV/QLTY.

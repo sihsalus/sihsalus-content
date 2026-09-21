@@ -524,7 +524,7 @@
         "SIHSALUS Laboratorio",
         "SIHSALUS Login"
       ],
-      "referenceBasis": "Perfil funcional de laboratorio observado en usuarios hospitalarios activos",
+      "referenceBasis": "Perfil hospitalario revisado, con lectura de programas requerida por los rangos maternos de OpenMRS 2.8.9; aceptación del entorno pendiente.",
       "expectedPrivileges": [
         "Add Encounters",
         "Add Observations",
@@ -557,6 +557,7 @@
         "Get Order Types",
         "Get Orders",
         "Get Patient Identifiers",
+        "Get Patient Programs",
         "Get Patients",
         "Get People",
         "Get Person Attribute Types",

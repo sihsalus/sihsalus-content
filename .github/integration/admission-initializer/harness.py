@@ -219,6 +219,17 @@ class Harness:
         require({row["Role name"] for row in self.hospital_roles} == {
             "SIHSALUS Admision Hospitalaria", "SIHSALUS Laboratorio", "SIHSALUS Soporte"},
             "hospital_role_scope_changed")
+        with (candidate / ROLES_FILE).open(encoding="utf-8-sig", newline="") as handle:
+            laboratory = [row for row in csv.DictReader(handle) if row["Role name"] == "Laboratorio"]
+        require(len(laboratory) == 1 and laboratory[0]["Uuid"] == "2049b153-6d8c-4bc1-96ab-f34f0ca43285",
+                "canonical_laboratory_identity_changed")
+        with (baseline / ROLES_FILE).open(encoding="utf-8-sig", newline="") as handle:
+            old_laboratory = [row for row in csv.DictReader(handle) if row["Role name"] == "Laboratorio"]
+        require(len(old_laboratory) == 1 and
+                set(laboratory[0]["Privileges"].split(";")) ==
+                set(old_laboratory[0]["Privileges"].split(";")) | {"Get Patient Programs"},
+                "unreviewed_laboratory_privilege_delta")
+        self.hospital_roles.extend(laboratory)
         with (candidate / HOSPITAL_COMPATIBILITY_FILE).open(encoding="utf-8-sig", newline="") as handle:
             self.hospital_compatibility = {row["Privilege name"] for row in csv.DictReader(handle)}
         require(len(self.hospital_compatibility) == 5 and

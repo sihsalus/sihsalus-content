@@ -20,6 +20,17 @@ jobs:
   admission-initializer:
     uses: ./.github/workflows/admission-initializer.yml
 
+  reference-range-access:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Evaluate shipped maternal ranges with native Core authorization
+        run: mvn --batch-mode --no-transfer-progress --file .github/integration/reference-range-access/pom.xml test
+
   build:
     runs-on: ubuntu-latest
 
@@ -92,7 +103,7 @@ jobs:
           mvn clean verify --batch-mode --file pom.xml
 
   publish:
-    needs: [build, admission-migration, admission-initializer]
+    needs: [build, admission-migration, admission-initializer, reference-range-access]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/pre-release')
     runs-on: ubuntu-latest
     steps:
