@@ -47,6 +47,10 @@ jobs:
         run: python3 .github/scripts/validate_ce001_diagnosis_contract.py
       - name: Test CE-001 diagnosis contract validator
         run: python3 .github/scripts/test_ce001_diagnosis_contract.py
+      - name: Validate social history contract
+        run: python3 .github/scripts/validate_social_history_contract.py
+      - name: Test social history contract
+        run: python3 .github/scripts/test_social_history_contract.py
       - name: Validate Consulta Externa physical examination contract
         run: python3 .github/scripts/validate_ce_physical_exam_contract.py
       - name: Validate Visit Note content contract

@@ -26,6 +26,10 @@ Los [contratos](docs/contracts), las [auditorías históricas](docs/audits) y lo
 [validadores](.github/scripts) documentan las restricciones y comprobaciones de la metadata.
 El [workflow de construcción](.github/workflows/main.yml) contiene los comandos de validación usados en CI.
 
+Antes de contribuir, revisar [AGENTS.md](AGENTS.md): establece los criterios de
+reutilización, responsabilidad de cada componente, migraciones históricas y
+automatización mantenible que deben cumplir los cambios y sus PR.
+
 Las presentaciones adicionales de medicamentos usan los CSV nativos de
 Initializer. Sus identidades estables y fuentes están documentadas en
 [el catálogo clínico](docs/clinical-drug-catalog.md).
@@ -313,3 +317,10 @@ Referencias mínimas
 - Guía de Vigilancia del Neurodesarrollo - Huanca Payehuanca (manual de aplicación): https://repositorio.essalud.gob.pe/handle/20.500.12959/5846
 
 Antes de crear o modificar formularios clínicos, revisar la norma técnica vigente en fuentes oficiales MINSA/gob.pe. No asumir que una NTS anterior sigue vigente si existe resolución posterior.
+
+## Historia social
+
+La versión `1.25.23` agrega `CE-SOC-001-HISTORIA SOCIAL` (alcohol y tabaco), con un tipo
+de encuentro propio y los permisos existentes de Historia Social. Reutiliza el catálogo
+OCL sin modificar conceptos ni registros anteriores. Véase el [contrato](docs/contracts/social-history.md)
+para las identidades que debe usar el frontend y la validación de integración pendiente.

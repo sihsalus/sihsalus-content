@@ -502,6 +502,9 @@ class HarnessContracts(unittest.TestCase):
                 "installation_has_errors": False, "installation_complete": True,
                 "installation_action_counter": 123, "installation_completed_percentage": None,
                 "initializer_log_present": True, "initializer_log_bytes": 20,
+                "initializer_last_loading_domain": None,
+                "initializer_last_completed_domain": None,
+                "initializer_failure_hints": [],
             })
 
     def test_lifecycle_waits_for_real_module_after_completion_log(self):
@@ -594,7 +597,12 @@ class HarnessContracts(unittest.TestCase):
         sleep.assert_not_called()
         self.assertEqual(emit.call_count, 1)
         self.assertEqual(emit.call_args.args[1], "WAITING")
-        self.assertTrue(all(isinstance(value, bool) or value is None for value in emit.call_args.kwargs.values()))
+        diagnostic = emit.call_args.kwargs
+        self.assertIsNone(diagnostic["initializer_last_loading_domain"])
+        self.assertIsNone(diagnostic["initializer_last_completed_domain"])
+        self.assertEqual(diagnostic["initializer_failure_hints"], [])
+        self.assertTrue(all(isinstance(value, bool) or value is None
+                            for name, value in diagnostic.items() if name != "initializer_failure_hints"))
         self.assertNotIn("synthetic-private", json.dumps(emit.call_args.kwargs))
         return emit.call_args.kwargs
 
@@ -1034,6 +1042,40 @@ class HarnessContracts(unittest.TestCase):
             with self.assertRaisesRegex(HarnessFailure, "cleanup_time_budget_exhausted"):
                 self.runtime.docker("volume", "rm", "owned")
         checked.assert_not_called()
+
+
+class LoaderDiagnostics(unittest.TestCase):
+    def test_reports_loader_phase_without_paths_names_or_raw_errors(self):
+        logs = (
+            "Loading file /openmrs/data/configuration/roles/private-role.csv\n"
+            "The 'roles' configuration file has finished loading:\n/private/secret-path\n"
+            "Loading file /openmrs/data/configuration/ocl/private-bundle.json\n"
+            "java.net.SocketTimeoutException: private-credential-or-patient-value\n"
+        )
+        self.assertEqual(harness.loader_progress(logs), {
+            "initializer_last_loading_domain": "ocl",
+            "initializer_last_completed_domain": "roles",
+            "initializer_failure_hints": ["connection_timeout"],
+        })
+
+    def test_unknown_domains_and_exception_names_are_never_copied_to_output(self):
+        logs = (
+            "Loading file /openmrs/data/configuration/roles/known.csv\n"
+            "Loading file /openmrs/data/configuration/privatevalue/private-name.csv\n"
+            "The 'privatevalue' configuration file has finished loading:\n"
+            "private.package.PrivateException: confidential\n"
+        )
+        self.assertEqual(harness.loader_progress(logs), {
+            "initializer_last_loading_domain": None,
+            "initializer_last_completed_domain": None,
+            "initializer_failure_hints": [],
+        })
+
+    def test_failure_hints_are_bounded_and_do_not_repeat_raw_matches(self):
+        logs = "java.lang.OutOfMemoryError: private\n" * 100
+        logs += "Lock wait timeout exceeded; private SQL\n"
+        self.assertEqual(harness.loader_progress(logs)["initializer_failure_hints"],
+                         ["out_of_memory", "database_lock_timeout"])
 
 
 if __name__ == "__main__":

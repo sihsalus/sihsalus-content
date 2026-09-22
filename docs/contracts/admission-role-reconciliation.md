@@ -190,8 +190,11 @@ precondiciones para conseguir un arranque verde.
 
 ## Validación reproducible y límites
 
-Las pruebas Python comprueban la estructura del changelog y las consultas de
-política compatibles con SQLite. No traducen la migración para simular
+Las pruebas Python conservan el orden y los bytes de los diez changeSets
+publicados, incluida la reconciliación `20260907`. Reutilizan la fixture histórica
+`admission-role-1.25.15.csv` de MariaDB y fijan su SHA256, sin mantener otra lista
+de 58 permisos. Conservan las pruebas de aceptación y rechazo de las consultas
+de política compatibles con SQLite. No traducen la migración para simular
 transacciones MariaDB ni presentan ese modelo como una prueba de Liquibase.
 
 El harness de integración usa MariaDB `10.11.7`, Liquibase `4.32.0` y JDBC

@@ -85,11 +85,19 @@ evidence that its MariaDB assertions passed.
 
 `src/test/resources/admission-role-1.25.15.csv` preserves the header and canonical
 Admisión row from source `8000b27f48bf124fe9a553d4ba41c678e9acc231`. Java fixtures
-and SQL assertions use this historical policy. Python checks it against an
-independent 58-entry allowlist and verifies that the current CSV and validator
+and SQL assertions use this historical policy. Python reads the same frozen
+fixture and checks its SHA256 against the recorded source, instead of maintaining
+another 58-entry permission list. It verifies that the current CSV and validator
 add exactly the approved logbook read permission. The guard test also compares
 the two CSV policies. Current CSV changes therefore cannot rewrite the historical
-fixtures or silently expand the SQL allowlist.
+fixture or silently expand the SQL allowlist.
+
+Python also freezes all ten published changeset blocks, including the 20260907
+reconciliation. This replaces assertions about that immutable SQL's spelling,
+comments and statement layout. Portable policy mutation tests still check accepted
+and rejected inputs; the MariaDB suite still executes the complete changelog and
+verifies preconditions, transactions, references and retry behavior. No fixture
+hash should be regenerated to accommodate a changed historical migration or policy.
 
 The historical changelog fixture is the full candidate XML minus both reconciliation
 changesets, executed first at the same logical path. It does not fabricate a

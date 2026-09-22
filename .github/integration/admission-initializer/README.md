@@ -297,6 +297,15 @@ when absent. These observations reuse the existing log read and contain no path.
 Neither `hasErrors=false`, `initializationComplete=true`, nor an HTTP code can
 replace the Initializer lifecycle assertions. Installer messages, error pages,
 log lines, response bodies, credentials and exception text are never emitted.
+The loader observations also expose the last loading and last completed domain,
+restricted to names in the pinned Initializer's `Domain` enum. Unknown names are
+reported as `null`; filenames, paths and values are never copied. A bounded list
+of fixed failure hints identifies memory exhaustion, connection timeout/refusal,
+DNS failure and database lock/deadlock messages. It contains category names only,
+without raw exception text, SQL or values. This lets a stalled run distinguish
+where loading stopped without publishing application logs. These hints do not
+prove the root cause, and their absence does not prove that startup is healthy.
+
 These diagnostics are not passing test results.
 
 Pure tests exercise safety and assertion contracts without Docker. Only a
