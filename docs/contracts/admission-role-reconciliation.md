@@ -1,11 +1,20 @@
 # Reconciliación de identidades del rol de Admisión
 
-Estado: CANDIDATA EN REVISIÓN — NO PUBLICAR NI DESPLEGAR.
+Estado: contrato histórico de la reconciliación incorporada por el
+[PR #223](https://github.com/sihsalus/sihsalus-content/pull/223), fusionado el
+8 de septiembre de 2026. Sus bytes se verificaron en los paquetes publicados
+`1.25.17` y `1.25.20`; no corresponde reescribir esa historia.
 
-El PR #223 se revisa separadamente del permiso `Delete Relationships`, publicado
-en #222 / `1.25.15`. La candidata `1.25.16` requiere CI del SHA final, aprobación
-independiente y los controles de actualización siguientes. Declarar una versión
-en esta rama no la reserva en Maven Central ni aprueba su publicación.
+`Delete Relationships` se publicó separadamente en #222 / `1.25.15`.
+La versión `1.25.16` declarada al fusionar #223 no aparece en Maven Central en
+la comprobación del 21 de septiembre. Un merge y una versión en el POM no prueban
+publicación ni ejecución en un entorno. La
+[auditoría de mantenibilidad](../audits/2026-09-21-admission-maintainability.md)
+registra las fuentes y los límites de esa verificación.
+
+Las ampliaciones del PR #233 siguen siendo candidatas. Su promoción requiere
+revisión, aceptación funcional y los controles de actualización de este contrato;
+la publicación de la migración histórica no aprueba esas ampliaciones.
 
 ## Corrección respecto de la primera candidata
 
@@ -133,8 +142,11 @@ precondiciones para conseguir un arranque verde.
 
 ## Validación reproducible y límites
 
-Las pruebas Python comprueban la estructura del changelog y las consultas de
-política compatibles con SQLite. No traducen la migración para simular
+Las pruebas Python conservan el orden y los bytes de los diez changeSets
+publicados, incluida la reconciliación `20260907`. Reutilizan la fixture histórica
+`admission-role-1.25.15.csv` de MariaDB y fijan su SHA256, sin mantener otra lista
+de 58 permisos. Conservan las pruebas de aceptación y rechazo de las consultas
+de política compatibles con SQLite. No traducen la migración para simular
 transacciones MariaDB ni presentan ese modelo como una prueba de Liquibase.
 
 El harness de integración usa MariaDB `10.11.7`, Liquibase `4.32.0` y JDBC
