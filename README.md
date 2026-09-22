@@ -26,6 +26,10 @@ Los [contratos](docs/contracts), las [auditorías históricas](docs/audits) y lo
 [validadores](.github/scripts) documentan las restricciones y comprobaciones de la metadata.
 El [workflow de construcción](.github/workflows/main.yml) contiene los comandos de validación usados en CI.
 
+Antes de contribuir, revisar [AGENTS.md](AGENTS.md): establece los criterios de
+reutilización, responsabilidad de cada componente, migraciones históricas y
+automatización mantenible que deben cumplir los cambios y sus PR.
+
 Las presentaciones adicionales de medicamentos usan los CSV nativos de
 Initializer. Sus identidades estables y fuentes están documentadas en
 [el catálogo clínico](docs/clinical-drug-catalog.md).
