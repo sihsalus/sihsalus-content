@@ -34,6 +34,8 @@ CANONICAL_ROLE = "Admision"
 LEGACY_ROLE = "SIHSALUS Admision"
 CANONICAL_UUID = "71dcb611-756a-4ad3-a9bb-73b6cfe28066"
 RECONCILIATION_ID = "reconcile-admission-role-20260907"
+OPERATIONAL_RECONCILIATION_ID = "reconcile-admission-operational-alias-20260921"
+SUPPLEMENT_RETIREMENT_ID = "retire-admission-hospital-supplement-20260921"
 HISTORICAL_NORMALIZATION_ID = "normalize-admission-role-name-20260722"
 PORTABLE_POLICY_MARKERS = (
     "uuid-owner", "privileges", "inheritance", "role-names", "reference-role-names",
@@ -114,12 +116,14 @@ def snapshot(connection):
 
 
 class AdmissionChangelogStructureTest(unittest.TestCase):
-    def test_only_one_new_change_set_precedes_historical_normalization(self):
+    def test_reviewed_migrations_precede_historical_normalization(self):
         ids = [item.get("id") for item in get_change_sets()]
         expected = list(HISTORICAL_CHANGE_SET_SHA256)
         expected.insert(
             expected.index(HISTORICAL_NORMALIZATION_ID), RECONCILIATION_ID
         )
+        expected.insert(expected.index(RECONCILIATION_ID), OPERATIONAL_RECONCILIATION_ID)
+        expected.insert(expected.index(HISTORICAL_NORMALIZATION_ID) + 1, SUPPLEMENT_RETIREMENT_ID)
         self.assertEqual(expected, ids)
 
     def test_published_change_sets_are_byte_for_byte_unchanged(self):
@@ -463,6 +467,133 @@ class AdmissionPortablePolicyTest(unittest.TestCase):
                     "UPDATE role SET uuid = ? WHERE role = 'Other'", (uuid,)
                 )
                 self.assert_policy(connection, "uuid-owner")
+
+
+class OperationalAdmissionAliasPolicyTest(unittest.TestCase):
+    def setUp(self):
+        self.change = next(item for item in get_change_sets() if item.get("id") == OPERATIONAL_RECONCILIATION_ID)
+        self.legacy = frozenset((REPOSITORY_ROOT / ".github/integration/admission-role-reconciliation/src/test/resources/admission-operational-legacy-privileges.txt").read_text().splitlines())
+        self.assertEqual(55, len(self.legacy))
+        self.helper = AdmissionPortablePolicyTest()
+        self.addCleanup(self.helper.doCleanups)
+
+    def query(self, marker):
+        checks = [item for item in self.change.findall(f".//{{{NAMESPACE}}}sqlCheck")
+                  if f"/* operational-admission:{marker} */" in "".join(item.itertext())]
+        self.assertEqual(1, len(checks))
+        return "".join(checks[0].itertext()).strip()
+
+    def database(self, legacy=None, canonical=None):
+        return self.helper.database([
+            (CANONICAL_ROLE, CANONICAL_UUID, APPROVED_PRIVILEGES if canonical is None else canonical),
+            (LEGACY_ROLE, "synthetic-operational-uuid", self.legacy if legacy is None else legacy),
+        ])
+
+    def test_published_reconciliation_bytes_are_unchanged(self):
+        block = re.search(r'<changeSet id="reconcile-admission-role-20260907".*?</changeSet>', LIQUIBASE_PATH.read_text(), re.DOTALL).group()
+        self.assertEqual("d2deb4caccce550305b335840175e769e8bd3d35cd1185de1cd966f715b5eef8", hashlib.sha256(block.encode()).hexdigest())
+
+    def test_reviewed_input_has_one_canonical_target(self):
+        db = self.database()
+        for marker, expected in (("scope", 1), ("canonical-target", 1), ("legacy-policy", 0), ("privileges", 0)):
+            self.assertEqual(expected, db.execute(self.query(marker)).fetchone()[0], marker)
+
+    def test_every_unapproved_replacement_in_the_55_entry_input_is_rejected(self):
+        for privilege in sorted(self.legacy):
+            with self.subTest(privilege=privilege):
+                db = self.database((self.legacy - {privilege}) | {"Synthetic unexpected access"})
+                self.assertEqual(1, db.execute(self.query("scope")).fetchone()[0])
+                self.assertEqual(1, db.execute(self.query("legacy-policy")).fetchone()[0])
+
+    def test_changed_canonical_target_cannot_authorize_cleanup(self):
+        db = self.database(canonical=(APPROVED_PRIVILEGES - {"Add Patients"}) | {"Synthetic unexpected access"})
+        self.assertEqual(1, db.execute(self.query("privileges")).fetchone()[0])
+
+    def test_ordinary_historical_inputs_remain_owned_by_published_migration(self):
+        for privileges in (APPROVED_PRIVILEGES, PREVIOUS_PRIVILEGES):
+            db = self.database(legacy=privileges)
+            self.assertEqual(0, db.execute(self.query("scope")).fetchone()[0])
+
+    def test_cleanup_never_unions_legacy_privileges_or_creates_an_alternate_role(self):
+        sql = "".join(self.change.find(f"{{{NAMESPACE}}}sql").itertext())
+        self.assertNotRegex(sql, r"(?i)INSERT\s+INTO\s+(?:role_privilege|role)\s*\(")
+        self.assertNotRegex(sql, r"(?i)UPDATE\s+role_privilege")
+        self.assertIn("INSERT INTO user_role", sql)
+        self.assertIn("DELETE FROM role WHERE @canonicalize_admission_alias = 1", sql)
+        self.assertEqual("true", self.change.get("runInTransaction"))
+        self.assertEqual("HALT", self.change.find(f"{{{NAMESPACE}}}preConditions").get("onFail"))
+
+
+class AdmissionSupplementPolicyTest(unittest.TestCase):
+    NAME = "SIHSALUS Admision Hospitalaria"
+    UUID = "5aaa1628-a7be-5a4f-847c-a1c593bd364e"
+
+    def setUp(self):
+        self.change = next(item for item in get_change_sets() if item.get("id") == SUPPLEMENT_RETIREMENT_ID)
+        self.privileges = frozenset((REPOSITORY_ROOT / ".github/integration/admission-role-reconciliation/src/test/resources/admission-supplement-privileges.txt").read_text().splitlines())
+        self.assertEqual(15, len(self.privileges))
+        self.helper = AdmissionPortablePolicyTest()
+        self.addCleanup(self.helper.doCleanups)
+
+    def query(self, marker):
+        matches = [item for item in self.change.findall(f".//{{{NAMESPACE}}}sqlCheck")
+                   if f"/* admission-supplement:{marker} */" in "".join(item.itertext())]
+        self.assertEqual(1, len(matches))
+        return "".join(matches[0].itertext()).strip()
+
+    def database(self, canonical=None, supplement=None):
+        db = self.helper.database([
+            (CANONICAL_ROLE, CANONICAL_UUID, APPROVED_PRIVILEGES if canonical is None else canonical),
+            (self.NAME, self.UUID, self.privileges if supplement is None else supplement),
+        ])
+        return db
+
+    def test_known_supplement_accepts_only_supported_canonical_policies(self):
+        for policy in (APPROVED_PRIVILEGES, APPROVED_PRIVILEGES | {"app:home.libroAtenciones"}):
+            db = self.database(canonical=policy)
+            for marker, expected in (("scope", 1), ("canonical-target", 1), ("supplement-identity", 1),
+                                     ("privileges", 0), ("legacy-policy", 0), ("paired-users", 0),
+                                     ("inheritance", 0), ("unreconciled-alias", 0)):
+                self.assertEqual(expected, db.execute(self.query(marker)).fetchone()[0], marker)
+
+    def test_each_changed_supplement_privilege_fails_the_frozen_contract(self):
+        for privilege in self.privileges:
+            with self.subTest(privilege=privilege):
+                db = self.database(supplement=(self.privileges - {privilege}) | {"Synthetic Unexpected Access"})
+                self.assertEqual(1, db.execute(self.query("scope")).fetchone()[0])
+                self.assertEqual(1, db.execute(self.query("legacy-policy")).fetchone()[0])
+
+    def test_missing_supplement_grant_is_rejected_even_if_all_others_are_known(self):
+        db = self.database(supplement=self.privileges - {"Delete Visits"})
+        self.assertEqual(1, db.execute(self.query("scope")).fetchone()[0])
+        self.assertEqual(0, db.execute(self.query("supplement-identity")).fetchone()[0])
+
+    def test_unpaired_user_requires_review_without_implicitly_granting_a_role(self):
+        db = self.database()
+        db.execute("DELETE FROM user_role WHERE role = ?", (CANONICAL_ROLE,))
+        self.assertEqual(1, db.execute(self.query("paired-users")).fetchone()[0])
+
+    def test_foreign_uuid_owner_is_in_scope_but_not_an_approved_supplement(self):
+        db = self.database()
+        db.execute("UPDATE role SET uuid = 'unreviewed' WHERE role = ?", (self.NAME,))
+        db.execute("UPDATE role SET uuid = ? WHERE role = 'Other'", (self.UUID,))
+        self.assertEqual(2, db.execute(self.query("scope")).fetchone()[0])
+        self.assertEqual(0, db.execute(self.query("supplement-identity")).fetchone()[0])
+
+    def test_canonical_missing_required_grant_or_extra_privilege_cannot_authorize_retirement(self):
+        for policy in (APPROVED_PRIVILEGES - {"Delete Relationships"},
+                       (APPROVED_PRIVILEGES - {"Add Patients"}) | {"Synthetic Unexpected Access"}):
+            db = self.database(canonical=policy)
+            self.assertTrue(db.execute(self.query("canonical-target")).fetchone()[0] != 1
+                            or db.execute(self.query("privileges")).fetchone()[0] != 0)
+
+    def test_retirement_never_changes_canonical_grants_or_creates_accounts(self):
+        sql = "".join(self.change.find(f"{{{NAMESPACE}}}sql").itertext())
+        self.assertNotRegex(sql, r"(?im)^\s*(?:INSERT|UPDATE)\s+")
+        self.assertNotRegex(sql, r"(?i)DELETE\s+FROM\s+users\b")
+        self.assertIn("WHERE @retire_admission_supplement = 1", sql)
+        self.assertEqual("true", self.change.get("runInTransaction"))
+        self.assertEqual("HALT", self.change.find(f"{{{NAMESPACE}}}preConditions").get("onFail"))
 
 
 if __name__ == "__main__":

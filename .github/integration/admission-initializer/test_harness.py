@@ -73,6 +73,7 @@ class HarnessContracts(unittest.TestCase):
             "GITHUB_SHA": "a" * 40, "RUNNER_TEMP": str(self.root),
         }
         self.runtime = object.__new__(harness.Harness)
+        self.runtime.hospital_roles = []
 
     def test_explicit_hosted_runner_authority_required_before_subprocess(self):
         self.assertEqual(guards.validate_runner(self.env), self.root)
@@ -138,6 +139,51 @@ class HarnessContracts(unittest.TestCase):
                     runtime.start_backend.assert_called_with("baseline-restart", runtime.baseline_config,
                                                              data_volume="volume")
                     self.assertEqual(runtime.baseline_dump.read_bytes(), b"synthetic-dump")
+
+    def test_operational_scenario_uses_real_baseline_and_always_cleans_up(self):
+        for cleanup_ok in (True, False):
+            with self.subTest(cleanup_ok=cleanup_ok), patch.object(harness, "Harness") as runtime, \
+                    patch.object(harness.signal, "signal"), patch.object(harness, "emit"):
+                instance = runtime.return_value
+                instance.cleanup.return_value = cleanup_ok
+                self.assertEqual(harness.main("operational"), 0 if cleanup_ok else 1)
+                instance.prepare.assert_called_once_with()
+                instance.baseline.assert_called_once_with()
+                instance.upgrade.assert_called_once_with(operational=True)
+                instance.fresh.assert_not_called()
+                instance.rejection.assert_not_called()
+                instance.cleanup.assert_called_once_with()
+
+    def test_rejection_preserves_prior_history_and_only_records_preparatory_noop(self):
+        before = ["historical\tauthor\tchecksum"]
+        preparatory = harness.OPERATIONAL_CHANGESET + "\tauthor\tchecksum"
+        self.runtime.candidate_recorded = Mock(return_value=True)
+        for rows, accepted in ((before + [preparatory], True), (before, False),
+                               (before + [preparatory, "unexpected"], False),
+                               (["historical\tchanged", preparatory], False)):
+            with self.subTest(rows=rows):
+                self.runtime.history = Mock(return_value=rows)
+                if accepted:
+                    self.runtime.assert_rejected_history("db", before)
+                else:
+                    with self.assertRaisesRegex(HarnessFailure, "^rejected_migration_changed_history$"):
+                        self.runtime.assert_rejected_history("db", before)
+
+    def test_arrival_payment_requires_one_active_optional_freetext_attribute(self):
+        valid = "0\t0\t1\torg.openmrs.customdatatype.datatype.FreeTextDatatype"
+        for rows in ([valid], [], [valid, valid], [valid.replace("0\t0", "1\t0")],
+                     [valid.replace("0\t0", "0\t1")], [valid.replace("0\t1", "0\t2")],
+                     [valid.replace("FreeText", "Integer")]):
+            with self.subTest(rows=rows), patch.object(harness, "emit") as emit:
+                self.runtime.query = Mock(return_value=rows)
+                if rows == [valid]:
+                    self.runtime.check_arrival_payment("db")
+                    emit.assert_called_once()
+                else:
+                    with self.assertRaisesRegex(HarnessFailure, "^arrival_payment_metadata_invalid$"):
+                        self.runtime.check_arrival_payment("db")
+                    emit.assert_not_called()
+                self.assertTrue(self.runtime.query.call_args.args[1].startswith("SELECT "))
 
     def test_external_docker_and_broad_or_symlink_temp_rejected(self):
         for key in ("DOCKER_HOST", "DOCKER_CONTEXT"):
@@ -634,6 +680,11 @@ class HarnessContracts(unittest.TestCase):
                 "2\tSIHSALUS Admision", "2\tSIHSALUS Admision", "3\tOther", "3\tOther"],
             "stockmgmt_user_role_scope": ["7\tSIHSALUS Admision\tfixed-uuid\t2026-01-01", "8\tOther\tother-uuid\tNULL"],
         }
+        # The operational upgrade has both the historical alias and its later
+        # supplement. Retirement removes only the latter's reviewed rows.
+        before["role"].append("SIHSALUS Admision Hospitalaria\tsupplement\tfixed-supplement")
+        before["role_privilege"].append("SIHSALUS Admision Hospitalaria\tDelete Visits")
+        before["user_role"].extend(["1\tSIHSALUS Admision Hospitalaria", "2\tSIHSALUS Admision Hospitalaria"])
         expected = self.runtime.expected_upgrade_state("owned-db", before)
         self.assertEqual(expected["role"], sorted(["Admision\tkept-description\t" + CANONICAL_UUID, "Other\tkept\tother"]))
         self.assertEqual(expected["role_privilege"], ["Admision\tApproved", "Admision\tDelete Relationships", "Other\tUnchanged"])
@@ -660,6 +711,61 @@ class HarnessContracts(unittest.TestCase):
         emit.assert_any_call("rbac_snapshot", "FAILED", table="patientflags_tag_role",
                              expected_present=True, actual_present=True, removed_rows=1, added_rows=0)
         self.assertNotIn("synthetic-private", str(emit.call_args_list))
+
+    def test_hospital_role_upgrade_preserves_local_uuid_and_every_external_reference(self):
+        self.runtime.hospital_roles = [{"Role name": "SIHSALUS Soporte", "Uuid": "canonical",
+            "Description": "Reviewed support", "Inherited roles": "", "Privileges": "Get Patients;Manage Roles"}]
+        self.runtime.query = Mock(side_effect=[["role", "description", "uuid"], ["role", "privilege"]])
+        before = {"role": ["SIHSALUS Soporte\tOld\tlocal", "Other\tKeep\tother"],
+            "role_privilege": ["SIHSALUS Soporte\tUnapproved", "Other\tKeep"],
+            "role_role": ["Other\tSIHSALUS Soporte", "SIHSALUS Soporte\tChild"],
+            "user_role": ["42\tSIHSALUS Soporte"], "patientflags_tag_role": ["1\tOther"] * 2,
+            "stockmgmt_user_role_scope": ["7\tSIHSALUS Soporte\tuuid\t2026-01-01"]}
+        actual = self.runtime.expected_hospital_role_state("owned", before)
+        self.assertEqual(actual["role"], ["Other\tKeep\tother", "SIHSALUS Soporte\tReviewed support\tlocal"])
+        self.assertEqual(actual["role_privilege"], ["Other\tKeep", "SIHSALUS Soporte\tGet Patients", "SIHSALUS Soporte\tManage Roles"])
+        self.assertEqual(actual["role_role"], ["SIHSALUS Soporte\tChild"])
+        for table in ("user_role", "patientflags_tag_role", "stockmgmt_user_role_scope"):
+            self.assertEqual(actual[table], before[table])
+        self.assertIn("SIHSALUS Soporte\tOld\tlocal", before["role"])
+
+    def test_hospital_role_upgrade_rejects_canonical_uuid_owned_by_another_name(self):
+        self.runtime.hospital_roles = [{"Role name": "SIHSALUS Soporte", "Uuid": "canonical",
+            "Description": "Reviewed", "Inherited roles": "", "Privileges": "Get Patients"}]
+        self.runtime.query = Mock(side_effect=[["role", "description", "uuid"], ["role", "privilege"]])
+        with self.assertRaisesRegex(HarnessFailure, "hospital_role_uuid_collision"):
+            self.runtime.expected_hospital_role_state("owned", {"role": ["Other\tKeep\tcanonical"],
+                "role_privilege": [], "role_role": [], "user_role": []})
+
+    def test_canonical_laboratory_delta_is_applied_only_with_current_roles_csv(self):
+        self.runtime.hospital_roles = []
+        laboratory = [{"Role name": "Laboratorio", "Uuid": "lab",
+            "Description": "Laboratory", "Inherited roles": "", "Privileges": "Add Observations;Get Patient Programs"}]
+        self.runtime.query = Mock(side_effect=[["role", "description", "uuid"], ["role", "privilege"]])
+        before = {"role": ["Laboratorio\tLaboratory\tlab", "Other\tKeep\tother"],
+            "role_privilege": ["Laboratorio\tAdd Observations", "Other\tKeep"],
+            "role_role": [], "user_role": ["42\tLaboratorio"]}
+        historical = self.runtime.expected_hospital_role_state("owned", before)
+        self.assertEqual(historical, before)
+        self.runtime.query.assert_not_called()
+        current = self.runtime.expected_hospital_role_state("owned", before, laboratory)
+        self.assertEqual(current["role_privilege"],
+                         ["Laboratorio\tAdd Observations", "Laboratorio\tGet Patient Programs", "Other\tKeep"])
+        for table in ("role", "role_role", "user_role"):
+            self.assertEqual(current[table], before[table])
+        self.assertNotIn("Laboratorio\tGet Patient Programs", before["role_privilege"])
+
+    def test_emrapi_refresh_adds_only_declared_compatibility_and_then_is_stable(self):
+        self.runtime.hospital_compatibility = {"app:home.editar"}
+        before = {"role_privilege": ["Other\tKeep", "Privilege Level: Full\tapp:home.editar"],
+                  "user_role": ["42\tOther"], "patientflags_tag_role": ["1\tOther"] * 2}
+        expected = self.runtime.expected_emrapi_refresh(before)
+        self.assertEqual(expected["role_privilege"], ["Other\tKeep",
+            "Privilege Level: Full\tapp:home.editar", "Privilege Level: High\tapp:home.editar"])
+        self.assertEqual(expected["user_role"], before["user_role"])
+        self.assertEqual(expected["patientflags_tag_role"], before["patientflags_tag_role"])
+        self.assertEqual(self.runtime.expected_emrapi_refresh(expected), expected)
+        self.assertEqual(len(before["role_privilege"]), 2)
 
     def test_state_comparison_distinguishes_missing_tables_and_ignores_row_order(self):
         self.runtime.state = Mock(return_value={"role": ["b", "a"]})

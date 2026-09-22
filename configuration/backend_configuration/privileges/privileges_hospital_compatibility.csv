@@ -1,0 +1,6 @@
+Uuid,Privilege name,Description,_order:100
+a904c32f-badf-4183-bac1-1decc2c8c68f,app:hoja.clinica.accionesSinConexion.editar,Capacidad declarativa de interfaz conservada por compatibilidad con la politica hospitalaria; no crea un endpoint ni reemplaza autorizacion del servidor.,
+c5d35b18-7b29-4a4e-861b-44b4f7d02ab1,app:hoja.clinica.resultados.editar,Capacidad declarativa de interfaz conservada por compatibilidad con la politica hospitalaria; no crea un endpoint ni reemplaza autorizacion del servidor.,
+ba965471-56ad-4181-932d-48fee5921085,app:hoja.clinica.seguimientoCasos.editar,Capacidad declarativa de interfaz conservada por compatibilidad con la politica hospitalaria; no crea un endpoint ni reemplaza autorizacion del servidor.,
+61a89948-9d58-48cc-88ba-bedcded7949c,app:hoja.clinica.tamizajes.editar,Capacidad declarativa de interfaz conservada por compatibilidad con la politica hospitalaria; no crea un endpoint ni reemplaza autorizacion del servidor.,
+869b995b-e9d8-4cab-9279-a258e3579185,app:home.editar,Capacidad declarativa de interfaz conservada por compatibilidad con la politica hospitalaria; no crea un endpoint ni reemplaza autorizacion del servidor.,

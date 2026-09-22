@@ -63,6 +63,12 @@ evidence that its MariaDB assertions passed.
   CSV loaded afterward by Initializer; it is not an input to this migration.
   A missing native privilege or a later CSV grant applied before reconciliation
   causes a closed failure without changing RBAC.
+- The additional exact 55-permission operational alias with an existing canonical
+  58-permission target: user/tag reference transfer, preserved stock scope audit
+  data and children, optional modules absent, idempotence, and transaction rollback
+  with retry. Modified 55-entry policies, missing canonical targets and unknown
+  references fail closed. The frozen legacy list recognizes an input only; no
+  legacy privilege is copied into the runtime canonical policy.
 - Closed failures for an unrelated UUID owner, extra/missing privileges,
   inheritance in either direction, an unknown role foreign key, and a
   nontransactional optional table, additional copied columns, or a trailing-space
@@ -93,8 +99,8 @@ and rejected inputs; the MariaDB suite still executes the complete changelog and
 verifies preconditions, transactions, references and retry behavior. No fixture
 hash should be regenerated to accommodate a changed historical migration or policy.
 
-The historical changelog fixture is the full candidate XML minus the new reconciliation
-changeset, executed first at the same logical path. It does not fabricate a
+The historical changelog fixture is the full candidate XML minus both reconciliation
+changesets, executed first at the same logical path. It does not fabricate a
 successful historical changeset by inserting a made-up checksum.
 Additional tests execute the six withdrawn 20260903 changesets, preserved from
 `9855170d45d922756e0719725fe06a36a3bbd960` in `withdrawn-reconciliation.xml`,
@@ -128,3 +134,14 @@ Core 2.3.6 and starts MySQL 5.7.31, despite its README's MariaDB description.
 
 No green result here authorizes environment access, proves an Initializer
 startup, supplies clinical approval, or changes release/deployment gates.
+
+## Hospital admission supplement retirement
+
+The candidate also retires the exact 15-privilege supplement after the published
+normalization. Real MariaDB tests cover both supported canonical policies
+(58/59), unchanged users and unrelated references, restart idempotence, rejected
+unpaired users, altered grants/UUIDs, inheritance and module usage, and an
+injected deletion failure with full transaction rollback and successful retry.
+The frozen supplement fixture recognizes legacy input; it does not provision a
+second operational policy. No synthetic fixture may be run against an existing
+environment.
