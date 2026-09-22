@@ -1,0 +1,137 @@
+{
+  "name": "CE-SOC-001-HISTORIA SOCIAL",
+  "processor": "EncounterFormProcessor",
+  "encounterType": "c7059f4b-385f-45e7-82ad-204e5b380196",
+  "encounter": "Historia social",
+  "published": true,
+  "retired": false,
+  "referencedForms": [],
+  "uuid": "f18f4320-690b-4c34-9b20-89a9bf7fec71",
+  "description": "Registro de consumo de alcohol y tabaco. Reutiliza conceptos y respuestas del catálogo SIHSALUS. Los campos sin evaluar se dejan vacíos; no se infieren respuestas negativas.",
+  "version": "1.0.0",
+  "pages": [
+    {
+      "label": "Historia social",
+      "sections": [
+        {
+          "label": "Datos de la atención",
+          "isExpanded": "true",
+          "questions": [
+            {
+              "label": "Fecha y hora de la atención",
+              "type": "encounterDatetime",
+              "required": true,
+              "id": "fechaAtencion",
+              "questionOptions": {
+                "rendering": "datetime"
+              },
+              "validators": [
+                {
+                  "type": "date",
+                  "allowFutureDates": "false",
+                  "message": "No puede ser una fecha futura"
+                }
+              ],
+              "questionInfo": "Use la fecha y hora reales de la atención. No debe ser futura."
+            },
+            {
+              "type": "encounterProvider",
+              "questionOptions": {
+                "rendering": "ui-select-extended",
+                "isSearchable": true
+              },
+              "id": "profesionalResponsable",
+              "label": "Profesional responsable",
+              "questionInfo": "Responsable clínico que realiza o firma la atención.",
+              "required": true
+            },
+            {
+              "type": "encounterLocation",
+              "questionOptions": {
+                "rendering": "ui-select-extended",
+                "isSearchable": true
+              },
+              "id": "consultorio",
+              "label": "Consultorio / Servicio",
+              "required": true,
+              "questionInfo": "Ubicación donde se realiza esta consulta."
+            }
+          ],
+          "inlineRendering": "automatic"
+        },
+        {
+          "label": "Alcohol y tabaco",
+          "isExpanded": "true",
+          "inlineRendering": "automatic",
+          "questions": [
+            {
+              "id": "consumoAlcohol",
+              "label": "Consumo de alcohol",
+              "type": "obs",
+              "questionOptions": {
+                "concept": "fcd7736e-39d4-4ecd-84e0-9129e9690809",
+                "rendering": "radio",
+                "answers": [
+                  {
+                    "concept": "372a262c-8d57-4b57-ad29-b24a2941b749",
+                    "label": "Sí"
+                  },
+                  {
+                    "concept": "5b2a0f81-22df-4ee1-ae2e-3c547cd7ec9f",
+                    "label": "No"
+                  }
+                ]
+              },
+              "questionInfo": "Registre lo referido por el paciente. Deje sin seleccionar si no fue evaluado."
+            },
+            {
+              "id": "consumoTabaco",
+              "label": "Consumo de tabaco",
+              "type": "obs",
+              "questionOptions": {
+                "concept": "a79047b1-aa5c-44ab-9410-02afb350c80a",
+                "rendering": "radio",
+                "answers": [
+                  {
+                    "concept": "372a262c-8d57-4b57-ad29-b24a2941b749",
+                    "label": "Sí"
+                  },
+                  {
+                    "concept": "5b2a0f81-22df-4ee1-ae2e-3c547cd7ec9f",
+                    "label": "No"
+                  }
+                ]
+              },
+              "questionInfo": "Registre lo referido por el paciente. Deje sin seleccionar si no fue evaluado."
+            },
+            {
+              "id": "cigarrillosDia",
+              "label": "Cigarrillos por día",
+              "type": "obs",
+              "hideSteppers": true,
+              "questionOptions": {
+                "concept": "1546AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "rendering": "number",
+                "min": "0",
+                "disallowDecimals": true
+              },
+              "questionInfo": "Complete cuando corresponda. Cero es un valor registrado; deje vacío si no fue evaluado."
+            },
+            {
+              "id": "duracionTabaquismo",
+              "label": "Duración del consumo de tabaco (años)",
+              "type": "obs",
+              "hideSteppers": true,
+              "questionOptions": {
+                "concept": "159931AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "rendering": "number",
+                "min": "0"
+              },
+              "questionInfo": "Complete cuando corresponda. Cero es un valor registrado; deje vacío si no fue evaluado."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

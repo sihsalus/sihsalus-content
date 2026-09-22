@@ -1,6 +1,6 @@
 # SIHSALUS Content Package
 
-SIHSALUS Content Package para OpenMRS, versión **1.25.20**.
+SIHSALUS Content Package para OpenMRS, versión **1.25.23**.
 
 El paquete reúne la metadata backend que carga Initializer desde
 [configuration/backend_configuration](configuration/backend_configuration):
@@ -106,7 +106,7 @@ If this command reports any violations, you can then run `mvn spotless:apply` to
 
 Remember, in most cases, you don't need to run these commands separately as Spotless will run automatically during the build process with `mvn clean package`.
 
-Versión del paquete: **1.25.20**.
+Versión del paquete: **1.25.23**.
 
 ## Confirmación de pago al registrar llegada
 
@@ -317,3 +317,10 @@ Referencias mínimas
 - Guía de Vigilancia del Neurodesarrollo - Huanca Payehuanca (manual de aplicación): https://repositorio.essalud.gob.pe/handle/20.500.12959/5846
 
 Antes de crear o modificar formularios clínicos, revisar la norma técnica vigente en fuentes oficiales MINSA/gob.pe. No asumir que una NTS anterior sigue vigente si existe resolución posterior.
+
+## Historia social
+
+La versión `1.25.23` agrega `CE-SOC-001-HISTORIA SOCIAL` (alcohol y tabaco), con un tipo
+de encuentro propio y los permisos existentes de Historia Social. Reutiliza el catálogo
+OCL sin modificar conceptos ni registros anteriores. Véase el [contrato](docs/contracts/social-history.md)
+para las identidades que debe usar el frontend y la validación de integración pendiente.
