@@ -27,7 +27,8 @@ EMRAPI_ROLES = {
 }
 CHANGESET = "reconcile-admission-role-20260907"
 INITIALIZER_VERSION = "2.13.0-sihsalus.1"
-CONFIG_PREFIX = "configuration/backend_configuration"
+CONFIG_PREFIX = "configuration"
+LEGACY_CONFIG_PREFIX = "configuration/backend_configuration"
 ROLES_FILE = "roles/roles-core.csv"
 CURRENT_ADMISSION_ADDITIONS = frozenset({"app:home.libroAtenciones"})
 LIQUIBASE_FILE = "liquibase/liquibase.xml"
@@ -35,8 +36,8 @@ ROLES_CHECKSUM = "configuration_checksums/roles/roles-core.checksum"
 LIQUIBASE_CHECKSUM = "configuration_checksums/liquibase/liquibase.checksum"
 UUID_PATTERN = re.compile(r"^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$")
 ASSEMBLY_EXCLUDES = {
-    "**/.DS_Store", "**/.gitkeep", "backend_configuration/ampathforms/Readme",
-    "backend_configuration/ampathforms/_deprecated/**",
+    "**/.DS_Store", "**/.gitkeep", "ampathforms/Readme",
+    "ampathforms/_deprecated/**",
 }
 STRICT_JAVA = (
     "-Dfile.encoding=UTF-8 -server -Djava.security.egd=file:/dev/./urandom "
@@ -112,15 +113,39 @@ def packaged_path(relative):
     )
 
 
-def validate_assembly(data):
+def validate_assembly(data, *, legacy=False):
+    """Recognize the current source layout or the fixed pre-relocation baselines."""
     root = ET.fromstring(data)
     ns = {"a": "http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.3"}
+    file_sets = root.findall("a:fileSets/a:fileSet", ns)
+    require(len(file_sets) == 2, "unreviewed_assembly_file_sets")
+    excludes = {
+        "backend_configuration/" + path if legacy and path.startswith("ampathforms/") else path
+        for path in ASSEMBLY_EXCLUDES
+    }
     require(
-        {node.text for node in root.findall(".//a:exclude", ns)} == ASSEMBLY_EXCLUDES,
+        [{node.text for node in fs.findall("a:excludes/a:exclude", ns)} for fs in file_sets]
+        == [set(), excludes],
         "unreviewed_assembly_excludes",
     )
-    includes = [node.text for node in root.findall(".//a:include", ns)]
-    require(includes == ["content.properties", "backend_configuration/**/*"], "unreviewed_assembly_includes")
+    require(
+        [[node.text for node in fs.findall("a:includes/a:include", ns)] for fs in file_sets]
+        == [["content.properties"], ["backend_configuration/**/*" if legacy else "**/*"]],
+        "unreviewed_assembly_includes",
+    )
+    require(
+        [node.findtext("a:directory", namespaces=ns) for node in file_sets]
+        == ["${project.build.directory}", "${project.basedir}/configuration"],
+        "unreviewed_assembly_directories",
+    )
+    require(
+        [node.findtext("a:outputDirectory", namespaces=ns) for node in file_sets]
+        == ["/", None if legacy else "configuration/backend_configuration"]
+        and root.findtext("a:includeBaseDirectory", namespaces=ns) == "false"
+        and [node.text for node in root.findall("a:formats/a:format", ns)] == ["zip"],
+        "unreviewed_assembly_output",
+    )
+    return LEGACY_CONFIG_PREFIX if legacy else CONFIG_PREFIX
 
 
 def extract_archive(data, destination, prefix, package=False):

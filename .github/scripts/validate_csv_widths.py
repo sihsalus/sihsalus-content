@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 
-CONFIG_DIR = Path("configuration/backend_configuration")
+CONFIG_DIR = Path("configuration")
 LOCATION_TAGS_PATH = CONFIG_DIR / "locationtags" / "locationtags.csv"
 LOCATIONS_PATH = CONFIG_DIR / "locations" / "sihsalus-locations.csv"
 ROLES_CORE_PATH = CONFIG_DIR / "roles" / "roles-core.csv"

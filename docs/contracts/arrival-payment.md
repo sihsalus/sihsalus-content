@@ -1,7 +1,7 @@
 # Confirmación de pago en Admisión
 
 Initializer provisiona el atributo desde
-`configuration/backend_configuration/attributetypes/arrival_payment.csv`:
+`configuration/attributetypes/arrival_payment.csv`:
 
 - UUID: `090eb9b3-a306-450f-8623-9fc00b8d82fa`.
 - Entidad: `Visit`; nombre: `Confirmación de pago en Admisión`.

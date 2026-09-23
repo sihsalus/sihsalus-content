@@ -92,8 +92,9 @@ add exactly the approved logbook read permission. The guard test also compares
 the two CSV policies. Current CSV changes therefore cannot rewrite the historical
 fixture or silently expand the SQL allowlist.
 
-Python also freezes all ten published changeset blocks, including the 20260907
-reconciliation. This replaces assertions about that immutable SQL's spelling,
+Python also freezes all twelve published changeset blocks, including the 20260907
+reconciliation and both 20260921 changesets released in 1.25.24. This replaces
+assertions about that immutable SQL's spelling,
 comments and statement layout. Portable policy mutation tests still check accepted
 and rejected inputs; the MariaDB suite still executes the complete changelog and
 verifies preconditions, transactions, references and retry behavior. No fixture

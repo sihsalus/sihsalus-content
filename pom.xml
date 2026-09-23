@@ -36,7 +36,6 @@
     </scm>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <configuration.dir>${project.basedir}/configuration</configuration.dir>
     </properties>
     <build>
         <plugins>
@@ -56,18 +55,6 @@
                             >${project.basedir}/content.properties</sourceFile>
                         </configuration>
                     </execution>
-                    <!-- Commented out for now
-                    <execution>
-                        <id>validate-configurations</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>validate-configurations</goal>
-                        </goals>
-                        <configuration>
-                            <sourceDir>${configuration.dir}/backend_configuration</sourceDir>
-                        </configuration>
-                    </execution>
-                    -->
                 </executions>
             </plugin>
             <plugin>
@@ -125,9 +112,10 @@
                         <id>copy-resources</id>
                         <phase>process-resources</phase>
                         <goals>
-                            <goal>resources</goal>
+                            <goal>copy-resources</goal>
                         </goals>
                         <configuration>
+                            <propertiesEncoding>UTF-8</propertiesEncoding>
                             <outputDirectory
                             >${project.build.directory}</outputDirectory>
                             <resources>
@@ -140,47 +128,6 @@
                                 </resource>
                             </resources>
                         </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <!-- Spotless plugin -->
-            <plugin>
-                <groupId>com.diffplug.spotless</groupId>
-                <artifactId>spotless-maven-plugin</artifactId>
-                <version>2.27.2</version>
-                <configuration>
-                    <java>
-                        <licenseHeader>
-                            <file>${project.basedir}/license-header.txt</file>
-                        </licenseHeader>
-                        <eclipse>
-                            <file>${project.basedir}/OpenMRSFormatter.xml</file>
-                        </eclipse>
-                        <removeUnusedImports />
-                        <importOrder>
-                            <order>javax,java</order>
-                        </importOrder>
-                    </java>
-                    <formats>
-                        <format>
-                            <includes>
-                                <include>**/*.xml</include>
-                            </includes>
-                            <licenseHeader>
-                                <file
-                                >${project.basedir}/license-header.txt</file>
-                                <delimiter>^(?!&lt;\?xml)</delimiter>
-                            </licenseHeader>
-                        </format>
-                    </formats>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>spotless-apply</id>
-                        <phase>validate</phase>
-                        <goals>
-                            <goal>apply</goal>
-                        </goals>
                     </execution>
                 </executions>
             </plugin>

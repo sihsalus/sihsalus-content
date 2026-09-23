@@ -64,7 +64,7 @@ estos cambios. [Importer](https://github.com/openmrs/openmrs-module-openconceptl
 
 Ninguno de los tres UUIDs tiene filas en `conceptreferencerange_laboratory.csv`.
 Sin embargo, la pregunta `urobilinogeno` de
-[`(Página 4 y 5) Puerperio - Laboratorio.json`](../../configuration/backend_configuration/ampathforms/%28P%C3%A1gina%204%20y%205%29%20Puerperio%20-%20Laboratorio.json)
+[`(Página 4 y 5) Puerperio - Laboratorio.json`](../../configuration/ampathforms/%28P%C3%A1gina%204%20y%205%29%20Puerperio%20-%20Laboratorio.json)
 mantiene `rendering: "number"`, `step: 1` y `min: "0"`. El candidato exige una
 respuesta conceptual, por lo que el formulario resulta incompatible incluso en
 una instalación sin historia. No se encontraron referencias directas de los

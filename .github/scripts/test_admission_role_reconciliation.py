@@ -20,10 +20,10 @@ from pathlib import Path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 LIQUIBASE_PATH = (
-    REPOSITORY_ROOT / "configuration/backend_configuration/liquibase/liquibase.xml"
+    REPOSITORY_ROOT / "configuration/liquibase/liquibase.xml"
 )
 ROLES_PATH = (
-    REPOSITORY_ROOT / "configuration/backend_configuration/roles/roles-core.csv"
+    REPOSITORY_ROOT / "configuration/roles/roles-core.csv"
 )
 HISTORICAL_ROLES_PATH = REPOSITORY_ROOT / (
     ".github/integration/admission-role-reconciliation/src/test/resources/"
@@ -142,6 +142,11 @@ class AdmissionChangelogStructureTest(unittest.TestCase):
             # Published by #223; its preconditions and SQL are now immutable too.
             RECONCILIATION_ID:
                 "d2deb4caccce550305b335840175e769e8bd3d35cd1185de1cd966f715b5eef8",
+            # Verified against the public Maven Central 1.25.24 ZIP on 2026-09-22.
+            OPERATIONAL_RECONCILIATION_ID:
+                "66684444789d2e0676ebd0ed79915a67487821d11860aa8bb4bc348557e78ef6",
+            SUPPLEMENT_RETIREMENT_ID:
+                "28ad32c1c5c5b745230347aeba266ea99029f7179b8cc535c1921c6d3839ea39",
         }
         for identifier, digest in published.items():
             with self.subTest(change_set=identifier):

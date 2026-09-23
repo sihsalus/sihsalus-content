@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-CONFIG_ROOT = Path("configuration/backend_configuration")
+CONFIG_ROOT = Path("configuration")
 ATTRIBUTE_TYPES_PATH = CONFIG_ROOT / "attributetypes" / "attribute_types.csv"
 LOCATIONS_PATH = CONFIG_ROOT / "locations" / "sihsalus-locations.csv"
 INSTITUTIONAL_LOCATION_ATTRIBUTES_PATH = (

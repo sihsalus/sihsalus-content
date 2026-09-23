@@ -9,7 +9,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-CONFIG_ROOT = REPO_ROOT / "configuration" / "backend_configuration"
+CONFIG_ROOT = REPO_ROOT / "configuration"
 
 ENCOUNTER_TYPES_PATH = CONFIG_ROOT / "encountertypes" / "encountertypes.csv"
 ENCOUNTER_ROLES_PATH = CONFIG_ROOT / "encounterroles" / "encounterroles.csv"

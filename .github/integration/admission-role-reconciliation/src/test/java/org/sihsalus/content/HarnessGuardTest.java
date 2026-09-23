@@ -28,7 +28,7 @@ public class HarnessGuardTest {
     @Test
     public void keepsHistoricalMigrationPolicySeparateFromCurrentCsv() throws Exception {
         Path csv = Path.of(System.getProperty("content.root"))
-            .resolve("configuration/backend_configuration/roles/roles-core.csv");
+            .resolve("configuration/roles/roles-core.csv");
         var historical = AdmissionMigrationTest.readHistoricalPrivileges();
         assertEquals(58, historical.size());
         assertTrue(historical.contains("Delete Relationships"));

@@ -94,6 +94,14 @@ preservation of the observed remainder, not a complete independent manifest of
 a particular reference-content release. Unsafe tar paths, links, duplicate
 files, and special files are rejected.
 
+Current sources live directly under `configuration/`. The two pinned historical
+commits retain `configuration/backend_configuration/`; only those commits use
+the legacy assembly contract. Both layouts produce the same runtime paths
+(`roles/`, `liquibase/`, etc.) and the distributed ZIP still uses
+`configuration/backend_configuration/`. The guard checks source and output
+directories and each file set's includes/excludes, so a source-tree cleanup
+cannot silently change the overlay.
+
 ## Required runtime evidence
 
 The `upgrade` scenario requires:

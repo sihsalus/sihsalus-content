@@ -6,7 +6,7 @@ from collections import defaultdict
 from pathlib import Path
 
 
-CONFIG_DIR = Path("configuration/backend_configuration")
+CONFIG_DIR = Path("configuration")
 PRIVILEGES_PATH = CONFIG_DIR / "privileges" / "privileges_core-demo.csv"
 ATTRIBUTE_TYPES_PATH = CONFIG_DIR / "attributetypes" / "attribute_types.csv"
 GLOBAL_PROPERTIES_PATH = (

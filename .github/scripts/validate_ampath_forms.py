@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
 import csv
+import hashlib
 import json
 import re
 import sys
+import uuid
 import zipfile
 from collections import defaultdict
 from pathlib import Path
 
 
-FORM_DIR = Path("configuration/backend_configuration/ampathforms")
-OCL_DIR = Path("configuration/backend_configuration/ocl")
+FORM_DIR = Path("configuration/ampathforms")
+OCL_DIR = Path("configuration/ocl")
 ENCOUNTER_TYPES_PATH = Path(
-    "configuration/backend_configuration/encountertypes/encountertypes.csv"
+    "configuration/encountertypes/encountertypes.csv"
 )
+AMPATH_FORMS_NAMESPACE_UUID = "794c4598-ab82-47ca-8d18-483a8abe6f4f"
 REQUIRED_TOP_LEVEL = {
     "name",
     "uuid",
@@ -85,6 +88,12 @@ EXPRESSION_GLOBALS = {
     "undefined",
     "var",
 }
+
+
+def ampath_persisted_form_uuid(name, version):
+    """Match AmpathFormsLoader and Utils.generateUuidFromObjects in Initializer 2.13.0-sihsalus.1."""
+    seed = f"{AMPATH_FORMS_NAMESPACE_UUID}_{name}_{version}".encode()
+    return str(uuid.UUID(bytes=hashlib.md5(seed).digest(), version=3))
 
 
 def walk(value):
@@ -305,6 +314,11 @@ def validate_form(path, bundle, encounter_types):
     if missing:
         errors.append(f"{path}: missing top-level keys: {', '.join(missing)}")
 
+    for field in ("name", "version"):
+        value = data.get(field)
+        if field in data and (not isinstance(value, str) or not value.strip()):
+            errors.append(f"{path}: {field} must be a non-empty string")
+
     form_uuid = data.get("uuid")
     if form_uuid is not None and (
         not isinstance(form_uuid, str) or not UUID_RE.fullmatch(form_uuid)
@@ -467,12 +481,15 @@ def validate_form(path, bundle, encounter_types):
 def main():
     paths = sorted(FORM_DIR.glob("*.json"))
     errors = []
+    if not paths:
+        errors.append(f"{FORM_DIR}: no AMPATH form JSON files found")
     bundle, bundle_errors = load_ocl_bundle()
     encounter_types, encounter_errors = load_encounter_types()
     errors.extend(bundle_errors)
     errors.extend(encounter_errors)
 
     form_uuids = {}
+    persisted_uuids = {}
     concept_reference_count = 0
     for path in paths:
         form_errors, data = validate_form(path, bundle, encounter_types)
@@ -507,6 +524,17 @@ def main():
                 )
             else:
                 form_uuids[form_uuid] = path
+
+        name, version = data.get("name"), data.get("version")
+        if all(isinstance(value, str) and value.strip() for value in (name, version)):
+            persisted_uuid = ampath_persisted_form_uuid(name, version)
+            previous = persisted_uuids.setdefault(persisted_uuid, path)
+            if previous != path:
+                errors.append(
+                    f"{path}: duplicate persisted form UUID {persisted_uuid} "
+                    f"for name={name!r}, version={version!r}, also used by {previous}; "
+                    "Initializer would overwrite the same Form"
+                )
 
     if errors:
         print("AMPATH form validation failed:", file=sys.stderr)

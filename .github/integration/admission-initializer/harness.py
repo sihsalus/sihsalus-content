@@ -21,7 +21,7 @@ from pathlib import Path, PurePosixPath
 from guards import (
     BACKEND, DISTRO_SHA, IMAGE_CONTENT_SHA, BASELINE_SHA, DATABASE_IMAGE, DATABASE,
     OWNER_LABEL, CANONICAL_ROLE, LEGACY_ROLE, CANONICAL_UUID, EMRAPI_ROLES, CHANGESET,
-    INITIALIZER_VERSION, CONFIG_PREFIX, ROLES_FILE, CURRENT_ADMISSION_ADDITIONS, LIQUIBASE_FILE,
+    INITIALIZER_VERSION, ROLES_FILE, CURRENT_ADMISSION_ADDITIONS, LIQUIBASE_FILE,
     ROLES_CHECKSUM, LIQUIBASE_CHECKSUM, UUID_PATTERN, STRICT_JAVA, HarnessFailure,
     require, checked, validate_runner, properties, extract_archive,
     single_file_archive, assemble, validate_startup, validate_assembly,
@@ -210,9 +210,12 @@ class Harness:
             self.candidate_version = node.text
         else:
             require(node.text == version, "unexpected_content_version")
-        validate_assembly(checked(["git", "show", sha + ":assembly.xml"], cwd=ROOT).stdout)
-        archive = checked(["git", "archive", sha, CONFIG_PREFIX], cwd=ROOT, timeout=180).stdout
-        extract_archive(archive, destination, CONFIG_PREFIX, package=True)
+        prefix = validate_assembly(
+            checked(["git", "show", sha + ":assembly.xml"], cwd=ROOT).stdout,
+            legacy=sha in (IMAGE_CONTENT_SHA, BASELINE_SHA),
+        )
+        archive = checked(["git", "archive", sha, prefix], cwd=ROOT, timeout=180).stdout
+        extract_archive(archive, destination, prefix, package=True)
 
     def prepare(self):
         emit("prepare", "RUNNING")

@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "reference": "hospital-operational-access-2026-09-14",
-  "roleFile": "configuration/backend_configuration/roles/roles_hospital_operations.csv",
-  "privilegeFile": "configuration/backend_configuration/privileges/privileges_hospital_compatibility.csv",
+  "roleFile": "configuration/roles/roles_hospital_operations.csv",
+  "privilegeFile": "configuration/privileges/privileges_hospital_compatibility.csv",
   "moduleOwnedRoles": {
     "Anonymous": {
       "privileges": [],

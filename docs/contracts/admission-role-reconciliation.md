@@ -1,15 +1,17 @@
 # Reconciliación de identidades del rol de Admisión
 
-Estado: ampliación candidata `1.25.24` en el PR #233, pendiente de revisión
-independiente y aceptación funcional. Integra la migración propuesta en #234
-y retira el suplemento de Admisión de la propuesta anterior de #233.
+Estado: distribuido en `1.25.24` mediante el PR #233; la publicación y los bytes
+del XML se comprobaron en la [revisión del 22 de septiembre](../audits/2026-09-22-liquibase-initializer.md).
+La aceptación funcional y la ejecución por ambiente requieren evidencia propia.
+Integra la migración propuesta en #234 y retira el suplemento de Admisión de la
+propuesta anterior de #233.
 La reconciliación `20260907` ya está publicada; se conserva literalmente,
 con sus checksums y guardas. Los resultados de CI corresponden al SHA del PR;
 no equivalen a un despliegue en el hospital.
 
 ## Única fuente de permisos y alias operativo
 
-`configuration/backend_configuration/roles/roles-core.csv` define el rol
+`configuration/roles/roles-core.csv` define el rol
 canónico `Admision` y sus 59 privilegios actuales. La migración nueva
 `reconcile-admission-operational-alias-20260921` reconoce una entrada histórica
 adicional: `Admision` con su UUID canónico y exactamente los 58 privilegios de
@@ -242,7 +244,7 @@ python3 .github/scripts/test_admission_role_reconciliation.py
 python3 .github/scripts/validate_liquibase.py
 python3 .github/scripts/validate_csv_widths.py
 python3 .github/scripts/test_csv_widths.py
-mvn --batch-mode --no-transfer-progress spotless:check clean verify --file pom.xml
+mvn --batch-mode --no-transfer-progress clean verify --file pom.xml
 git diff --check origin/main...HEAD
 ```
 

@@ -15,14 +15,16 @@
         </fileSet>
         <fileSet>
             <directory>${project.basedir}/configuration</directory>
+            <!-- Keep the distro's ZIP layout independent of the source tree. -->
+            <outputDirectory>configuration/backend_configuration</outputDirectory>
             <includes>
-                <include>backend_configuration/**/*</include>
+                <include>**/*</include>
             </includes>
             <excludes>
                 <exclude>**/.DS_Store</exclude>
                 <exclude>**/.gitkeep</exclude>
-                <exclude>backend_configuration/ampathforms/Readme</exclude>
-                <exclude>backend_configuration/ampathforms/_deprecated/**</exclude>
+                <exclude>ampathforms/Readme</exclude>
+                <exclude>ampathforms/_deprecated/**</exclude>
             </excludes>
         </fileSet>
     </fileSets>

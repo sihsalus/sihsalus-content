@@ -8,7 +8,7 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${script_dir}/../.." && pwd)"
 validator=".github/scripts/validate_form_concept_integrity.py"
-form_dir="configuration/backend_configuration/ampathforms"
+form_dir="configuration/ampathforms"
 
 work_dir="$(mktemp -d)"
 trap 'rm -rf "$work_dir"' EXIT

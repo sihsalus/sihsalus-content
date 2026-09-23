@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 
 
 ROOT = Path(__file__).resolve().parents[2]
-CONFIG = ROOT / "configuration" / "backend_configuration"
+CONFIG = ROOT / "configuration"
 CONCEPTS = CONFIG / "concepts" / "stock_foundation_concepts.csv"
 CONCEPT_SETS = CONFIG / "conceptsets" / "stock_foundation_concept_sets.csv"
 GLOBAL_PROPERTIES = CONFIG / "globalproperties" / "globalproperties-sihsalus.xml"
