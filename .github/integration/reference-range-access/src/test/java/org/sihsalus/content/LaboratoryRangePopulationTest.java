@@ -126,6 +126,23 @@ public class LaboratoryRangePopulationTest {
     }
 
     @Test
+    public void historicalNeonatalSamplesDoNotAlsoMatchCurrentAgeBands() {
+        patient.setBirthdate(date("2020-01-01T12:00:00Z"));
+        sample.setObsDatetime(date("2020-01-08T12:00:00Z"));
+        observe(PREMATURITY, 0.0);
+        for (String sex : new String[] {"M", "F"}) {
+            patient.setGender(sex);
+            assertTrue(matches(TERM));
+            for (String uuid : Arrays.asList("e63ce18d-b109-4097-9257-0258fbd54340",
+                    "ca4e4986-5945-4dd3-bba6-57cb87b267ed", "380b13ad-995a-4adc-83bc-454222e81c04",
+                    "4a7b9f10-7d7b-4cb5-ab6c-3f9fe96809ed", "44dcad2a-1a4d-432a-928d-a7b2f15303c4",
+                    "d42fd5b0-8aa6-44ec-8bab-8b415569da26", "7ec23591-4ea6-41ae-b97e-d06b2fe2fce1")) {
+                assertFalse("An older age band must not match the neonatal sample: " + uuid, matches(uuid));
+            }
+        }
+    }
+
+    @Test
     public void fortyWeeksOfGestationDoesNotMeanPostpartum() {
         state(PRENATAL);
         observe(GESTATION, 40.0);

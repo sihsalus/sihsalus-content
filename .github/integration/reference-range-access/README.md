@@ -29,8 +29,9 @@ validity or observation persistence. A synthetic save/read/edit test against the
 deployed backend remains required before acceptance.
 
 `LaboratoryRangePopulationTest` additionally executes the shipped laboratory
-criteria with Core 2.8.9. Six cases cover recorded/unknown/invalid prematurity,
-week boundaries at the sample date, active and ended/voided postpartum states,
+criteria with Core 2.8.9. Seven cases cover recorded/unknown/invalid prematurity,
+week boundaries and exclusion of older age bands at the sample date,
+active and ended/voided postpartum states,
 gestation continuing at 40 weeks, and native fallback after disabling the two
 urine-creatinine rules with incompatible units. These check selection behavior,
 not institutional approval of reference intervals. OpenMRS test logging stays

@@ -24,8 +24,8 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - CRED-001 `1.2.1` activa el aviso de ajuste de hemoglobina desde 500 m e incluye
   hasta 5.500 m. OBST-002 `1.0.2` calcula semanas completas a la fecha de atención,
   conserva el vacío sin FUM y admite fechas probables de parto pasadas.
-- Los rangos de hemoglobina neonatal exigen prematuridad explícita y usan la edad
-  a la fecha de la muestra. Los maternos distinguen los estados prenatales y de
+- Los rangos de hemoglobina usan la edad a la fecha de la muestra; los neonatales
+  exigen prematuridad explícita. Los maternos distinguen los estados prenatales y de
   posparto; las 40 semanas dejan de funcionar como sustituto del parto.
 - Desactiva las dos reglas de creatinina normalizada por peso que se aplicaban
   a la medición absoluta de 24 horas. Conserva UUIDs y valores históricos; Core
