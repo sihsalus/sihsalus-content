@@ -129,6 +129,19 @@ cannot silently change the overlay.
 
 ## Required runtime evidence
 
+History snapshots retain every column and row. The pinned audit module at
+[`13712f1`](https://github.com/sihsalus/openmrs-module-sihsalus-audit/blob/13712f1f08839047a360e452d988ee361d2181a0/api/src/main/resources/liquibase.xml)
+declares four native `runAlways` checks (07 through 10). Only their
+`DATEEXECUTED`, `ORDEREXECUTED`, `EXECTYPE` and `DEPLOYMENT_ID` are normalized
+for comparisons: Liquibase updates these on each startup. Their exact
+ID/author/file identities, checksums and all other fields remain compared.
+Failed/skipped execution states are rejected; `MARK_RAN` is permitted only
+for the two trigger-creation checks whose preconditions declare it. All content
+changesets and other module rows preserve execution metadata too. This is a
+comparison rule for the pinned image, not a database mutation, skipped migration
+or checksum reset. Keep it limited to the verified native declarations when
+updating the image. Owner and tracking: `@Duvet05`, SIHSalus #336.
+
 The `upgrade` scenario requires:
 
 1. **Baseline:** bootstrap a fresh synthetic database with complete 1.25.15
@@ -152,7 +165,8 @@ The `upgrade` scenario requires:
    multiplicities and Stock identity/audit fields. No role groups are excluded.
    Require real changeSet history and full loader
    completion. Restart with the same data and checksums and require unchanged
-   RBAC and complete journal rows, including execution metadata.
+   RBAC and complete journal rows, with only the native `runAlways` execution
+   metadata exception described above.
 3. **Current candidate CSV:** start the reconciled database with the complete,
    unmodified candidate configuration. Require its actual roles checksum, exactly
    59 admission privileges, and only the approved read privilege added to the

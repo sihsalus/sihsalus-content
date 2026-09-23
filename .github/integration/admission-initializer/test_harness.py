@@ -775,11 +775,61 @@ class HarnessContracts(unittest.TestCase):
                 self.runtime.docker.return_value = completed(code)
                 self.runtime.absent_checksum("owned", guards.LIQUIBASE_CHECKSUM)
 
-    def test_history_snapshot_keeps_all_columns_not_partial_projection(self):
-        self.runtime.query = Mock(return_value=["synthetic-full-row"])
-        self.assertEqual(self.runtime.history("owned-db"), ["synthetic-full-row"])
-        self.runtime.query.assert_called_once_with(
+    def history_snapshot(self, changes=None):
+        row = {
+            "ID": "sihsalusaudit-20260819-09-validate", "AUTHOR": "sihsalus", "FILENAME": "liquibase.xml",
+            "DATEEXECUTED": "2026-09-23 12:00:00", "ORDEREXECUTED": "100", "EXECTYPE": "EXECUTED",
+            "MD5SUM": "9:" + "a" * 32, "DESCRIPTION": "sql", "COMMENTS": "", "TAG": "NULL",
+            "LIQUIBASE": "4.33.0", "CONTEXTS": "NULL", "LABELS": "NULL", "DEPLOYMENT_ID": "1234567890",
+            "FUTURE_COLUMN": "retained",
+        }
+        row.update(changes or {})
+        self.runtime.query = Mock(side_effect=lambda db, sql:
+            ["\t".join(row.values())] if sql.startswith("SELECT *") else list(row))
+        result = self.runtime.history("owned-db")
+        self.runtime.query.assert_any_call(
             "owned-db", "SELECT * FROM liquibasechangelog ORDER BY ID,AUTHOR,FILENAME")
+        return result
+
+    def test_native_audit_runalways_preserves_history_despite_execution_metadata(self):
+        for identifier in ("07-no-update", "08-no-delete", "09-validate", "10-mariadb-validate"):
+            with self.subTest(identifier=identifier):
+                original = {"ID": "sihsalusaudit-20260819-" + identifier}
+                before = self.history_snapshot(original)
+                after = self.history_snapshot({**original, "DATEEXECUTED": "2026-09-23 12:05:00",
+                    "ORDEREXECUTED": "200", "EXECTYPE": "RERAN", "DEPLOYMENT_ID": "1234567900"})
+                self.assertEqual(before, after)
+
+    def test_history_keeps_checksums_identity_and_all_nonexecution_columns(self):
+        before = self.history_snapshot()
+        for column, value in {"ID": "other", "AUTHOR": "other", "FILENAME": "other.xml",
+                "MD5SUM": "9:" + "b" * 32, "DESCRIPTION": "changed", "COMMENTS": "changed",
+                "TAG": "changed", "LIQUIBASE": "changed", "CONTEXTS": "changed",
+                "LABELS": "changed", "FUTURE_COLUMN": "changed"}.items():
+            with self.subTest(column=column):
+                self.assertNotEqual(before, self.history_snapshot({column: value}))
+
+    def test_unrelated_and_content_history_preserve_every_execution_column(self):
+        for identity in ({"ID": guards.CHANGESET}, {"ID": "sihsalusaudit-20260819-01-table"},
+                         {"AUTHOR": "other"}, {"FILENAME": "other.xml"}):
+            before = self.history_snapshot(identity)
+            for column, value in {"DATEEXECUTED": "2026-09-23 12:05:00", "ORDEREXECUTED": "200",
+                                  "EXECTYPE": "RERAN", "DEPLOYMENT_ID": "1234567900"}.items():
+                with self.subTest(identity=identity, column=column):
+                    self.assertNotEqual(before, self.history_snapshot({**identity, column: value}))
+
+    def test_native_audit_history_rejects_failed_or_skipped_executions(self):
+        for execution in ("FAILED", "SKIPPED", "MARK_RAN", "NULL", "unexpected"):
+            with self.subTest(execution=execution), self.assertRaisesRegex(
+                    HarnessFailure, "native_audit_execution_invalid"):
+                self.history_snapshot({"EXECTYPE": execution})
+
+    def test_native_trigger_preconditions_can_record_mark_ran(self):
+        for suffix in ("07-no-update", "08-no-delete"):
+            with self.subTest(suffix=suffix):
+                identity = {"ID": "sihsalusaudit-20260819-" + suffix}
+                self.assertEqual(self.history_snapshot(identity),
+                                 self.history_snapshot({**identity, "EXECTYPE": "MARK_RAN"}))
 
     def test_upgrade_oracle_preserves_unrelated_multiplicity_and_audit_columns(self):
         columns = {

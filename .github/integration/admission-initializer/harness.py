@@ -559,7 +559,30 @@ class Harness:
         self.absent_checksum(backend, LIQUIBASE_CHECKSUM)
 
     def history(self, db):
-        return self.query(db, "SELECT * FROM liquibasechangelog ORDER BY ID,AUTHOR,FILENAME")
+        rows = self.query(db, "SELECT * FROM liquibasechangelog ORDER BY ID,AUTHOR,FILENAME")
+        columns = [row.split("\t", 1)[0] for row in self.query(db, "SHOW COLUMNS FROM liquibasechangelog")]
+        required = {"ID", "AUTHOR", "FILENAME", "MD5SUM", "DATEEXECUTED", "ORDEREXECUTED", "EXECTYPE", "DEPLOYMENT_ID"}
+        require(required <= set(columns) and len(columns) == len(set(columns)), "history_columns_invalid")
+        # The pinned audit module (13712f1) declares these four native checks
+        # runAlways. Liquibase updates their execution metadata on every startup.
+        # Keep their identity/checksum and every other column, including future
+        # columns. Content and all other modules retain their complete rows.
+        repeated = {("sihsalusaudit-20260819-" + suffix, "sihsalus", "liquibase.xml")
+                    for suffix in ("07-no-update", "08-no-delete", "09-validate", "10-mariadb-validate")}
+        result = []
+        for row in rows:
+            values = row.split("\t")
+            require(len(values) == len(columns), "history_column_shape_changed")
+            data = dict(zip(columns, values))
+            if tuple(data[key] for key in ("ID", "AUTHOR", "FILENAME")) in repeated:
+                permitted = {"EXECUTED", "RERAN"}
+                if data["ID"].endswith(("07-no-update", "08-no-delete")):
+                    permitted.add("MARK_RAN")
+                require(data["EXECTYPE"] in permitted, "native_audit_execution_invalid")
+                for column in ("DATEEXECUTED", "ORDEREXECUTED", "EXECTYPE", "DEPLOYMENT_ID"):
+                    data[column] = "<native-runAlways-execution>"
+            result.append("\t".join(data[column] for column in columns))
+        return result
 
     def candidate_recorded(self, db, identifier=CHANGESET):
         records = self.query(db, "SELECT MD5SUM,EXECTYPE FROM liquibasechangelog WHERE ID=" + sql_string(identifier))
