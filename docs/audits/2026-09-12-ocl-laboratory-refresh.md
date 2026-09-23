@@ -1,5 +1,7 @@
 # Revisión del export OCL de laboratorio — 2026-09-12
 
+> [Registro histórico](README.md): evidencia y estados correspondientes a la fecha de la revisión.
+
 ## Resultado y alcance
 
 La release `SIHSALUS/laboratorio/2026-09-10-3` no puede sustituir todavía a

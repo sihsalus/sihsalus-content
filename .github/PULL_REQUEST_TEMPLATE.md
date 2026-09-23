@@ -19,5 +19,9 @@ sustitución, según [AGENTS.md](https://github.com/sihsalus/sihsalus-content/bl
   del historial/checksums y evidencia de instalación nueva y actualización.
 - Impacto operativo y recuperación, cuando corresponda.
 
+Usar las comprobaciones de la [guía de desarrollo](https://github.com/sihsalus/sihsalus-content/blob/main/docs/development.md)
+y del dominio afectado. Para cambios solo de documentación, basta revisar diff,
+enlaces y consistencia; no se requieren pruebas nuevas ni subir la versión.
+
 No adjuntar secretos ni datos clínicos. La evidencia de CI, aceptación clínica y
 despliegue debe distinguirse explícitamente.

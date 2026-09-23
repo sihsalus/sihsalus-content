@@ -39,7 +39,7 @@ hasta que el personal de la plataforma OCL los purgue o el proceso de export los
 El validador bloquea cualquier duplicación bundleada, incluso retirada, para evitar que una importación
 posterior reintroduzca o altere el catálogo.
 
-Desde la candidata `1.25.19`, el paquete incluye el export principal `2026-09-09-1` con
+Desde `1.25.19`, el paquete incluye el export principal `2026-09-09-1` con
 exclusiones explícitas verificadas antes de dividir el ZIP. Solo se excluyen las once identidades
 de conceptos y diez de mappings retirados que pertenecen a este catálogo. El manifiesto,
 la reproducción y los hashes constan en [la auditoría OCL](../audits/2026-09-12-ocl-refresh.md).
@@ -49,9 +49,9 @@ de registros retirados.
 ## Corte desde `ADDRESS_3`
 
 `person_address.address3` se utilizó previamente para almacenar el barrio como texto libre. La primera
-fase retira `ADDRESS_3/Barrio` de `addressConfiguration.xml` y del formato visible de la dirección porque
-se confirmó que no existen datos reales que requieran migración. Este corte no incluye scripts de
-migración, aliases ni reconciliación. Si esa precondición deja de ser cierta antes del despliegue, el
+fase retiró `ADDRESS_3/Barrio` de `addressConfiguration.xml` y del formato visible de la dirección tras
+comprobar la ausencia de datos que requirieran migración en el entorno revisado. Este corte no incluye scripts de
+migración, aliases ni reconciliación. Si otro entorno contiene datos en ese campo, el
 cambio debe bloquearse y rediseñarse; no se debe inferir ni transformar direcciones automáticamente.
 
 ## Actualización del catálogo

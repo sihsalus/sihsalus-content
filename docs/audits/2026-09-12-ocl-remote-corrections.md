@@ -1,5 +1,7 @@
 # Correcciones aplicadas en OCL remoto
 
+> [Registro histórico](README.md): evidencia y estados correspondientes a la fecha de la revisión.
+
 Fecha: **2026-09-12**. Fuente: **SIHSALUS/laboratorio, HEAD**.
 Se actualizaron **30 conceptos y 12 mappings** mediante la API OCL
 `2.3.201-b92a0036`, con respaldo previo y lectura de comprobación tras cada cambio.

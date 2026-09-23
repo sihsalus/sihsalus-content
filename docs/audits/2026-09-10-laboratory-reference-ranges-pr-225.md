@@ -1,5 +1,7 @@
 # Revisión de rangos de laboratorio del PR #225
 
+> [Registro histórico](README.md): evidencia y estados correspondientes a la fecha de la revisión.
+
 Fecha: 2026-09-10. Revisión del cambio original `e654276` desde su base común
 `1025f73`; `origin/main` observado: `1371ca3`. Versión candidata:
 **1.25.17**, no publicada.
@@ -8,6 +10,11 @@ Fecha: 2026-09-10. Revisión del cambio original `e654276` desde su base común
 Que el CSV se importe y el paquete se construya no demuestra que sus umbrales,
 unidades o poblaciones sean correctos. Los valores propuestos por el autor se
 conservan pendientes de esa revisión; esta auditoría no los aprueba.
+
+La versión `1.25.17` se publicó posteriormente; véase el
+[changelog](../../CHANGELOG.md#12517---2026-09-12). Los requisitos mantenidos y las
+correcciones posteriores se describen en el [contrato de laboratorio](../contracts/laboratory-reporting.md).
+Esa publicación no convierte esta revisión inicial en aceptación clínica.
 
 ## Comentarios del PR
 

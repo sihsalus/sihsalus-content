@@ -1,5 +1,7 @@
 # Auditoría de inmunizaciones contra NTS 246-MINSA/DGIESP-2026
 
+> [Registro histórico](README.md): evidencia y estados correspondientes a la fecha de la revisión.
+
 Fecha de auditoría: 2026-06-17
 
 ## Alcance

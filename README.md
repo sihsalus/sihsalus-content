@@ -17,7 +17,7 @@ La metadata que carga Initializer está en [configuration/](configuration).
 | [.github/scripts/](.github/scripts) | Validadores y sus pruebas de regresión. |
 | [.github/integration/](.github/integration) | Ensayos de MariaDB/Liquibase, Initializer y autorización nativa. |
 | [.github/workflows/](.github/workflows) | Validación, construcción y publicación. |
-| [CHANGELOG.md](CHANGELOG.md) | Historial de versiones publicadas. |
+| [CHANGELOG.md](CHANGELOG.md) | Cambios por versión y estado de publicación. |
 
 Los dominios se mantienen directamente bajo `configuration/`. Dentro del ZIP
 conservan el prefijo `configuration/backend_configuration/` que consume el
@@ -28,14 +28,14 @@ distro; este detalle del artefacto no requiere otra carpeta en el árbol de fuen
 Antes de editar, leer [AGENTS.md](AGENTS.md) y el
 [contrato del dominio](docs/README.md#contratos-por-dominio).
 
-Para construir y verificar el paquete:
+Para construir el paquete y comprobar sus propiedades:
 
 ```sh
 mvn clean verify --batch-mode --file pom.xml
 ```
 
-El ZIP se genera en `target/sihsalus-content-<version>.zip`. Maven verifica el
-empaquetado; los validadores de dominio y los ensayos de integración se ejecutan
+El ZIP se genera en `target/sihsalus-content-<version>.zip`. Este comando no ejecuta
+los validadores de dominio ni los ensayos de integración; estos se ejecutan
 por separado en [CI](.github/workflows/main.yml). La
 [guía de desarrollo](docs/development.md) explica cómo ejecutarlos, los requisitos
 y las condiciones de publicación.

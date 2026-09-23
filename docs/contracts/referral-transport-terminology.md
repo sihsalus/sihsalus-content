@@ -31,7 +31,7 @@ datatype, URLs y unicidad dentro del bundle. También exige que
 
 Este catálogo conserva su release independiente del source principal. Su migración no modifica los
 mappings `Q-AND-A` de `sihsalus`; el frontend coordinado utiliza explícitamente los tres UUIDs
-como respuestas permitidas. La candidata `1.25.19` incorpora el export principal `2026-09-09-1`
+como respuestas permitidas. Desde `1.25.19`, el paquete incorpora el export principal `2026-09-09-1`
 con las exclusiones de barrios documentadas en [la auditoría OCL](../audits/2026-09-12-ocl-refresh.md);
 `openconceptlab.subscriptionUrl` permanece en `2026-07-16-02`.
 

@@ -1,13 +1,103 @@
 # Changelog
 
-Todos los cambios notables en este proyecto serán documentados en este archivo.
+Cambios del paquete y sus herramientas, agrupados por versión. Las entradas
+históricas describen el contenido de esa revisión; sus rutas y pendientes no
+deben interpretarse como instrucciones actuales. Consultar la
+[guía de desarrollo](docs/development.md) y los [contratos](docs/README.md).
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
-## [1.25.16] - Candidata, no publicada
+### Cambiado
+
+- Organiza las fuentes directamente bajo `configuration/`, conservando las
+  rutas y los bytes de los 207 archivos del ZIP publicado `1.25.24`.
+- Simplifica el build y los validadores, retira configuración de formato sin
+  uso y reúne las instrucciones de mantenimiento en `docs/`.
+- Actualiza contratos, estados de publicación e índices de documentación;
+  conserva la evidencia fechada de auditorías y los doce changesets publicados.
+
+### Corregido
+
+- El validador AMPATH rechaza colisiones de la identidad persistida aunque los
+  UUID JSON sean distintos, nombres o versiones vacíos y carpetas sin formularios.
+  Comparte el cálculo de identidad con CE-001 e historia social e incorpora
+  regresiones con datos sintéticos.
+
+La versión del paquete sigue siendo `1.25.24`: estos cambios no modifican la
+metadata distribuida ni requieren reemplazar el artefacto publicado.
+
+## [1.25.24] - 2026-09-22
+
+### Agregado
+
+- Incorpora el formulario canónico de [historia social](docs/contracts/social-history.md)
+  para alcohol y tabaco, preparado como `1.25.23` en el PR #235.
+- Declara los roles operativos de Laboratorio y Soporte del
+  [contrato de perfiles hospitalarios](docs/contracts/hospital-access-profiles.md).
+
+### Corregido
+
+- Reconcilia el alias operativo exacto de Admisión y retira su suplemento
+  hospitalario, preservando las asignaciones canónicas y rechazando entradas
+  fuera del contrato. Conserva las migraciones históricas publicadas.
+- Concede `Get Patient Programs` a ambos perfiles de Laboratorio para la
+  evaluación nativa de rangos maternos. Añade una integración de autorización
+  con Core y amplía los ensayos de migración e Initializer.
+
+La [auditoría de Liquibase](docs/audits/2026-09-22-liquibase-initializer.md)
+verifica el XML publicado. La publicación no acredita despliegue ni aceptación
+funcional. En la comprobación del 22 de septiembre del
+[índice de Maven Central](https://repo.maven.apache.org/maven2/io/github/proyecto-santaclotilde/sihsalus-content/),
+`1.25.23` no aparece como release pública independiente.
+
+## [1.25.20] - 2026-09-14
+
+### Agregado
+
+- Provisiona el atributo de visita de [confirmación de pago en Admisión](docs/contracts/arrival-payment.md),
+  opcional y de cardinalidad máxima uno, sin transformar visitas históricas.
+
+## [1.25.19] - 2026-09-12
+
+### Cambiado
+
+- Actualiza el export principal OCL a `2026-09-09-1`, con exclusiones reproducibles
+  de las identidades retiradas del catálogo de barrios. Conserva la suscripción
+  remota anterior y la release de laboratorio; véase la
+  [auditoría OCL](docs/audits/2026-09-12-ocl-refresh.md).
+
+### Corregido
+
+- Alinea cuatro límites inferiores de hemoglobina con los puntos de corte
+  documentados en el [contrato de laboratorio](docs/contracts/laboratory-reporting.md).
+  Los pendientes de población, método e intervalos analíticos siguen explícitos.
+- El CI espera la disponibilidad pública del POM y ZIP después de la validación
+  de Sonatype, mediante el mecanismo descrito en la
+  [guía de publicación](docs/development.md#validación-y-publicación).
+
+## [1.25.18] - 2026-09-12
+
+### Agregado
+
+- Incorpora ácido ursodesoxicólico como concepto local y presentación ordenable
+  de 250 mg en tableta mediante CSV nativos, con pruebas de carga, reinicio y
+  búsqueda. Véase el [catálogo clínico](docs/clinical-drug-catalog.md).
+
+## [1.25.17] - 2026-09-12
+
+### Corregido
+
+- Revisa rangos de laboratorio y corrige criterios y diagnóstico del arranque
+  de Initializer. La [auditoría del PR #225](docs/audits/2026-09-10-laboratory-reference-ranges-pr-225.md)
+  conserva el alcance, los fallos detectados y los pendientes clínicos.
+- Publica la reconciliación transaccional de Admisión preparada en `1.25.16`.
+  La [revisión de artefactos](docs/audits/2026-09-21-admission-maintainability.md)
+  confirma su presencia en el ZIP `1.25.17`.
+
+## [1.25.16] - No publicada
 
 ### Corregido
 
@@ -17,8 +107,11 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   admitidas; no modifica los changeSets históricos ya publicados.
 - Añade controles estructurales y un harness de MariaDB/Liquibase con datos
   sintéticos. No sustituye la validación de Initializer ni de autorización.
-  Los requisitos pendientes de aprobación y actualización están en
-  `docs/contracts/admission-role-reconciliation.md`.
+  Los requisitos de actualización están en el
+  [contrato de Admisión](docs/contracts/admission-role-reconciliation.md).
+
+El número se conserva como antecedente: la comprobación de Maven Central no
+encontró un artefacto `1.25.16`; la migración se distribuyó desde `1.25.17`.
 
 ## [1.25.15] - 2026-09-07
 
@@ -34,6 +127,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [1.25.14] - 2026-08-26
 
 ### Agregado
+
 - Registra en el rol canónico `Laboratorio` los marcadores declarativos
   `Create Attachments` y `View Attachments`, conservando `Add Observations`
   como parte del contrato clínico existente. Estos marcadores no habilitan el
@@ -44,6 +138,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   `View Attachments`, sin ampliar otros roles.
 
 ### Seguridad
+
 - Mantiene fuera del rol el marcador general
   `app:hoja.clinica.adjuntos.editar`. El rol legado
   `Tecnico de Laboratorio` permanece intacto.
@@ -61,6 +156,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [1.25.13] - 2026-08-26
 
 ### Corregido
+
 - Completa el rol `Farmacia` con `Edit Medication Dispense`, requerido por
   OpenMRS FHIR2 para crear y actualizar dispensaciones. Conserva
   `Get Medication Dispense` para su lectura y protege ambos privilegios mediante
@@ -69,6 +165,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [1.25.12] - 2026-08-25
 
 ### Agregado
+
 - Publica en un artefacto inmutable nuevo el tipo de identificador técnico y la fuente
   secuencial `RU-` usados por la Receta Única Estandarizada. La versión `1.25.11`
   ya había sido publicada antes de que esos metadatos ingresaran a `main` y no los contiene.
@@ -76,6 +173,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [1.25.11] - 2026-08-25
 
 ### Corregido
+
 - Retira y despublica de forma idempotente el `Form` persistido de
   `CE-001-CONSULTA EXTERNA` `1.0.1`, sin eliminar ni modificar sus encuentros históricos.
 - Falla de forma cerrada si los UUID de `1.0.1` o `1.0.2` no corresponden a sus identidades
@@ -84,12 +182,14 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [1.25.10] - 2026-08-25
 
 ### Corregido
+
 - Alinea la ubicación canónica del Hospital Santa Clotilde con la jerarquía territorial
   configurada: Loreto como región, Maynas como provincia, Napo como distrito y Santa Clotilde
   como centro poblado. Mantiene vacía la calle porque la fuente estatal no publica una
   dirección vial utilizable.
 
 ### Agregado
+
 - Provisiona el teléfono institucional `965 336 199` y el Código Único IPRESS `00000066`
   como atributos estables de `Location`, con validación de su identidad y cardinalidad.
 - Activa `drugOrder.requireOutpatientQuantity=true` para exigir los datos de dispensación en
@@ -98,30 +198,35 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [1.25.9] - 2026-08-25
 
 ### Cambiado
+
 - Migra las respuestas `Terrestre`, `Aéreo` y `Fluvial` de la referencia institucional al source
   OCL aislado `SIHSALUS/referencia-institucional`, preservando sus UUID OpenMRS.
 - Bundlea la release `2026-08-25-01` como export estático de conceptos y mantiene el source principal
   `sihsalus` en `2026-07-16-02`.
 
 ### Retirado
+
 - Elimina `concepts/referral_transport_concepts.csv` para impedir que Initializer y OCL importen los
   mismos conceptos en paralelo.
 
 ## [1.25.8] - 2026-08-25
 
 ### Cambiado
+
 - Publica `CE-REF-001-REFERENCIA-CONTRARREFERENCIA` `1.1.0` como compatibilidad de captura
   mínima de la Hoja de Referencia Institucional: destino, especialidad, prioridad, condición de
   salida y motivo. Retira el diagnóstico de texto duplicado porque la hoja reutiliza los
   diagnósticos nativos de la visita.
 
 ### Agregado
+
 - Provisiona las respuestas operativas terrestre, aérea y fluvial para el concepto existente
   `Modo de transporte`. No agrega tablas ni changeSets Liquibase.
 
 ## [1.25.7] - 2026-08-25
 
 ### Corregido
+
 - Completa el rol `Farmacia` con los privilegios mínimos de lectura de fuentes de conceptos y
   dispensaciones requeridos por la consulta FHIR de recetas, sin ampliar sus capacidades de
   escritura ni administración.
@@ -130,6 +235,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [1.25.6] - 2026-08-24
 
 ### Agregado
+
 - Publica `CE-SOAP-001-NOTA SOAP` como versión `1.1.0` con examen físico segmentado en examen
   general y regional por sistemas, conforme al contenido mínimo de Consulta Externa de la NTS 139.
 - Registra estado general y resumen regional como campos obligatorios, sin completar hallazgos
@@ -138,6 +244,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [1.25.5] - 2026-08-24
 
 ### Corregido
+
 - Retira de `CE-001-CONSULTA EXTERNA` la página de diagnóstico y las observaciones de texto,
   certeza y ocurrencia que no creaban un diagnóstico nativo del encuentro. El diagnóstico CIE-10
   se registra exclusivamente mediante Visit Notes.
@@ -147,6 +254,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [1.25.4] - 2026-08-24
 
 ### Agregado
+
 - Provisiona los seis catálogos mínimos de Stock Management, reutilizando las
   unidades clínicas existentes y agregando motivos, fuentes y categorías
   administrativas controladas. Mantiene saldos negativos deshabilitados y no
@@ -158,6 +266,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [1.25.3] - 2026-08-24
 
 ### Corregido
+
 - Retira del rol granular de edición de Visit Notes el privilegio inexistente
   `Add Diagnoses` y la capacidad de purga `Delete Diagnoses`. OpenMRS 2.8.9 usa
   `Edit Diagnoses` tanto para guardar como para anular diagnósticos.
@@ -168,6 +277,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [1.25.1] - 2026-08-23
 
 ### Corregido
+
 - Provisiona de forma idempotente la metadata canónica de `Visit Note` y valida el
   contrato de formulario, tipo de encuentro y datatypes clínicos consumidos por el
   frontend coordinado.
@@ -178,16 +288,19 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [1.25.0] - 2026-08-22
 
 ### Cambiado
+
 - Prepara la versión `1.25.0` como paquete exclusivamente backend: el ensamblado incluye solo
   `backend_configuration`, conserva los exports OCL y deja la configuración efectiva del SPA en
   `sihsalus-frontend/config/frontend.json`.
 
 ### Retirado
+
 - Elimina `configuration/frontend_configuration/config.json` y las validaciones acopladas a ese
   archivo, porque la distribución SIHSALUS no lo sirve al navegador. Las validaciones de metadata
   backend, catálogos OCL y rutas de atención se conservan.
 
 ### Agregado
+
 - Catálogo local de barrios de Santa Clotilde como atributo codificado de
   persona. Su activación en registro, búsqueda y datos adicionales corresponde
   a la configuración efectiva del frontend. El catálogo activo se aísla en la fuente OCL
@@ -197,23 +310,9 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - Habilita `ODONTOLOGIA GENERAL` (`5fe6c774-f888-40e5-b54f-e308e5fa26c8`) como
   destino del set `Tipo de Servicio` (`4bf3f465-…`), que alimenta el catálogo de
   interconsultas y colas. Reutiliza el concepto ya publicado en OCL en lugar de
-  crear uno nuevo, según `OCL-TERMINOLOGY-PLAN.md`. Sin este miembro no existía
+  crear uno nuevo, según el [plan terminológico histórico](https://github.com/sihsalus/sihsalus-content/blob/c4abc8ff71c06f43e43f63132a9d3ee265388516/OCL-TERMINOLOGY-PLAN.md). Sin este miembro no existía
   ningún destino odontológico pese a que el sistema tiene módulo de atención
   odontológica con hoja clínica y privilegios propios.
-
-### Corregido
-- Autoriza `Edit People` en `SIHSALUS Consulta Externa` para que el profesional
-  pueda registrar o corregir el estado de fallecimiento desde la historia
-  clínica, y agrega el privilegio UI dedicado
-  `app:hoja.clinica.estadoVitalPaciente` para no reutilizar el permiso amplio de
-  edición de visitas. No concede `Add People`: el flujo actualiza una persona
-  existente y el backend de OpenMRS exige una de esas dos capacidades, no ambas.
-- Alinea la validación de integridad con los roles funcionales: deja de exigir
-  el privilegio retirado `app:hoja.clinica.resumenConsulta.editar` y autoriza al
-  rol `SIH SALUS Colas de atención editar` a registrar acompañantes y limpiar
-  entradas activas de una cola según la matriz vigente.
-
-### Agregado
 - Rol `SIHSALUS Enfermero Triaje` (uuid canónico `c3c9b940-156f-4eaf-83b7-f11db420c51c`),
   hasta ahora creado a mano en cada base de datos con uuids divergentes y sin
   `Edit Visits` — sin ese privilegio, guardar signos vitales dentro de una
@@ -228,8 +327,6 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   asignaciones directas de `Manage Queue Entries` (triaje mueve pacientes en la
   cola) y fija sus invariantes: exige `Edit Visits` y los privilegios de signos
   vitales, y le prohíbe administrar o purgar colas.
-
-### Agregado
 - Pregunta `Código prestacional de la consulta SIH.SALUS`
   (`34630b86-5106-4aea-8382-f55c02e4ba2c`, clase Question, datatype Coded), que
   el resumen de consulta usa para persistir el código prestacional como
@@ -239,9 +336,23 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   «Don't know how to handle ZZ» — y no existe ninguna otra pregunta Coded o Text
   para este dato en los 15 exports OCL.
 
+### Corregido
+
+- Autoriza `Edit People` en `SIHSALUS Consulta Externa` para que el profesional
+  pueda registrar o corregir el estado de fallecimiento desde la historia
+  clínica, y agrega el privilegio UI dedicado
+  `app:hoja.clinica.estadoVitalPaciente` para no reutilizar el permiso amplio de
+  edición de visitas. No concede `Add People`: el flujo actualiza una persona
+  existente y el backend de OpenMRS exige una de esas dos capacidades, no ambas.
+- Alinea la validación de integridad con los roles funcionales: deja de exigir
+  el privilegio retirado `app:hoja.clinica.resumenConsulta.editar` y autoriza al
+  rol `SIH SALUS Colas de atención editar` a registrar acompañantes y limpiar
+  entradas activas de una cola según la matriz vigente.
+
 ## [1.24.2] - 2026-08-10
 
 ### Corregido
+
 - Ajusta el límite absoluto superior de cuatro rangos de referencia de
   laboratorio, que estaba por encima del valor crítico y por tanto no marcaba
   como fuera de rango resultados que sí lo están:
@@ -253,6 +364,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [1.24.1] - 2026-08-05
 
 ### Corregido
+
 - Corrige el formulario `Prescripción de medicamentos`, que quedó publicado como
   prueba: la observación «Observaciones» guardaba en el concepto «Evolución
   obstétrica» (`dfdc2f61…`) y ahora usa «Instrucciones de prescripción, no
@@ -298,98 +410,9 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   llegada antes de crear la visita y la entrada de cola.
 - Ordena las precondiciones antes del comentario en la migración del rol de Admisión,
   conforme al esquema Liquibase 1.9, y agrega una validación de este contrato al CI.
-
-### Agregado
-- Validador de integridad terminológica entre formularios y exports OCL
-  (`validate_form_concept_integrity.py`). Bloquea de inmediato los conceptos
-  referenciados que no existen y los renderings codificados sobre conceptos
-  `Text` —que persistirían el UUID de la respuesta como cadena—. La deuda ya
-  existente (23 colisiones de concepto dentro de un mismo formulario, 32
-  answer sets divergentes, 66 labels con UUID distintos y 9 campos cuyo label
-  promete un código pero guardan texto) queda inventariada en un baseline que
-  solo puede encoger.
-- Atributo de visita `Acompañante de consulta`
-  (`710da0b9-e15f-47f0-827a-e97f1937c81d`), que el formulario de inicio de
-  consulta del frontend usa para persistir el UUID de la persona acompañante.
-  Sin este metadato el frontend degrada con "No se pudo guardar el
-  acompañante" y la consulta se guarda sin acompañante.
-- Contrato canónico versionado `docs/contracts/hsc-care-routing.csv` para los 16 servicios
-  registrados. Define por UUID la categoría de agenda, ubicación, política de llegada, cola y
-  ámbito de atención; 13 servicios quedan programables, 11 permiten cola y dos son de atención
-  directa.
-- Categoría local de agenda `Odontología general`, separada de la especialidad reconocida
-  `Cirugía Bucal y Maxilofacial`, y atributo multivaluado de proveedor para habilitar categorías
-  de agenda con validación frontend configurable (`off`, `warn` o `strict`).
-- Conceptos dedicados para servicios de cola. `Queue.service` deja de reutilizar UUIDs de
-  `AppointmentServiceDefinition`, que pertenecen a otro tipo de recurso.
-
-### Cambiado
-- El rol de Admisión normaliza de forma transaccional su nombre histórico `SIHSALUS Admision`
-  a `Admision`, conservando el UUID y todas las referencias de usuarios, privilegios y módulos.
-  Esto permite que Initializer sincronice sus permisos de colas tanto en bases existentes como
-  en instalaciones limpias.
-- `VisitType` representa únicamente el ámbito: Atención Ambulatoria, Sesión Grupal Ambulatoria,
-  Hospitalización, Emergencia o Atención Extramural. La especialidad y la prestación permanecen
-  en el servicio de cita y el encuentro clínico.
-- Obstetricia y nutrición ambulatorias se ubican en UPSS Consulta Externa; hospitalización de
-  cirugía general se ubica en UPSS Hospitalización; Hemodiálisis usa UPSS Diálisis.
-- Rehabilitación, hemodiálisis y nutrición tienen equivalencias explícitas con sus colas. El
-  registro de llegada ya no depende de coincidencias por nombre ni de selección manual.
-- Los tipos de servicio uno-a-uno se eliminan del paquete; la duración operativa vive en la definición
-  del servicio hasta que el hospital configure variantes reales, como primera consulta o control.
-
-### Retirado
-- Servicios de cita para emergencia, atención inmediata del recién nacido y aplicación de
-  inyectables. Son flujos no programables o requieren confirmar cartera y UPSS antes de activarse.
-- Tipos de atención que codificaban especialidades, dispensación o diagnóstico dentro de
-  `VisitType`, y el atributo ficticio `Parent Visit Type` que OpenMRS Core nunca interpretó, se
-  eliminan del paquete canónico y no se recrean en instalaciones nuevas.
-
-### Validación
-- CI comprueba que la metadata backend reproduzca exactamente el contrato, que las colas usen
-  Concepts dedicados, que no reaparezcan tipos especializados y que odontología general nunca
-  quede asociada a Cirugía Bucal y Maxilofacial.
-
-### Agregado
-- Person attribute **Método de Verificación de Seguro** (`bc1e5c92-e46a-4bc9-8cba-d9093a0eb659`, FreeText):
-  traza cómo se verificó la afiliación (manual-web / setisis / siteds), requerido por la
-  verificación SIS manual interina del frontend (sihsalus-frontend PR #623, plan PR #606).
-
-
-### Agregado
-- Catálogo canónico de financiadores (tipología IAFAS/RIAFAS): el set `Tipo de seguro`
-  (`6b932638-…`) incorpora **EPS** (`9348006a-…`), **SOAT/AFOCAT** (`08a4d37a-…`),
-  **Prepaga de salud** (`3fa0e9a8-…`), **Autoseguro de salud** (`1cf576eb-…`) y
-  **Sanidad de las Fuerzas Armadas** (`e94d4d1a-…`). FOSPOLI se mantiene como IAFAS policial.
-- Nueva pregunta **`Producto SIS`** (`72b9edbf-1ec8-4b1a-8957-b1597aab8757`) con respuestas
-  SIS Gratuito, SIS Semicontributivo (legado), SIS Emprendedor, **SIS Para Todos**
-  (`b23298e2-…`), **SIS Independiente** (`efd89ed6-…`) y **SIS Microempresas** (`dc8cbea7-…`),
-  con la codificación FUA (2/3/E/9/R/8) documentada en las descripciones.
-- Exports OCL de `SIHSALUS/seguros` actualizados a la versión liberada `2026-07-17-01`
-  (25 conceptos, 33 mapeos).
-
-### Cambiado
-- Los productos SIS (Gratuito/Semicontributivo/Emprendedor) **dejan el primer nivel** de
-  `Tipo de seguro` (mapeos retirados) y pasan a ser respuestas de `Producto SIS`: el
-  financiador es SIS y el producto se registra por separado.
-
-### Corregido
 - El visit attribute **`Financiador`** (`3a988e33-…`) apuntaba al concepto inexistente
   `355ee63a-…`; ahora referencia el set canónico `Tipo de seguro` (`6b932638-…`), con lo
   que el atributo de visita vuelve a ser utilizable por admisión, facturación y FUA.
-
-### Agregado
-- Aprovisiona las dos colas del flujo de emergencia del frontend en `sihsalus-queues.csv`: **Cola de Triaje de
-  Emergencia** (`b1c5bb01-…`, prioridades = nuevo set *Clasificación Pre-Triaje*: Emergencia/Urgencia) y **Cola de
-  Atención de Emergencia** (`ebd44a3d-…`, prioridades = *Sistema de Triaje de Cinco Niveles* con Prioridades I-IV),
-  ambas en UPSS - EMERGENCIA con el set estándar de estados de cola. Sin esto, el flujo de emergencia del frontend
-  solo funcionaba en servidores con colas creadas a mano.
-- Nuevo concepto set `Clasificación Pre-Triaje` (`3f4db8e2-241c-45ef-8e52-cea8dc4118f0`, OCL id 4472) con miembros
-  Emergencia (`e724bdb6-…`) y Urgencia (`89f8fab4-…`), según NT N.° 042-MINSA/DGSP-V.01.
-- Actualiza los exports OCL de `SIHSALUS/sihsalus` a la versión liberada `2026-07-16-02` (4 472 conceptos,
-  5 679 mapeos) y la suscripción de `openconceptlab.subscriptionUrl` a esa versión.
-
-### Corregido
 - Habilita al rol `Admision` el tablero y la operación de entradas de cola mediante
   `app:home.colasAtencion` y `app:home.colasAtencion.editar`. Mantiene fuera la configuración,
   habitaciones y purga de colas (`Manage Queues`, `Manage Queue Rooms`, `Purge Queue Entries`).
@@ -447,6 +470,51 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   de gestión de conceptos.
 
 ### Agregado
+
+- Validador de integridad terminológica entre formularios y exports OCL
+  (`validate_form_concept_integrity.py`). Bloquea de inmediato los conceptos
+  referenciados que no existen y los renderings codificados sobre conceptos
+  `Text` —que persistirían el UUID de la respuesta como cadena—. La deuda ya
+  existente (23 colisiones de concepto dentro de un mismo formulario, 32
+  answer sets divergentes, 66 labels con UUID distintos y 9 campos cuyo label
+  promete un código pero guardan texto) queda inventariada en un baseline que
+  solo puede encoger.
+- Atributo de visita `Acompañante de consulta`
+  (`710da0b9-e15f-47f0-827a-e97f1937c81d`), que el formulario de inicio de
+  consulta del frontend usa para persistir el UUID de la persona acompañante.
+  Sin este metadato el frontend degrada con "No se pudo guardar el
+  acompañante" y la consulta se guarda sin acompañante.
+- Contrato canónico versionado `docs/contracts/hsc-care-routing.csv` para los 16 servicios
+  registrados. Define por UUID la categoría de agenda, ubicación, política de llegada, cola y
+  ámbito de atención; 13 servicios quedan programables, 11 permiten cola y dos son de atención
+  directa.
+- Categoría local de agenda `Odontología general`, separada de la especialidad reconocida
+  `Cirugía Bucal y Maxilofacial`, y atributo multivaluado de proveedor para habilitar categorías
+  de agenda con validación frontend configurable (`off`, `warn` o `strict`).
+- Conceptos dedicados para servicios de cola. `Queue.service` deja de reutilizar UUIDs de
+  `AppointmentServiceDefinition`, que pertenecen a otro tipo de recurso.
+- Person attribute **Método de Verificación de Seguro** (`bc1e5c92-e46a-4bc9-8cba-d9093a0eb659`, FreeText):
+  traza cómo se verificó la afiliación (manual-web / setisis / siteds), requerido por la
+  verificación SIS manual interina del frontend (sihsalus-frontend PR #623, plan PR #606).
+- Catálogo canónico de financiadores (tipología IAFAS/RIAFAS): el set `Tipo de seguro`
+  (`6b932638-…`) incorpora **EPS** (`9348006a-…`), **SOAT/AFOCAT** (`08a4d37a-…`),
+  **Prepaga de salud** (`3fa0e9a8-…`), **Autoseguro de salud** (`1cf576eb-…`) y
+  **Sanidad de las Fuerzas Armadas** (`e94d4d1a-…`). FOSPOLI se mantiene como IAFAS policial.
+- Nueva pregunta **`Producto SIS`** (`72b9edbf-1ec8-4b1a-8957-b1597aab8757`) con respuestas
+  SIS Gratuito, SIS Semicontributivo (legado), SIS Emprendedor, **SIS Para Todos**
+  (`b23298e2-…`), **SIS Independiente** (`efd89ed6-…`) y **SIS Microempresas** (`dc8cbea7-…`),
+  con la codificación FUA (2/3/E/9/R/8) documentada en las descripciones.
+- Exports OCL de `SIHSALUS/seguros` actualizados a la versión liberada `2026-07-17-01`
+  (25 conceptos, 33 mapeos).
+- Aprovisiona las dos colas del flujo de emergencia del frontend en `sihsalus-queues.csv`: **Cola de Triaje de
+  Emergencia** (`b1c5bb01-…`, prioridades = nuevo set *Clasificación Pre-Triaje*: Emergencia/Urgencia) y **Cola de
+  Atención de Emergencia** (`ebd44a3d-…`, prioridades = *Sistema de Triaje de Cinco Niveles* con Prioridades I-IV),
+  ambas en UPSS - EMERGENCIA con el set estándar de estados de cola. Sin esto, el flujo de emergencia del frontend
+  solo funcionaba en servidores con colas creadas a mano.
+- Nuevo concepto set `Clasificación Pre-Triaje` (`3f4db8e2-241c-45ef-8e52-cea8dc4118f0`, OCL id 4472) con miembros
+  Emergencia (`e724bdb6-…`) y Urgencia (`89f8fab4-…`), según NT N.° 042-MINSA/DGSP-V.01.
+- Actualiza los exports OCL de `SIHSALUS/sihsalus` a la versión liberada `2026-07-16-02` (4 472 conceptos,
+  5 679 mapeos) y la suscripción de `openconceptlab.subscriptionUrl` a esa versión.
 - Separa el registro longitudinal de signos vitales y antropometría del triaje de emergencia mediante
   tipos de encuentro y roles de proveedor distintos, sin formularios JSON ni migración automática de
   históricos. Agrega un contrato de ubicación/RBAC para el frontend y una validación CI de regresión.
@@ -474,6 +542,23 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - Agrega privilegios de frontend para admision (`app:adt`), citas, colas, modulos operativos del home, vacunacion independiente (`app:immunization`, `app:immunization.edit`) y FUA (`Fua Privilege`, `Read Fua`, `Manage Fua`, `Update Fua`), junto con roles de navegacion operativa y roles de vacunacion de lectura y edicion.
 
 ### Cambiado
+
+- El rol de Admisión normaliza de forma transaccional su nombre histórico `SIHSALUS Admision`
+  a `Admision`, conservando el UUID y todas las referencias de usuarios, privilegios y módulos.
+  Esto permite que Initializer sincronice sus permisos de colas tanto en bases existentes como
+  en instalaciones limpias.
+- `VisitType` representa únicamente el ámbito: Atención Ambulatoria, Sesión Grupal Ambulatoria,
+  Hospitalización, Emergencia o Atención Extramural. La especialidad y la prestación permanecen
+  en el servicio de cita y el encuentro clínico.
+- Obstetricia y nutrición ambulatorias se ubican en UPSS Consulta Externa; hospitalización de
+  cirugía general se ubica en UPSS Hospitalización; Hemodiálisis usa UPSS Diálisis.
+- Rehabilitación, hemodiálisis y nutrición tienen equivalencias explícitas con sus colas. El
+  registro de llegada ya no depende de coincidencias por nombre ni de selección manual.
+- Los tipos de servicio uno-a-uno se eliminan del paquete; la duración operativa vive en la definición
+  del servicio hasta que el hospital configure variantes reales, como primera consulta o control.
+- Los productos SIS (Gratuito/Semicontributivo/Emprendedor) **dejan el primer nivel** de
+  `Tipo de seguro` (mapeos retirados) y pasan a ser respuestas de `Producto SIS`: el
+  financiador es SIS y el producto se registra por separado.
 - Presenta el identificador interoperable `DIE` como cédula de identidad emitida por el país de origen en la
   experiencia de registro, sin cambiar su UUID ni el concepto OCL. Conserva el código canónico de
   **Documento de Identidad Extranjero** definido por SUSALUD/RENHICE y deja explícito que su formato depende
@@ -533,21 +618,38 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - Agrega `UBIGEO de Nacimiento` como atributo de persona buscable y retira el atributo textual legado `Lugar de Nacimiento`.
 - Ordena los exports OCL con prefijos numericos para cargar primero `sihsalus` y `procedimientos`, evitando mappings hacia conceptos destino aun no importados.
 
+### Retirado
+
+- Servicios de cita para emergencia, atención inmediata del recién nacido y aplicación de
+  inyectables. Son flujos no programables o requieren confirmar cartera y UPSS antes de activarse.
+- Tipos de atención que codificaban especialidades, dispensación o diagnóstico dentro de
+  `VisitType`, y el atributo ficticio `Parent Visit Type` que OpenMRS Core nunca interpretó, se
+  eliminan del paquete canónico y no se recrean en instalaciones nuevas.
+
+### Validación
+
+- CI comprueba que la metadata backend reproduzca exactamente el contrato, que las colas usen
+  Concepts dedicados, que no reaparezcan tipos especializados y que odontología general nunca
+  quede asociada a Cirugía Bucal y Maxilofacial.
+
 ## [1.11.0] - 2026-06-09
 
 ### Agregado
+
 - Privilegios granulares del modulo CRED (`app:cred.antecedentes`, `app:cred.cursoVida`, `app:cred.earlyStim`, `app:cred.immunization`, `app:cred.neonatal`, `app:cred.nutrition`, `app:cred.wellChild` y sus variantes `.edit`) en `privileges_core-demo.csv`.
 - Roles `CRED lectura` y `CRED lectura y edicion` en `roles-core.csv`, agrupando los privilegios de lectura y de edicion del modulo CRED.
 
 ## [1.9.6] - 2026-06-04
 
 ### Corregido
+
 - Migra referencias de formularios a conceptos SIHSALUS V4 cargados en QLTY, incluyendo respuestas Si/No, Otro, Normal, Ninguno, diagnostico, laboratorio y opciones no binarias que habian quedado apuntando a UUIDs CIEL antiguos.
 - Agrega conceptos internos `SIH.SALUS - ...` para campos de formulario que no tienen equivalente directo en SIHSALUS V4, evitando colisiones de nombres durante Initializer.
 
 ## [1.9.4] - 2026-06-04
 
 ### Corregido
+
 - Alinea las opciones de formularios `ODONT-003`, `PSIC-001`, `PSIC-002` y `PSIC-004` con UUIDs canonicos ya importados por la terminologia para evitar referencias a conceptos no cargados.
 - Agrega la estructura de conceptos y mappings `CIEL` requeridos por FHIR2 `Immunization`, incluyendo el set `CIEL:984` con vacunas MINSA para `INMU-001`.
 - Elimina filas de conceptos locales duplicados que fallaban en Initializer por nombres existentes en locale `es`.
@@ -555,78 +657,71 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [1.8.32] - 2026-05-28
 
 ### Agregado
+
 - Formulario `ODONT-003-ATENCIÓN ODONTOLÓGICA` para el registro clínico de la atención odontológica (motivo de consulta, índices CPO-D/ceo-d e IHOS, riesgo estomatológico, diagnóstico CIE-10, actividades preventivas y recuperativas, plan de tratamiento y disposición), usando el encounter type existente `Atención de Odontología`. Complementa el odontograma, que registra los hallazgos por pieza.
 - Conceptos de odontología en `concepts-odontology.csv` para la atención clínica: tipo de atención, antecedentes estomatológicos, índices CPO-D/ceo-d, IHOS, riesgo estomatológico, actividades preventivas, procedimientos recuperativos, detalle de procedimientos, piezas tratadas y disposición.
-
----
 
 ## [1.8.31] - 2026-05-13
 
 ### Corregido
+
 - Agrega membresias `conceptsets` para los conceptos de colas (`Tipo de Servicio`, `Estado de la Cola` y `Prioridad`) antes del dominio `queues`.
 - Corrige el rechazo de las 16 colas por no tener sus servicios como miembros de `queue.serviceConceptSetName`.
-
----
 
 ## [1.8.30] - 2026-05-12
 
 ### Cambiado
+
 - Actualiza el export OCL SIHSALUS-v4 a la version `12-05-2026-1`.
 - Alinea el programa Tuberculosis para usar el concepto OCL `Programa de Tuberculosis` de clase `Program`.
-
----
 
 ## [1.8.29] - 2026-05-12
 
 ### Corregido
-- Corrige filas mal escapadas en rangos de referencia de laboratorio que rompian el dominio `conceptreferencerange`.
 
----
+- Corrige filas mal escapadas en rangos de referencia de laboratorio que rompian el dominio `conceptreferencerange`.
 
 ## [1.8.28] - 2026-05-12
 
 ### Corregido
+
 - Alinea el export OCL SIHSALUS-v4 con los servicios de Queue consumidos por el content package.
 - Reemplaza codigos numericos OCL por UUIDs OpenMRS estables en queues y propiedades globales.
 - Espera publicacion completa en Maven Central antes de considerar exitoso el deploy.
 
----
-
 ## [1.8.27] - 2026-05-12
 
 ### Corregido
+
 - Nueva publicacion requerida porque `1.8.25` y `1.8.26` ya existen en Maven Central con configuracion de Queue no reproducible.
 - Mantiene las colas y propiedades globales de Queue alineadas con UUIDs estables importados desde OCL.
-
----
 
 ## [1.8.25] - 2026-05-12
 
 ### Corregido
-- Alineadas las colas de atencion con los conceptos importados desde OCL para evitar errores de Initializer en el dominio `queues`.
 
----
+- Alineadas las colas de atencion con los conceptos importados desde OCL para evitar errores de Initializer en el dominio `queues`.
 
 ## [1.8.24] - 2026-05-11
 
 ### Cambiado
-- Publicacion estable con carga controlada de conceptos SIH.SALUS en OCL y alineacion de configuracion frontend/CI.
 
----
+- Publicacion estable con carga controlada de conceptos SIH.SALUS en OCL y alineacion de configuracion frontend/CI.
 
 ## [1.8.20] - 2026-04-30
 
 ### Cambiado
+
 - Publicacion del content package con las correcciones recientes de metadata y limpieza de configuracion frontend obsoleta.
 
 ### Agregado
-- Workflow de GitHub Actions para validar el content package contra la distro SIHSALUS y exigir 0 errores de CSV/Initializer.
 
----
+- Workflow de GitHub Actions para validar el content package contra la distro SIHSALUS y exigir 0 errores de CSV/Initializer.
 
 ## [1.6.0] - 2026-02-11
 
 ### Corregido
+
 - **UUIDs**: Regenerados 43 UUIDs inválidos (contenían caracteres no-hexadecimales) en encounter types, encounter roles, service definitions, visit types, programs, person attribute types, order frequencies y metadata term mappings
 - **Formularios AMPATH**: Actualizados 33 formularios JSON con los nuevos UUIDs de encounter types
 - **Cascading fixes**: Actualizadas colas de atención y metadata term mappings con los nuevos UUIDs referenciados
@@ -634,37 +729,36 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - **Attribute Types**: Corregido UUID duplicado entre Profesión y Colegio Médico en provider attributes
 - **Global Properties**: Reemplazado UUID placeholder (RFC 4122 example) en Fast Data Entry por UUID real de Consulta Ambulatoria
 
----
-
 ## [1.5.0] - 2026-02-11
 
 ### Agregado
+
 - **Message Properties**: Traducciones i18n al español (`messages_es.properties`) con terminología MINSA
 - **Cash Points**: 3 puntos de caja (Admisión, Farmacia, Emergencia) para módulo de billing
 - **Billable Services**: 14 servicios facturables alineados con las UPSS del hospital (consultas, laboratorio, ecografía, cirugía, hemodiálisis, etc.)
 - **Cohort Attribute Types**: 3 atributos para listas de pacientes (descripción, ubicación, programa asociado)
 
----
-
 ## [1.4.0] - 2026-02-11
 
 ### Agregado
+
 - **FHIR Patient Identifier Systems**: URLs FHIR para todos los identificadores peruanos (DNI/RENIEC, CE, Pasaporte, CNV, Historia Clínica) - Requerido para interoperabilidad RENHICE (Ley 30024)
 - **Dispositions**: Configuración de disposiciones clínicas (Admitir, Alta, Transferir, Fallecido, Observación) para flujo hospitalario O3
 
 ### Nota
-Las dispositions requieren conceptos CIEL que deben agregarse a la colección OCL: 164180 (Disposition set), 1654 (Admit), 1655 (Transfer), 1656 (Died), 1657 (Discharge), 159791 (Admission Location), 160473 (Transfer Location)
 
----
+Las dispositions requieren conceptos CIEL que deben agregarse a la colección OCL: 164180 (Disposition set), 1654 (Admit), 1655 (Transfer), 1656 (Died), 1657 (Discharge), 159791 (Admission Location), 160473 (Transfer Location)
 
 ## [1.3.0] - 2026-02-11
 
 ### Agregado
+
 - **Encounter Type**: Sesión de Psicoprofilaxis (RM 361-2011)
 - **Formularios AMPATH**: 5 nuevos formularios clínicos para CRED y Madre Gestante
 - **Concept Sources**: Nuevos códigos y descripciones en `conceptsources.csv`
 
 ### Programas clínicos obligatorios (normativa MINSA)
+
 - **Tuberculosis** (NTS 200-MINSA/DGIESP-2023, RM 339-2023)
 - **VIH/SIDA** (NTS 169-MINSA/2020, RM 1024-2020)
 - **Adulto Mayor** (NTS 207-MINSA/DGIESP-2023, RM 789-2023)
@@ -673,6 +767,7 @@ Las dispositions requieren conceptos CIEL que deben agregarse a la colección OC
 - **Enfermedades Metaxénicas y Zoonosis** (PP 0017)
 
 ### Encounter types obligatorios (normativa MINSA)
+
 - **Diagnóstico y Seguimiento de Tuberculosis** (NTS 200)
 - **Tamizaje de VIH** (NTS 169)
 - **Manejo de Terapia Antirretroviral - TARGA** (NTS 169)
@@ -683,52 +778,57 @@ Las dispositions requieren conceptos CIEL que deben agregarse a la colección OC
 - **Atención Integral del Adolescente** (NTS 157)
 
 ### Corregido
+
 - **GitHub Actions**: Workflow CI ahora apunta a las ramas `main` y `pre-release`
 
 ### Metadata alineada con referenceapplication
+
 - **Cohort Types**: Agregado `cohorttypes/cohorttypes.csv` con System List y My List (faltaba completamente)
 - **Global Properties**: Agregadas 4 propiedades core: `concept.true`, `concept.false`, `visits.assignmentHandler`, `visits.allowOverlappingVisits`
 - **Privilegios**: Agregado privilegio `O3 Implementer Tools` (requerido para herramientas de implementador O3)
 
----
-
 ## [1.1.1] - 2026-01-13
 
-### 🔴 HOTFIX - Corregido
+### Corregido
 
-**Problema Crítico:** Los archivos `programworkflows.csv` y `programworkflowstates.csv` agregados en v1.1.0 causaban errores de inicialización porque los conceptos referenciados no existen en la base de datos.
+**Problema:** Los archivos `programworkflows.csv` y `programworkflowstates.csv` agregados en v1.1.0 causaban errores de inicialización porque los conceptos referenciados no existen en la base de datos.
 
 **Errores generados:**
+
 ```
 java.lang.IllegalArgumentException: Unable to find concept: Estado de Control CRED
 java.lang.IllegalArgumentException: Unable to find concept: Estado de Gestación
 ```
 
 **Solución aplicada:**
+
 - Vaciados los archivos `programworkflows/sihsalus-programworkflows.csv` (solo headers)
 - Vaciados los archivos `programworkflowstates/sihsalus-programworkflowstates.csv` (solo headers)
 - Los 8 programas clínicos funcionan sin workflows hasta que se creen los conceptos necesarios en OCL
 
 ### Archivos Modificados
+
 - `configuration/backend_configuration/programworkflows/sihsalus-programworkflows.csv` (revertido a solo headers)
 - `configuration/backend_configuration/programworkflowstates/sihsalus-programworkflowstates.csv` (revertido a solo headers)
 
-### Nota Importante
-Los workflows y estados agregados en v1.1.0 serán reimplementados en una versión futura una vez que se creen los conceptos apropiados en OpenConceptLab (OCL).
+### Pendiente registrado en esa versión
 
----
+La reimplementación de workflows y estados de v1.1.0 quedó condicionada a crear
+los conceptos apropiados en OpenConceptLab (OCL).
 
 ## [1.1.0] - 2026-01-12
 
-**⚠️ ADVERTENCIA:** Esta versión contiene errores críticos. Use v1.1.1 en su lugar.
+Esta versión presentó errores de inicialización corregidos en `1.1.1`.
 
 ### Corregido
+
 - **Colas de Atención (sihsalus-queues.csv)**: Corregidos 16 registros de colas que generaban errores de duplicados
   - Generados nuevos UUIDs únicos para cada cola
   - Vinculadas correctamente a servicios existentes en `appointmentservicedefinitions`
   - Eliminados errores "Queue with UUID already exists" en la inicialización
 
 ### Agregado
+
 - **Program Workflows (sihsalus-programworkflows.csv)**: Agregados 3 workflows para programas clínicos activos
   - Workflow "Estado de Control CRED" para programa Control de Niño Sano
   - Workflow "Estado de Gestación" para programa Madre Gestante
@@ -761,15 +861,15 @@ Los workflows y estados agregados en v1.1.0 serán reimplementados en una versi�
 | Cola de Nutrición y Dietética | Atención ambulatoria por enfermera(o) |
 
 ### Archivos Modificados
+
 - `configuration/backend_configuration/queues/sihsalus-queues.csv`
 - `configuration/backend_configuration/programworkflows/sihsalus-programworkflows.csv`
 - `configuration/backend_configuration/programworkflowstates/sihsalus-programworkflowstates.csv`
 
----
-
-## [1.0.0] - 2025-XX-XX
+## [1.0.0] - Fecha no registrada
 
 ### Agregado
+
 - Configuración inicial del content package para SIHSALUS
 - 38 módulos de configuración OpenMRS
 - 56 formularios clínicos (Ampath Forms)

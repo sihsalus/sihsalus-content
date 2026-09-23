@@ -1,5 +1,7 @@
 # Integridad de importación OCL en OpenMRS - 2026-07-10
 
+> [Registro histórico](README.md): evidencia y estados correspondientes a la fecha de la revisión.
+
 ## Incidente
 
 Un arranque limpio de OpenMRS reportó 2 545 ítems OCL fallidos: un concepto y 2 544 mappings. El concepto
