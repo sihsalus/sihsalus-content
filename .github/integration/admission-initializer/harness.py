@@ -19,7 +19,7 @@ from collections import Counter
 from pathlib import Path, PurePosixPath
 
 from guards import (
-    BACKEND, DISTRO_SHA, IMAGE_CONTENT_SHA, BASELINE_SHA, DATABASE_IMAGE, DATABASE,
+    BACKEND, DISTRO_SHA, IMAGE_CONTENT_SHA, IMAGE_CONTENT_VERSION, BASELINE_SHA, DATABASE_IMAGE, DATABASE,
     OWNER_LABEL, CANONICAL_ROLE, LEGACY_ROLE, CANONICAL_UUID, EMRAPI_ROLES, CHANGESET,
     INITIALIZER_VERSION, ROLES_FILE, CURRENT_ADMISSION_ADDITIONS, LIQUIBASE_FILE,
     ROLES_CHECKSUM, LIQUIBASE_CHECKSUM, UUID_PATTERN, STRICT_JAVA, HarnessFailure,
@@ -97,6 +97,7 @@ def loader_progress(logs):
         "dns_failure": "java.net.UnknownHostException",
         "database_deadlock": "Deadlock found when trying to get lock",
         "database_lock_timeout": "Lock wait timeout exceeded",
+        "missing_retire_reason": "general.retiredReason.empty",
     }
     return {
         "initializer_last_loading_domain": loading[-1] if loading and loading[-1] in LOADER_DOMAINS else None,
@@ -230,7 +231,7 @@ class Harness:
             require(node.text == version, "unexpected_content_version")
         prefix = validate_assembly(
             checked(["git", "show", sha + ":assembly.xml"], cwd=ROOT).stdout,
-            legacy=sha in (IMAGE_CONTENT_SHA, BASELINE_SHA),
+            legacy=sha == BASELINE_SHA,
         )
         archive = checked(["git", "archive", sha, prefix], cwd=ROOT, timeout=180).stdout
         extract_archive(archive, destination, prefix, package=True)
@@ -263,10 +264,10 @@ class Harness:
         startup = self.copy_file(probe, "/openmrs/startup.sh").decode()
         require("source /openmrs/startup-init.sh" in startup and "/usr/local/tomcat/bin/catalina.sh run" in startup, "unverified_image_entrypoint")
         distro = properties(self.copy_file(probe, "/openmrs/distribution/openmrs-distro.properties"))
-        require(distro.get("content.sihsalus-content") == "1.25.12", "image_content_version_mismatch")
+        require(distro.get("content.sihsalus-content") == IMAGE_CONTENT_VERSION, "image_content_version_mismatch")
         self.remove_container(probe)
-        original, baseline, candidate = [self.directory / name for name in ("source-12", "source-15", "source-candidate")]
-        for sha, version, path in ((IMAGE_CONTENT_SHA, "1.25.12", original), (BASELINE_SHA, "1.25.15", baseline), (self.candidate_sha, None, candidate)):
+        original, baseline, candidate = [self.directory / name for name in ("source-image", "source-15", "source-candidate")]
+        for sha, version, path in ((IMAGE_CONTENT_SHA, IMAGE_CONTENT_VERSION, original), (BASELINE_SHA, "1.25.15", baseline), (self.candidate_sha, None, candidate)):
             self.git_configuration(sha, version, path)
         self.privileges = admission_privileges(baseline)
         self.candidate_privileges = admission_privileges(candidate, CURRENT_ADMISSION_ADDITIONS)
@@ -558,7 +559,30 @@ class Harness:
         self.absent_checksum(backend, LIQUIBASE_CHECKSUM)
 
     def history(self, db):
-        return self.query(db, "SELECT * FROM liquibasechangelog ORDER BY ID,AUTHOR,FILENAME")
+        rows = self.query(db, "SELECT * FROM liquibasechangelog ORDER BY ID,AUTHOR,FILENAME")
+        columns = [row.split("\t", 1)[0] for row in self.query(db, "SHOW COLUMNS FROM liquibasechangelog")]
+        required = {"ID", "AUTHOR", "FILENAME", "MD5SUM", "DATEEXECUTED", "ORDEREXECUTED", "EXECTYPE", "DEPLOYMENT_ID"}
+        require(required <= set(columns) and len(columns) == len(set(columns)), "history_columns_invalid")
+        # The pinned audit module (13712f1) declares these four native checks
+        # runAlways. Liquibase updates their execution metadata on every startup.
+        # Keep their identity/checksum and every other column, including future
+        # columns. Content and all other modules retain their complete rows.
+        repeated = {("sihsalusaudit-20260819-" + suffix, "sihsalus", "liquibase.xml")
+                    for suffix in ("07-no-update", "08-no-delete", "09-validate", "10-mariadb-validate")}
+        result = []
+        for row in rows:
+            values = row.split("\t")
+            require(len(values) == len(columns), "history_column_shape_changed")
+            data = dict(zip(columns, values))
+            if tuple(data[key] for key in ("ID", "AUTHOR", "FILENAME")) in repeated:
+                permitted = {"EXECUTED", "RERAN"}
+                if data["ID"].endswith(("07-no-update", "08-no-delete")):
+                    permitted.add("MARK_RAN")
+                require(data["EXECTYPE"] in permitted, "native_audit_execution_invalid")
+                for column in ("DATEEXECUTED", "ORDEREXECUTED", "EXECTYPE", "DEPLOYMENT_ID"):
+                    data[column] = "<native-runAlways-execution>"
+            result.append("\t".join(data[column] for column in columns))
+        return result
 
     def candidate_recorded(self, db, identifier=CHANGESET):
         records = self.query(db, "SELECT MD5SUM,EXECTYPE FROM liquibasechangelog WHERE ID=" + sql_string(identifier))

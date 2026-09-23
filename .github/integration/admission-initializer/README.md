@@ -29,7 +29,7 @@ worktree and fetch only these immutable source commits:
 ```sh
 git fetch --no-tags --depth=1 origin \
   8000b27f48bf124fe9a553d4ba41c678e9acc231 \
-  57690d4e976ef6d97a925c68103d532d10ee15cf
+  762920145a806f989fd8876ab2938ef217f57aab
 python3 -B .github/integration/admission-initializer/test_harness.py
 ```
 
@@ -73,11 +73,19 @@ must match both a random resource prefix and its ownership label.
 
 ## Immutable inputs and content ownership
 
-- Backend: `ghcr.io/sihsalus/sihsalus-backend@sha256:d03384f0368052101bfb949c0de24547f6e5aaf7caedce874f1eb7c296711fe2`.
-- Distro source label: `492757585d30b9f2b70c3bbff603d16f635e5d28`.
+- Backend: `ghcr.io/sihsalus/sihsalus-backend@sha256:ae9afe41f7632f25268203772ec74266fd0a5495ad7b9ab5e09c9e6a6df6fcd8`.
+- Distro source label: `fb11da724dced859d00974c9ff2928aae135e704`.
 - Database: `mariadb:10.11.7`; the running server must report that exact version.
-- Embedded SIH content: 1.25.12, source `57690d4e976ef6d97a925c68103d532d10ee15cf`.
+- Embedded SIH content: 1.25.26, source `762920145a806f989fd8876ab2938ef217f57aab`.
 - Applied baseline: 1.25.15, source `8000b27f48bf124fe9a553d4ba41c678e9acc231`.
+- Initializer: `2.13.0-sihsalus.2`, source
+  `806aec0a11fbb6b582629ecb2c89992e2e46107e`. This fixes native creation of a
+  retired AMPATH form by supplying the same retirement reason used for updates.
+  The content remains declarative; no SQL loader or historical schema rewrite
+  is introduced. Upstream contribution:
+  [Initializer #334](https://github.com/mekomsolutions/openmrs-module-initializer/pull/334).
+  Temporary fork tracking and replacement condition:
+  [SIHSalus #336](https://github.com/sihsalus/sihsalus/issues/336), owner `@Duvet05`.
 - Candidate: checked-out SHA and its release version from `pom.xml`, greater
   than 1.25.15. The historical migration still produces the approved 58-entry
   admission policy. The current admission policy adds only
@@ -102,7 +110,7 @@ application startup or snapshot restoration. Numeric users need not appear in
 Unverifiable image assumptions fail closed; restore does not assume `1001:0`.
 
 The harness verifies the exact assembly include/exclude contract and every
-packaged 1.25.12 file against bytes copied from the image. It removes only these
+packaged 1.25.26 file against bytes copied from the image. It removes only these
 verified owned files when overlaying baseline or candidate content. Every other
 observed image configuration file remains byte-identical, including inherited
 reference content. Conflicting writes to unowned files are rejected. This proves
@@ -110,15 +118,29 @@ preservation of the observed remainder, not a complete independent manifest of
 a particular reference-content release. Unsafe tar paths, links, duplicate
 files, and special files are rejected.
 
-Current sources live directly under `configuration/`. The two pinned historical
-commits retain `configuration/backend_configuration/`; only those commits use
-the legacy assembly contract. Both layouts produce the same runtime paths
+Current sources and the embedded image content live directly under
+`configuration/`. The pinned 1.25.15 baseline retains
+`configuration/backend_configuration/`; only that commit uses the legacy
+assembly contract. Both layouts produce the same runtime paths
 (`roles/`, `liquibase/`, etc.) and the distributed ZIP still uses
 `configuration/backend_configuration/`. The guard checks source and output
 directories and each file set's includes/excludes, so a source-tree cleanup
 cannot silently change the overlay.
 
 ## Required runtime evidence
+
+History snapshots retain every column and row. The pinned audit module at
+[`13712f1`](https://github.com/sihsalus/openmrs-module-sihsalus-audit/blob/13712f1f08839047a360e452d988ee361d2181a0/api/src/main/resources/liquibase.xml)
+declares four native `runAlways` checks (07 through 10). Only their
+`DATEEXECUTED`, `ORDEREXECUTED`, `EXECTYPE` and `DEPLOYMENT_ID` are normalized
+for comparisons: Liquibase updates these on each startup. Their exact
+ID/author/file identities, checksums and all other fields remain compared.
+Failed/skipped execution states are rejected; `MARK_RAN` is permitted only
+for the two trigger-creation checks whose preconditions declare it. All content
+changesets and other module rows preserve execution metadata too. This is a
+comparison rule for the pinned image, not a database mutation, skipped migration
+or checksum reset. Keep it limited to the verified native declarations when
+updating the image. Owner and tracking: `@Duvet05`, SIHSalus #336.
 
 The `upgrade` scenario requires:
 
@@ -143,7 +165,8 @@ The `upgrade` scenario requires:
    multiplicities and Stock identity/audit fields. No role groups are excluded.
    Require real changeSet history and full loader
    completion. Restart with the same data and checksums and require unchanged
-   RBAC and complete journal rows, including execution metadata.
+   RBAC and complete journal rows, with only the native `runAlways` execution
+   metadata exception described above.
 3. **Current candidate CSV:** start the reconciled database with the complete,
    unmodified candidate configuration. Require its actual roles checksum, exactly
    59 admission privileges, and only the approved read privilege added to the
@@ -269,7 +292,7 @@ Repeated requests do not force a new installation while the filter reports one
 already started. This corrects a harness bootstrap gap; it does not establish
 that the gap was the sole cause of an earlier startup timeout.
 
-Initializer 2.13.0-sihsalus.1 on the pinned backend writes the roles-file MD5
+Initializer 2.13.0-sihsalus.2 on the pinned backend writes the roles-file MD5
 checksum. Its `LiquibaseLoader2_5` does **not** write XML file checksums, but an
 inherited matching XML checksum could still suppress loading. The harness
 therefore requires that XML checksum to be absent throughout; it never fabricates
@@ -332,7 +355,8 @@ The loader observations also expose the last loading and last completed domain,
 restricted to names in the pinned Initializer's `Domain` enum. Unknown names are
 reported as `null`; filenames, paths and values are never copied. A bounded list
 of fixed failure hints identifies memory exhaustion, connection timeout/refusal,
-DNS failure and database lock/deadlock messages. It contains category names only,
+DNS failure, database lock/deadlock messages and Core's missing retirement-reason
+validation code. It contains category names only,
 without raw exception text, SQL or values. This lets a stalled run distinguish
 where loading stopped without publishing application logs. These hints do not
 prove the root cause, and their absence does not prove that startup is healthy.
