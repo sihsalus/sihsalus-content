@@ -1,14 +1,14 @@
 {
-  "name": "CE-SOAP-001-NOTA SOAP",
+  "name": "CE-EXF-001-EXAMEN FISICO",
   "processor": "EncounterFormProcessor",
   "encounterType": "186c1e78-a99f-4cd0-86de-b8c4ee27a2b5",
   "encounter": "Consulta Externa",
-  "published": false,
-  "retired": true,
+  "published": true,
+  "retired": false,
   "referencedForms": [],
-  "uuid": "92b9a6f7-0c70-4fb1-9b31-678226d5ce02",
-  "description": "Examen físico de Consulta Externa: examen general y hallazgos por sistemas. La anamnesis, el diagnóstico y el plan se registran en sus secciones correspondientes.",
-  "version": "1.2.0",
+  "uuid": "dc1c60fa-43e3-408e-987c-0f3165cc2341",
+  "description": "Examen físico de consulta externa: examen general y regional por sistemas. No duplica anamnesis, diagnóstico ni plan de tratamiento y no completa hallazgos normales automáticamente.",
+  "version": "1.0.0",
   "pages": [
     {
       "label": "Examen físico",

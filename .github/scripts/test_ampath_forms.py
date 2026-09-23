@@ -25,7 +25,7 @@ class AmpathFormIdentityTest(unittest.TestCase):
         with zipfile.ZipFile(ocl / "synthetic.zip", "w") as archive:
             archive.writestr("export.json", json.dumps({
                 "source": {"id": "synthetic"},
-                "concepts": [{"id": "1", "external_id": "synthetic-concept"}],
+                "concepts": [{"id": "1", "external_id": "synthetic-concept", "datatype": "Text"}],
             }))
         encounters = root / "encountertypes.csv"
         encounters.write_text("Uuid,Name,Void/Retire\nsynthetic-encounter,Synthetic encounter,false\n")
@@ -51,6 +51,34 @@ class AmpathFormIdentityTest(unittest.TestCase):
         with contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors):
             status = validator.main()
         return status, output.getvalue() + errors.getvalue()
+
+    def test_accepts_literal_options_for_text_observations(self):
+        self.write_form("select.json", pages=[{"sections": [{"questions": [{
+            "id": "onset", "type": "obs", "questionOptions": {
+                "concept": "synthetic-concept", "rendering": "select",
+                "answers": [{"value": "Gradual", "label": "Inicio gradual"}],
+            },
+        }]}]}])
+        status, output = self.run_validator()
+        self.assertEqual(0, status, output)
+
+    def test_rejects_ambiguous_or_invalid_literal_options(self):
+        for answers in (
+            [{"value": "Gradual", "concept": "synthetic-concept", "label": "Inicio gradual"}],
+            [{"value": "", "label": "Vacío"}],
+            [{"value": {"unexpected": True}, "label": "Objeto"}],
+            [{"value": "Gradual"}],
+            [{"value": "Gradual", "label": "Uno"}, {"value": "Gradual", "label": "Dos"}],
+        ):
+            with self.subTest(answers=answers):
+                self.write_form("select.json", pages=[{"sections": [{"questions": [{
+                    "id": "onset", "type": "obs", "questionOptions": {
+                        "concept": "synthetic-concept", "rendering": "select", "answers": answers,
+                    },
+                }]}]}])
+                status, output = self.run_validator()
+                self.assertEqual(1, status, output)
+                self.assertIn("literal", output)
 
     def test_accepts_distinct_versions_without_normalizing_them(self):
         self.write_form("first.json")

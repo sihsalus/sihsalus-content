@@ -25,21 +25,46 @@ y separa `app:hoja.clinica.resumenConsulta` de
 
 `CE-001-CONSULTA EXTERNA` no captura diagnósticos. El diagnóstico CIE-10 se registra exclusivamente mediante Visit Notes como diagnóstico nativo del encuentro; no deben reintroducirse observaciones de texto, certeza u ocurrencia que simulen esa estructura.
 
-El esquema corregido usa la versión `1.0.2`. `AmpathFormsLoader` deriva la identidad persistida del nombre y la versión. En upgrades, una migración idempotente retira y despublica exclusivamente el `Form` `1.0.1` con UUID persistido `da631d8c-c695-3c4a-9d77-19bbbf0174e3`; no elimina ni modifica sus encuentros históricos. La identidad canónica `1.0.2` es `df1a34b4-0e8f-3564-84d9-55ce9e4284bd` y es la única que puede permanecer publicada. El `uuid` incluido en el JSON no es la identidad persistida y no debe usarse como contrato de integración.
+La versión `1.0.3` elimina la página SOAP completa del formulario general y conserva los demás campos. La versión `1.0.2` corrigió anteriormente el diagnóstico. `AmpathFormsLoader` deriva la identidad persistida del nombre y la versión. En upgrades, una migración idempotente retira y despublica exclusivamente el `Form` `1.0.1` con UUID persistido `da631d8c-c695-3c4a-9d77-19bbbf0174e3`; no elimina ni modifica sus encuentros históricos. La migración publicada conserva su contrato original con `1.0.2` (`df1a34b4-0e8f-3564-84d9-55ce9e4284bd`) y no se modifica. Después, el loader nativo retira esa versión y crea `1.0.3` (`a43f4ba0-1d01-3533-aa96-927ad602851a`) sin sobrescribir los esquemas anteriores. En instalación limpia crea únicamente `1.0.3`. El `uuid` incluido en el JSON no es la identidad persistida y no debe usarse como contrato de integración.
 
-Para rollback no se debe volver a publicar el JSON con la versión `1.0.1`, porque reutilizaría y sobrescribiría el recurso histórico que contiene la captura de diagnóstico obsoleta. Se revierte el frontend coordinadamente, sin reactivar el formulario retirado y conservando sus encuentros para lectura histórica.
+Para rollback no se debe volver a publicar el JSON con una versión histórica, porque reutilizaría y sobrescribiría el recurso histórico que contiene la captura de diagnóstico obsoleta. Se revierte el frontend coordinadamente, sin reactivar el formulario retirado y conservando sus encuentros para lectura histórica.
 
 ## Contrato de examen físico de Consulta Externa
 
-`CE-SOAP-001-NOTA SOAP` versión `1.1.0` conserva la versión histórica `1.0.0` y segmenta el examen
-general y regional. Estado general, conciencia y orientación, piel y faneras y cada sistema regional
-usan su concepto de texto canónico existente. El estado general solicita consignar hidratación y
-nutrición cuando sean pertinentes; el resumen regional conserva el campo objetivo SOAP histórico.
-Los consumidores identifican cada dato por su `formFieldPath`, no por la posición de la observación.
+`CE-EXF-001-EXAMEN FISICO` versión `1.0.0` es el formulario propio de examen físico ambulatorio. Conserva los diez conceptos e identificadores de examen general y regional ya existentes; no incluye Subjetivo, Objetivo, Apreciación ni Plan. Estado general sigue siendo obligatorio y los sistemas específicos se registran según pertinencia clínica, sin completar hallazgos normales automáticamente. Anamnesis, diagnóstico y tratamiento mantienen sus formularios y servicios existentes.
 
-El formulario no propone ni persiste hallazgos normales automáticamente. El estado general y el
-resumen regional/objetivo son obligatorios; los sistemas específicos se registran según pertinencia clínica.
-La versión nueva preserva los encuentros y el esquema `1.0.0` para lectura histórica.
+El frontend debe resolver `formsList.physicalExamForm` por ese nombre, con la cabecera **Examen físico**. El contenido se incorpora antes o junto con el frontend; no se usa el antiguo formulario como alternativa cuando falta el nuevo.
+
+`CE-SOAP-001-NOTA SOAP` `1.2.0` se despublica y retira declarativamente. Conserva nombre, versión, UUID, preguntas, conceptos y campos obligatorios; únicamente cambian `published` y `retired` en su esquema. No se elimina ni reasocia ningún encuentro u observación y no se usa una migración SQL. Los formularios propios de Hospitalización no cambian.
+
+Validar la identidad nueva y el retiro con Initializer en instalación y actualización, y comprobar la lectura de encuentros anteriores con datos sintéticos. Las regresiones locales verifican los esquemas; no acreditan carga efectiva, retiro en el backend ni aceptación clínica. Las opciones de anamnesis heredadas de la integración anterior requieren revisión clínica; el catálogo prestacional por ubicación sigue pendiente.
+
+## Anamnesis breve de Consulta Externa
+
+`CE-ANAM-001-ANAMNESIS` `1.1.0` reduce de once a tres los campos clínicos de texto
+libre: motivo de consulta, tiempo de enfermedad y detalle breve opcional.
+Inicio, evolución y las seis funciones biológicas usan selectores; estas últimas
+quedan en una sección inicialmente contraída. Ninguna opción se selecciona ni
+se copia desde otra consulta automáticamente. Vacío no significa normal.
+
+Los selectores reutilizan el soporte nativo `answers[].value` de O3 y conservan
+las observaciones **Text** existentes. Las opciones son valores de texto, no
+UUID de respuesta ni nuevos diagnósticos codificados; no cambia ningún datatype
+ni se convierte contenido histórico. El motor debe incluir la corrección de
+lectura/visualización de valores literales del frontend coordinado.
+
+**Coordinación:** content `1.25.28` y el frontend que configura explícitamente
+anamnesis `1.1.0` y el formulario propio de examen físico `1.0.0` deben probarse juntos en QLTY. El frontend
+no debe abrir la captura anterior si falta la versión esperada. Si una visita
+abierta ya contiene un formulario anterior, conserva su lectura histórica y
+bloquea una segunda captura; no reasigna ni duplica ese encuentro.
+
+**Aceptación pendiente:** revisar opciones con el responsable clínico, crear,
+guardar, recargar y editar con roles sintéticos, comprobar campos vacíos y
+visitas que cruzan la actualización. Los validadores locales no acreditan esa
+aceptación. En un rollback conservar los encuentros y esquemas nuevos, usar un
+frontend compatible con ambas versiones y no republicar el esquema anterior
+sobre la identidad nueva.
 
 ## Rangos de laboratorio
 

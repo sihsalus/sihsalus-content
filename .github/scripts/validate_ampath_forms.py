@@ -415,6 +415,7 @@ def validate_form(path, bundle, encounter_types):
             errors.append(f"{path}: question {node_id!r} has non-list questionOptions.answers")
             answers = []
 
+        seen_answer_values = set()
         seen_answer_concepts = set()
         resolved_answers = []
         for answer in answers:
@@ -422,6 +423,20 @@ def validate_form(path, bundle, encounter_types):
                 errors.append(
                     f"{path}: question {node_id!r} has invalid answer entry {answer!r}"
                 )
+                continue
+            # Native O3 dropdowns also support literal values for Text observations.
+            # A value is not a concept UUID and must never be resolved through OCL.
+            if "value" in answer:
+                value = answer["value"]
+                if (not question_concept or question_concept.get("datatype") != "Text"
+                        or rendering != "select" or answer.get("concept") is not None
+                        or not isinstance(value, str) or not value.strip()
+                        or not isinstance(answer.get("label"), str) or not answer["label"].strip()):
+                    errors.append(f"{path}: question {node_id!r} has invalid literal Text select answer")
+                elif value in seen_answer_values:
+                    errors.append(f"{path}: question {node_id!r} repeats literal answer {value!r}")
+                else:
+                    seen_answer_values.add(value)
                 continue
             answer_external_id = answer.get("concept")
             answer_label = answer.get("label")

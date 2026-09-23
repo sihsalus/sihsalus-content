@@ -29,7 +29,9 @@ from guards import (
 )
 
 ROOT = Path(__file__).resolve().parents[3]
-REVIEWED_FORMS = ("CRED-001-TAMIZAJE DE ANEMIA.json", "OBST-002-EMBARAZO ACTUAL.json")
+REVIEWED_FORMS = ("CRED-001-TAMIZAJE DE ANEMIA.json", "OBST-002-EMBARAZO ACTUAL.json",
+                  "CE-ANAM-001-ANAMNESIS.json", "CE-EXF-001-EXAMEN FISICO.json",
+                  "CE-SOAP-001-NOTA SOAP.json", "CE-001-CONSULTA EXTERNA.json")
 REVIEWED_RANGES = (
     "f0c6d3dc-a0d2-497c-921f-b7266d448fcf", "a769e98e-e91f-4d4c-b029-1c66e267f32a",
     "0502ff16-270e-423f-8fa6-95255fdc9b19", "a75289e3-427c-4e14-ad67-50fc34dcc733",
@@ -721,10 +723,12 @@ class Harness:
             # Core's OpenmrsObjectSaveHandler applies Java String.trim() when
             # saving ClobDatatypeStorage. Preserve every byte inside the JSON.
             stored_hash = hashlib.md5(data.strip(bytes(range(33)))).hexdigest()
-            expected = "\t".join([schema["version"], "0", stored_hash])
-            active_hashes.add(stored_hash)
+            expected = "\t".join([schema["version"], "1" if schema.get("published") else "0",
+                                  "1" if schema.get("retired") else "0", stored_hash])
+            if not schema.get("retired"):
+                active_hashes.add(stored_hash)
             rows = self.query(db,
-                "SELECT f.version,f.retired,MD5(c.value) FROM form f "
+                "SELECT f.version,f.published,f.retired,MD5(c.value) FROM form f "
                 "JOIN form_resource r ON r.form_id=f.form_id AND r.name='JSON schema' "
                 "JOIN clob_datatype_storage c ON c.uuid=r.value_reference WHERE f.name="
                 + sql_string(schema["name"]) + " AND f.version=" + sql_string(schema["version"]))

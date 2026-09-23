@@ -10,6 +10,20 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Consulta externa — candidata `1.25.28`
+
+- Consulta externa: `CE-001` `1.0.3` elimina la página SOAP del formulario general; el loader retira la versión anterior y conserva su esquema y encuentros.
+
+- Formulario propio `CE-EXF-001-EXAMEN FISICO` `1.0.0`: examen general y por sistemas, sin Subjetivo,
+  Objetivo, Apreciación ni Plan duplicados.
+- Anamnesis `1.1.0`: ocho selectores explícitos, tres campos de texto y funciones
+  biológicas contraídas. Conserva conceptos Text y no predetermina normalidad.
+- Retira y despublica el formulario ambulatorio anterior `CE-SOAP-001-NOTA SOAP`
+  `1.2.0`, conservando sus preguntas y el histórico de versiones previas.
+- Evolución por el loader nativo de formularios, con conservación del histórico;
+  amplía la integración de Initializer a ambos esquemas. Requiere el frontend
+  coordinado y aceptación clínica QLTY antes de producción.
+
 ### Agregado
 
 - Captura opcional de fecha/hora de alta neonatal en el formulario de nacimiento

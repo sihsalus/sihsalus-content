@@ -16,9 +16,11 @@ CE001_PATH = Path(
 LIQUIBASE_PATH = Path("configuration/liquibase/liquibase.xml")
 EXPECTED_NAME = "CE-001-CONSULTA EXTERNA"
 PREVIOUS_VERSION = "1.0.1"
-EXPECTED_VERSION = "1.0.2"
+MIGRATION_CANONICAL_VERSION = "1.0.2"
+EXPECTED_VERSION = "1.0.3"
 PREVIOUS_PERSISTED_FORM_UUID = "da631d8c-c695-3c4a-9d77-19bbbf0174e3"
-EXPECTED_PERSISTED_FORM_UUID = "df1a34b4-0e8f-3564-84d9-55ce9e4284bd"
+MIGRATION_CANONICAL_FORM_UUID = "df1a34b4-0e8f-3564-84d9-55ce9e4284bd"
+EXPECTED_PERSISTED_FORM_UUID = "a43f4ba0-1d01-3533-aa96-927ad602851a"
 RETIRE_CHANGE_SET_ID = "retire-legacy-ce001-form-1-0-1-20260825"
 ASSERT_CHANGE_SET_ID = "assert-exclusive-canonical-ce001-form-20260825"
 LEGACY_DIAGNOSIS_IDS = {
@@ -118,10 +120,10 @@ def validate_liquibase_contract(xml_text, path=LIQUIBASE_PATH):
         retire_check_sql,
         (
             PREVIOUS_PERSISTED_FORM_UUID,
-            EXPECTED_PERSISTED_FORM_UUID,
+            MIGRATION_CANONICAL_FORM_UUID,
             EXPECTED_NAME,
             PREVIOUS_VERSION,
-            EXPECTED_VERSION,
+            MIGRATION_CANONICAL_VERSION,
         ),
         errors,
         f"{path}: {RETIRE_CHANGE_SET_ID} preconditions",
@@ -150,7 +152,7 @@ def validate_liquibase_contract(xml_text, path=LIQUIBASE_PATH):
             errors,
             f"{path}: {RETIRE_CHANGE_SET_ID}",
         )
-        if EXPECTED_PERSISTED_FORM_UUID.upper() in retire_sql:
+        if MIGRATION_CANONICAL_FORM_UUID.upper() in retire_sql:
             errors.append(
                 f"{path}: {RETIRE_CHANGE_SET_ID} must not mutate the canonical Form"
             )
@@ -174,13 +176,13 @@ def validate_liquibase_contract(xml_text, path=LIQUIBASE_PATH):
         assertion_sql,
         (
             PREVIOUS_PERSISTED_FORM_UUID,
-            EXPECTED_PERSISTED_FORM_UUID,
+            MIGRATION_CANONICAL_FORM_UUID,
             EXPECTED_NAME,
             PREVIOUS_VERSION,
-            EXPECTED_VERSION,
+            MIGRATION_CANONICAL_VERSION,
             "PUBLISHED",
             "RETIRED",
-            f"UUID <> '{EXPECTED_PERSISTED_FORM_UUID}'",
+            f"UUID <> '{MIGRATION_CANONICAL_FORM_UUID}'",
         ),
         errors,
         f"{path}: {ASSERT_CHANGE_SET_ID} preconditions",

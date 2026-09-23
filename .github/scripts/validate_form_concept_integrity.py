@@ -142,7 +142,12 @@ def collect(errors):
             uses_by_concept[concept].append((question_id, label))
             label_owners[normalize_label(label)].add(concept)
 
-            if rendering in CODED_RENDERINGS and datatype == "Text":
+            answers = options.get("answers") or []
+            literal_text_select = rendering == "select" and answers and all(
+                isinstance(answer.get("value"), str) and answer["value"].strip()
+                and not answer.get("concept") for answer in answers
+            )
+            if rendering in CODED_RENDERINGS and datatype == "Text" and not literal_text_select:
                 key = f"coded-over-text|{name}|{question_id}"
                 blocking[key] = (
                     f"{name}:{question_id}: rendering '{rendering}' stores an answer UUID, "
@@ -156,7 +161,6 @@ def collect(errors):
                     f"but concept {concept} is Text"
                 )
 
-            answers = options.get("answers") or []
             codes = tuple(sorted(a.get("concept") for a in answers if a.get("concept")))
             if codes:
                 answer_sets[concept][codes].append(f"{name}:{question_id}")

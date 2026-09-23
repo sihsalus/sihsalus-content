@@ -80,27 +80,47 @@ class HarnessContracts(unittest.TestCase):
         self.runtime.candidate_config = self.root
         (self.root / "ampathforms").mkdir()
         (self.root / "conceptreferencerange").mkdir()
-        schema = b' \t{"name":"Synthetic form","version":"2"}\r\n'
+        schema = b' \t{"name":"Synthetic form","version":"2","published":true,"retired":false}\r\n'
         for filename in harness.REVIEWED_FORMS:
             (self.root / "ampathforms" / filename).write_bytes(schema)
         (self.root / "conceptreferencerange/conceptreferencerange_laboratory.csv").write_text(
             "Uuid,Criteria\n" + "".join(identifier + ",false\n" for identifier in harness.REVIEWED_RANGES))
-        schema_hash = harness.hashlib.md5(b'{"name":"Synthetic form","version":"2"}').hexdigest()
+        schema_hash = harness.hashlib.md5(b'{"name":"Synthetic form","version":"2","published":true,"retired":false}').hexdigest()
         criteria_hash = harness.hashlib.md5(b"false").hexdigest()
         previous = ["old-uuid\t10\t1\t0\told-schema-hash"]
         current = ["old-uuid\t10\t1\t1\told-schema-hash", f"new-uuid\t11\t2\t0\t{schema_hash}"]
         self.runtime.form_schema_snapshot = Mock(return_value=current)
         self.runtime.query = Mock(side_effect=lambda db, sql:
-            [criteria_hash] if "concept_reference_range" in sql else [f"2\t0\t{schema_hash}"])
+            [criteria_hash] if "concept_reference_range" in sql else [f"2\t1\t0\t{schema_hash}"])
         with patch.object(harness, "emit"):
             self.assertEqual(current, self.runtime.check_clinical_form_updates("synthetic", "upgrade", previous))
             self.runtime.form_schema_snapshot.return_value = [current[0].replace("old-schema-hash", "changed")]
             with self.assertRaisesRegex(HarnessFailure, "historical_form_identity_or_schema_changed"):
                 self.runtime.check_clinical_form_updates("synthetic", "upgrade", previous)
             self.runtime.form_schema_snapshot.return_value = current
-            self.runtime.query.side_effect = lambda db, sql: ["stale"] if "concept_reference_range" in sql else [f"2\t0\t{schema_hash}"]
+            self.runtime.query.side_effect = lambda db, sql: ["stale"] if "concept_reference_range" in sql else [f"2\t1\t0\t{schema_hash}"]
             with self.assertRaisesRegex(HarnessFailure, "clinical_reference_range_not_updated"):
                 self.runtime.check_clinical_form_updates("synthetic", "upgrade", previous)
+
+    def test_clinical_form_updates_honor_declarative_retirement(self):
+        self.runtime.candidate_config = self.root
+        (self.root / "ampathforms").mkdir()
+        (self.root / "conceptreferencerange").mkdir()
+        (self.root / "conceptreferencerange/conceptreferencerange_laboratory.csv").write_text("Uuid,Criteria\n")
+        schema = b'{"name":"Retired synthetic form","version":"2","published":false,"retired":true}'
+        (self.root / "ampathforms/retired.json").write_bytes(schema)
+        schema_hash = harness.hashlib.md5(schema).hexdigest()
+        current = [f"retired-uuid\t10\t2\t1\t{schema_hash}"]
+        self.runtime.form_schema_snapshot = Mock(return_value=current)
+        with patch.object(harness, "REVIEWED_FORMS", ("retired.json",)), \
+             patch.object(harness, "REVIEWED_RANGES", ()), patch.object(harness, "emit"):
+            self.runtime.query = Mock(return_value=[f"2\t0\t1\t{schema_hash}"])
+            self.assertEqual(current, self.runtime.check_clinical_form_updates("synthetic", "restart", current))
+            for published, retired in ((1, 1), (0, 0)):
+                with self.subTest(published=published, retired=retired):
+                    self.runtime.query.return_value = [f"2\t{published}\t{retired}\t{schema_hash}"]
+                    with self.assertRaisesRegex(HarnessFailure, "clinical_form_schema_not_loaded"):
+                        self.runtime.check_clinical_form_updates("synthetic", "restart", current)
 
     def test_explicit_hosted_runner_authority_required_before_subprocess(self):
         self.assertEqual(guards.validate_runner(self.env), self.root)
