@@ -81,6 +81,8 @@ jobs:
         run: python3 .github/scripts/validate_stock_foundation.py
       - name: Validate OCL exports
         run: python3 .github/scripts/validate_ocl_exports.py
+      - name: Test CRED birth and anemia capture contracts
+        run: python3 .github/scripts/test_cred_birth_context.py
       - name: Test laboratory capture compatibility
         run: python3 .github/scripts/test_laboratory_capture_validation.py
       - name: Test reproducible OCL export exclusions

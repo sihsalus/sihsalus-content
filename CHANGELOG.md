@@ -10,6 +10,11 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Agregado
+
+- Captura opcional de fecha/hora de alta neonatal en el formulario de nacimiento
+  y contrato de dependencias clínicas de CRED, sin modificar observaciones históricas.
+
 ### Cambiado
 
 - Organiza las fuentes directamente bajo `configuration/`, conservando las
@@ -21,13 +26,17 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ### Corregido
 
+- CRED-001 incluye 500 m en la advertencia de corrección de hemoglobina y admite
+  hasta 5500 m, conforme a la tabla modificada por RM 429-2024/MINSA. Conserva la Hb medida.
+
 - El validador AMPATH rechaza colisiones de la identidad persistida aunque los
   UUID JSON sean distintos, nombres o versiones vacíos y carpetas sin formularios.
   Comparte el cálculo de identidad con CE-001 e historia social e incorpora
   regresiones con datos sintéticos.
 
-La versión del paquete sigue siendo `1.25.24`: estos cambios no modifican la
-metadata distribuida ni requieren reemplazar el artefacto publicado.
+La reorganización previa conservó los bytes de `1.25.24`. Los cambios CRED de
+esta propuesta sí modifican metadata: requieren una nueva versión del paquete
+tras revisión y validación en QLTY; no reemplazan el artefacto ya publicado.
 
 ## [1.25.24] - 2026-09-22
 

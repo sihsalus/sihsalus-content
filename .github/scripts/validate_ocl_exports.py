@@ -1430,8 +1430,8 @@ def validate_development_forms(concepts, mappings, errors):
         if anemia_labels != {"Sin anemia", "Anemia leve", "Anemia moderada", "Anemia severa"}:
             errors.append("CRED-001: anemia answer labels must not embed a fixed hemoglobin cutoff")
         altitude_alert = anemia.get("altitud", {}).get("alert") or {}
-        if altitude_alert.get("alertWhenExpression") != "altitud > 500":
-            errors.append("CRED-001: altitude correction alert must start above 500 m.s.n.m.")
+        if altitude_alert.get("alertWhenExpression") != "altitud >= 500":
+            errors.append("CRED-001: altitude correction alert must start at 500 m.s.n.m. (RM 429-2024, table 1)")
 
     edi_form, edi = questions_by_id("CRED-009-EDI.json")
     if edi_form:

@@ -72,16 +72,17 @@
                 "rendering": "number",
                 "concept": "c1010001-0000-4000-8000-000000000001",
                 "min": "0",
-                "max": "5000",
+                "max": "5500",
                 "step": 1,
                 "disallowDecimals": true
               },
               "hideSteppers": true,
               "alert": {
-                "alertWhenExpression": "altitud > 500",
+                "alertWhenExpression": "altitud >= 500",
                 "message": "Debe corregir la hemoglobina por altitud antes de clasificar, según NTS 213 y RM 429-2024/MINSA."
               },
-              "validators": []
+              "validators": [],
+              "questionInfo": "Use la altitud de residencia aplicable según NTS 213. La tabla 1 modificada por RM 429-2024/MINSA incluye el rango 500–999 m y llega hasta 5500 m. La clasificación requiere revisión clínica."
             },
             {
               "label": "Clasificación de anemia ajustada por edad y altitud",
