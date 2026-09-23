@@ -7,13 +7,16 @@ defectos reproducibles, brechas de cobertura y alertas que requieren interpretac
 
 ## Correcciones preparadas después de esta revisión
 
-La evidencia diagnóstica que sigue corresponde al commit auditado. El candidato
+La evidencia diagnóstica que sigue corresponde al commit auditado. La versión
 `1.25.25` corrige el aviso desde 500 m (`CRED-001 1.2.1`) y el cálculo/validación de
-fechas (`OBST-002 1.0.2`). Usa la edad a la fecha de la muestra en todas las bandas
-de hemoglobina, la prematuridad registrada y los estados maternos existentes para
-seleccionar rangos; desactiva las dos reglas de creatinina con
+fechas (`OBST-002 1.0.2`). Usa la prematuridad registrada y los estados maternos
+existentes para seleccionar rangos; desactiva las dos reglas de creatinina con
 magnitud incompatible conservando sus UUIDs. Los detalles y límites están en el
 [contrato de laboratorio](../contracts/laboratory-reporting.md).
+
+El candidato `1.25.26` amplía la edad a la fecha de la muestra a todas las bandas
+de hemoglobina. Una regresión nativa reproduce el solapamiento de una muestra
+neonatal histórica con el rango de edad actual y verifica su corrección.
 
 La corrección del permiso de decimales está preparada en el componente responsable,
 `sihsalus-frontend`, con pruebas de restricciones del formulario y del concepto.
