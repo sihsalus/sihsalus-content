@@ -9,8 +9,9 @@ defectos reproducibles, brechas de cobertura y alertas que requieren interpretac
 
 La evidencia diagnóstica que sigue corresponde al commit auditado. El candidato
 `1.25.25` corrige el aviso desde 500 m (`CRED-001 1.2.1`) y el cálculo/validación de
-fechas (`OBST-002 1.0.2`). Usa la prematuridad registrada y los estados maternos
-existentes para seleccionar rangos; desactiva las dos reglas de creatinina con
+fechas (`OBST-002 1.0.2`). Usa la edad a la fecha de la muestra en todas las bandas
+de hemoglobina, la prematuridad registrada y los estados maternos existentes para
+seleccionar rangos; desactiva las dos reglas de creatinina con
 magnitud incompatible conservando sus UUIDs. Los detalles y límites están en el
 [contrato de laboratorio](../contracts/laboratory-reporting.md).
 
@@ -22,7 +23,7 @@ Initializer crea las nuevas versiones y conserva los esquemas anteriores; la
 corrección no reescribe encuentros ni elimina sus referencias históricas.
 
 La guarda nueva de Initializer comprueba instalación nueva, actualización y
-reinicio: contenido de los dos esquemas, once criterios y conservación de UUID,
+reinicio: contenido de los dos esquemas, dieciocho criterios y conservación de UUID,
 ID, versión y hash de esquemas históricos. Los tests locales del arnés no
 acreditan la ejecución de esos escenarios con el backend real.
 

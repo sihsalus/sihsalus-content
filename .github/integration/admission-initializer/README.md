@@ -6,7 +6,7 @@ images, deploy, contact DEV/QLTY/PROD, or use existing accounts or patients.
 The local unit tests are not evidence that the containers or migration passed.
 
 Fresh installation and both upgrade scenarios also check the two corrected
-clinical form schemas and eleven laboratory range criteria against the candidate
+clinical form schemas and eighteen laboratory range criteria against the candidate
 files. Upgrades preserve the UUID, database identity, version and schema hash of
 previous forms; a restart must leave the resulting forms unchanged. These are
 loader checks, not clinical encounter save/edit tests.

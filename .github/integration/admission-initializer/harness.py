@@ -37,6 +37,13 @@ REVIEWED_RANGES = (
     "9b3bf521-3b38-478f-8eba-0e329b4fd424", "a486f5a4-3ca6-440f-a8dc-60aab2ea1fd3",
     "1db1f541-ca0b-4f73-9396-f85588ed92a5", "45c9787e-8d00-417e-8d1b-c969dc4e0d9e",
     "90a78c49-0304-47e9-932a-cab13fde4055",
+    "e63ce18d-b109-4097-9257-0258fbd54340",
+    "ca4e4986-5945-4dd3-bba6-57cb87b267ed",
+    "380b13ad-995a-4adc-83bc-454222e81c04",
+    "4a7b9f10-7d7b-4cb5-ab6c-3f9fe96809ed",
+    "44dcad2a-1a4d-432a-928d-a7b2f15303c4",
+    "d42fd5b0-8aa6-44ec-8bab-8b415569da26",
+    "7ec23591-4ea6-41ae-b97e-d06b2fe2fce1",
 )
 OPERATIONAL_CHANGESET = "reconcile-admission-operational-alias-20260921"
 COMPLETION = "OpenMRS config loading process completed."
