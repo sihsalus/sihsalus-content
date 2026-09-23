@@ -1,5 +1,7 @@
 # Contrato de encuentros para signos vitales y triaje de emergencia
 
+> [Registro histórico](README.md): evidencia y estados correspondientes a la fecha de la revisión.
+
 Fecha: 2026-07-16
 
 ## Decisión

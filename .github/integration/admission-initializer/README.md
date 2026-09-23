@@ -5,6 +5,11 @@ ephemeral GitHub-hosted Linux runner. It does not build Maven modules, publish
 images, deploy, contact DEV/QLTY/PROD, or use existing accounts or patients.
 The local unit tests are not evidence that the containers or migration passed.
 
+See the [admission contract](../../../docs/contracts/admission-role-reconciliation.md)
+for supported migration inputs and the [development guide](../../../docs/development.md)
+for the other validation layers. Here, “candidate” means the checked-out content
+under test; it does not imply that its package version is unpublished.
+
 ## Invocation and isolation
 
 The caller must check out the exact candidate `GITHUB_SHA` with a clean tracked
@@ -177,6 +182,8 @@ Core defines `Purge Relationships` but does not create it on a clean installatio
 the harness neither requires nor creates that privilege. Its absence does not
 change the separate native REST purge-denial assertion above.
 
+## Startup and checksum evidence
+
 No domains are excluded. The effective startup mode is required in both runtime
 properties and JVM flags; setting a global property or merely observing HTTP
 health is insufficient. Lifecycle evidence combines each new container's stdout
@@ -283,6 +290,8 @@ ownership remains a cleanup failure, not a successful cleanup claim.
 Failure or exhaustion is reported as failed, with unresolved owned resources
 left to the disposable runner's teardown. Cleanup never targets an existing
 workspace, broad directory or unlabelled resource.
+
+### Bounded progress diagnostics
 
 During lifecycle waits, a sanitized `WAITING` record appears initially and at
 most once per minute. It contains only the observed HTTP code (or `null` for

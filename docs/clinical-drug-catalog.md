@@ -1,8 +1,9 @@
 # Presentaciones adicionales del catálogo clínico
 
 Initializer carga los principios activos de
-`concepts/clinical_drug_concepts.csv` antes de las presentaciones de
-`drugs/clinical-drugs.csv`. Los UUID son estables y las referencias son
+[clinical_drug_concepts.csv](../configuration/concepts/clinical_drug_concepts.csv)
+antes de las presentaciones de [clinical-drugs.csv](../configuration/drugs/clinical-drugs.csv).
+Los UUID son estables y las referencias son
 explícitas; la instalación y las actualizaciones usan los cargadores nativos
 del paquete de contenido.
 
@@ -27,7 +28,8 @@ activo con concepto `Drug`, concentración y forma farmacéutica; no acepta
 texto libre. Antes de publicar, debe pasar además la carga completa del
 paquete por Initializer y una recarga sin duplicar el concepto o presentación.
 
-El ensayo de CI con backend real comprueba esa carga en una instalación nueva
+El [ensayo de Initializer](../.github/integration/admission-initializer/README.md)
+comprueba esa carga en una instalación nueva
 y en una actualización. Consulta las identidades, clase, tipo, concentración y
 forma farmacéutica persistidas; después del reinicio exige que se conserven sin
 duplicados. La búsqueda REST usa la misma representación que el buscador de

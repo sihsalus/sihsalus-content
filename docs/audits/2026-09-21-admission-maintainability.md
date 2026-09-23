@@ -1,11 +1,17 @@
 # Revisión de mantenibilidad de Admisión
 
+> [Registro histórico](README.md): evidencia y estados correspondientes a la fecha de la revisión.
+
 Revisión del [PR #233](https://github.com/sihsalus/sihsalus-content/pull/233),
 commit `6a9b5f38a9f170a48bec6dc32c3d31d2ba452db6`, contra `main`
 `6a6121970deda5eda3a37996a259cb76fe165eaa`. Aplica el criterio del
 [PR #236](https://github.com/sihsalus/sihsalus-content/pull/236): contenido
 declarativo, reutilización y excepciones acotadas. Es una revisión del código;
 no acredita qué cambios ejecutó cada entorno ni sustituye su aceptación funcional.
+
+La [revisión del 22 de septiembre](2026-09-22-liquibase-initializer.md) confirma
+la publicación posterior de las dos migraciones `20260921` en `1.25.24`.
+El inventario de ejecución por ambiente sigue siendo una evidencia separada.
 
 ## Hallazgos y siguiente reducción
 

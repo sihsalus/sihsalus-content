@@ -27,7 +27,7 @@ completarse a partir de texto corrupto, referencias informales o inferencias.
 | `Country` | `PERU` |
 
 Los significados de estos campos están definidos por
-`configuration/addresshierarchy/addressConfiguration.xml`.
+[addressConfiguration.xml](../../configuration/addresshierarchy/addressConfiguration.xml).
 
 ## Atributos institucionales
 
@@ -39,7 +39,8 @@ Los significados de estos campos están definidos por
 Ambos tipos son `FreeText`, opcionales y de cardinalidad máxima uno. Los consumidores deben
 resolverlos por UUID y pueden usar el nombre únicamente para presentación.
 
-Los valores se cargan desde `locations/hospital-institutional-attributes.csv`, que contiene solo
+Los valores se cargan desde
+[hospital-institutional-attributes.csv](../../configuration/locations/hospital-institutional-attributes.csv), que contiene solo
 la fila del hospital y se procesa después del catálogo general. Esa fila repite nombre,
 descripción, padre y todos los campos de dirección porque el cargador de ubicaciones de Initializer
 los vuelve a asignar incluso cuando la cabecera no está presente; el validador exige que ambas filas

@@ -1,5 +1,8 @@
 # Reference-range access contract
 
+This test supports the [hospital access profiles](../../../docs/contracts/hospital-access-profiles.md)
+and complements the [other validation layers](../../../docs/development.md#ensayos-de-integración).
+
 Run from the repository root with Java 17:
 
 ```sh

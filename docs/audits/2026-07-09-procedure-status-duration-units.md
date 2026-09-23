@@ -1,5 +1,7 @@
 # Auditoría OCL: estados de procedimiento y unidades de duración
 
+> [Registro histórico](README.md): evidencia y estados correspondientes a la fecha de la revisión.
+
 - Fecha: 2026-07-09
 - Source: `SIHSALUS/sihsalus`
 - Release publicada: `2026-07-09-02`

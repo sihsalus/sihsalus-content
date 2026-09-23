@@ -1,5 +1,7 @@
 # Auditoría de rangos de referencia de triaje
 
+> [Registro histórico](README.md): evidencia y estados correspondientes a la fecha de la revisión.
+
 Fecha: 2026-06-17
 Actualización de operadores y límites técnicos: 2026-07-16
 

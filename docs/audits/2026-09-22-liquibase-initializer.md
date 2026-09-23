@@ -1,5 +1,7 @@
 # Sustitución de Liquibase por dominios declarativos de Initializer
 
+> [Registro histórico](README.md): evidencia y estados correspondientes a la fecha de la revisión.
+
 Revisión del 22 de septiembre de 2026 sobre el contenido de `main` `c4abc8f`,
 con la reorganización local de `configuration/`. Esta revisión identifica las
 capacidades que faltan y la compatibilidad necesaria; no implementa la sustitución
@@ -122,6 +124,9 @@ hasta probar una estrategia de reducción que preserve esos contratos.
 
 ## Validación de la reorganización
 
+Evidencia local del [PR #238](https://github.com/sihsalus/sihsalus-content/pull/238),
+hasta el commit `c38e044`. Los resultados siguientes no se extienden a commits posteriores.
+
 El ZIP construido con `mvn clean verify --batch-mode --file pom.xml` conserva
 las rutas y los bytes de los 207 archivos del ZIP público `1.25.24`, descargado
 de nuevo para esta comprobación. Por ello se conserva la versión del paquete.
@@ -142,7 +147,8 @@ Antes de corregir el validador, se reprodujo que aceptaba dos JSON con el mismo
 nombre/versión y UUID JSON distintos, y también una carpeta sin formularios.
 El cálculo de identidad se comparte con CE-001 e historia social.
 
-Los ensayos completos de MariaDB e Initializer quedan pendientes del CI:
+Los ensayos completos de MariaDB e Initializer no se ejecutaron localmente:
 Docker no tenía un daemon disponible y el arnés de Initializer exige un runner
-desechable de GitHub. La igualdad del paquete no sustituye esa evidencia de
-instalación nueva, actualización y reinicio.
+desechable de GitHub. Consultar los checks del PR para el SHA que se desea integrar.
+La igualdad del paquete no sustituye la evidencia de instalación nueva,
+actualización y reinicio.

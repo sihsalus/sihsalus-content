@@ -1,5 +1,7 @@
 # Actualización de exports OCL
 
+> [Registro histórico](README.md): evidencia y estados correspondientes a la fecha de la revisión.
+
 Revisión del 2026-09-12 desde `0c16cae2088b2dad2e135cfae4c50943836bcd3e`.
 Candidata del paquete: **1.25.19**. La organización OCL tiene 17 fuentes.
 Se consultaron sus releases publicadas y se descargaron los exports oficiales
@@ -43,13 +45,13 @@ formularios y catálogos existentes.
 | ZIP de mappings del paquete | `3d2d25d21324f9d4b496acbce0a61e364f3b24c9002988c4e2ad161463c5ba9e` |
 | JSON filtrado canónico recombinado, sin salto final | `cae14cffdce3d5ed882e97cc3ca6030d798788526b3baded304f472f7779e195` |
 
-Reproducción desde el ZIP descargado del
+Reproducción con rutas adaptadas al árbol actual, desde el ZIP descargado del
 [export oficial](https://api.openconceptlab.org/orgs/SIHSALUS/sources/sihsalus/2026-09-09-1/export/):
 
 ```sh
 python3 .github/scripts/split_ocl_export.py oficial.zip \
-  configuration/backend_configuration/ocl/10_SIHSALUS_sihsalus_concepts_2026-09-09-1.zip \
-  configuration/backend_configuration/ocl/60_SIHSALUS_sihsalus_mappings_2026-09-09-1.zip \
+  configuration/ocl/10_SIHSALUS_sihsalus_concepts_2026-09-09-1.zip \
+  configuration/ocl/60_SIHSALUS_sihsalus_mappings_2026-09-09-1.zip \
   --exclusions docs/contracts/ocl-sihsalus-2026-09-09-1-exclusions.json
 python3 .github/scripts/validate_ocl_exports.py
 python3 .github/scripts/test_split_ocl_export.py
@@ -125,4 +127,5 @@ La validación de la revisión posterior y su CI se registran en el PR.
 
 El CI utiliza datos sintéticos; no acredita aceptación clínica ni despliegue.
 La versión candidata no se considera publicada hasta verificar POM y ZIP en
-Maven Central.
+Maven Central. La publicación posterior de `1.25.19` consta en el
+[changelog](../../CHANGELOG.md#12519---2026-09-12); no acredita despliegue.

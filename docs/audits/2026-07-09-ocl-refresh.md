@@ -1,5 +1,7 @@
 # Auditoria OCL - 2026-07-09
 
+> [Registro histórico](README.md): evidencia y estados correspondientes a la fecha de la revisión.
+
 ## Alcance
 
 Se revisaron las versiones publicadas de los sources OCL de la organizacion `SIHSALUS` usadas por el content package y se regeneraron los ZIPs bundleados desde los exports vigentes. El repositorio mantiene los exports separados por orden de carga: primero conceptos (`00` a `14`) y luego mappings (`50` a `64`).

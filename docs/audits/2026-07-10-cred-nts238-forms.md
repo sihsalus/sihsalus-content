@@ -1,5 +1,7 @@
 # Alineación de formularios CRED con NTS 238 y NTS 213 - 2026-07-10
 
+> [Registro histórico](README.md): evidencia y estados correspondientes a la fecha de la revisión.
+
 ## Alcance
 
 Se revisaron `CRED-001`, `CRED-009`, `CRED-010`, `CRED-011`, `CRED-015`, `CRED-026` y `CRED-027` contra:

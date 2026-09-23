@@ -1,5 +1,7 @@
 # Auditoría integral de formularios y OCL - 2026-07-10
 
+> [Registro histórico](README.md): evidencia y estados correspondientes a la fecha de la revisión.
+
 > Nota posterior: las versiones y totales OCL de este documento fueron sustituidos por la
 > [auditoría de integridad de importación OCL](2026-07-10-ocl-openmrs-import-integrity.md).
 

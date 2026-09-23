@@ -1,6 +1,8 @@
 # Captura de laboratorio y compatibilidad con la normativa peruana
 
-Revisión: **2026-09-12**. Aplicación en la candidata **1.25.19**.
+Revisión clínica y normativa documentada: **2026-09-12**. Cambios incorporados
+desde el paquete publicado **1.25.19**; esta actualización documental no amplía
+la revisión de fuentes ni acredita aceptación clínica.
 Este contrato distingue el contenido requerido del informe, los puntos de corte
 diagnósticos y la representación informática. Una release OCL publicada no
 demuestra por sí sola compatibilidad con los tres.
@@ -75,7 +77,8 @@ ilustra esa diferencia, sin acreditar su uso en el hospital.
 La guarda de CI acepta la escritura histórica `Units` únicamente para detectar
 un cambio de magnitud; esto no demuestra que OpenMRS importe la unidad.
 La clave admitida por el importador es `units`. Esa metadata ya se corrigió en
-HEAD remoto, junto con la recuperación de la magnitud histórica de `5400`.
+HEAD remoto en la [revisión del 12 de septiembre](../audits/2026-09-12-ocl-remote-corrections.md),
+junto con la recuperación de la magnitud histórica de `5400`.
 Las dos filas CSV que declaran `mg/kg/24h` bajo ese UUID siguen pendientes de una
 definición coordinada de la medición y no se corrigieron con una conversión supuesta.
 
@@ -96,7 +99,7 @@ no supere el límite superior. El frontend utiliza el mismo comparador.
 [Core 2.8.9](https://github.com/openmrs/openmrs-core/blob/4dda0f50a60991a5af9a4b36508e69bb3561c8a6/api/src/main/java/org/openmrs/validator/ObsValidator.java#L402),
 [frontend](https://github.com/sihsalus/sihsalus-frontend/blob/1fc71e13d8f9fae2409ae60b6c194b336dcc9345/packages/libs/esm-patient-common-lib/src/results/helpers.ts#L59).
 
-Se retiró de HEAD remoto el máximo OCL de 20 g/dL: contradice los rangos actuales
+En esa revisión se retiró de HEAD remoto el máximo OCL de 20 g/dL: contradice los rangos
 y no se encontró un mandato normativo que lo establezca. La release publicada
 anterior conserva su contenido. Mantener provisionalmente crítico
 22 y absoluto 30 tampoco los convierte en valores aprobados por MINSA.

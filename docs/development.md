@@ -33,16 +33,19 @@ python3 -B .github/integration/admission-initializer/test_harness.py
 Las pruebas de regresión usan fixtures sintéticas y copias temporales cuando
 necesitan mutar metadata. No requieren servidores del hospital.
 
-Para generar y verificar el ZIP:
+Para comprobar las propiedades del paquete y generar el ZIP:
 
 ```sh
 mvn clean verify --batch-mode --file pom.xml
 ```
 
-El build no formatea ni reescribe fuentes. No se configura Spotless: el paquete
-principal no contiene código Java de aplicación y los XML de metadata incluyen
-migraciones históricas que deben preservarse. Los proyectos Java de integración
-tienen sus propios POM y no forman parte del artefacto distribuido.
+Maven no ejecuta las pruebas Python, Bash ni las integraciones de esta guía.
+Tampoco formatea ni reescribe fuentes. Los proyectos Java de integración tienen
+sus propios POM y no forman parte del artefacto distribuido.
+
+Para cambios solo de documentación, revisar el diff, los enlaces y la coherencia
+con los archivos referenciados. No se necesitan pruebas nuevas ni subir la
+versión del paquete; véase [AGENTS.md](../AGENTS.md#validación-y-revisión).
 
 ## Contrato de empaquetado
 
