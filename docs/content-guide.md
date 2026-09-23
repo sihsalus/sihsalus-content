@@ -71,51 +71,46 @@ aprobado. Tampoco habilita el descuento automático desde dispensación: esa
 integración requiere una transacción clínica/inventario recuperable antes de
 considerarse segura.
 
-## Cobertura MINSA (Categoría II)
+## Alcance clínico documentado
 
-Este paquete ya incluye formularios para consulta externa, obstetricia, salud mental, laboratorio básico de resultados, vacunación, odontología y hospitalización básica. Varios procesos de MINSA pueden quedar cubiertos por módulos nativos de OpenMRS (por ejemplo, triaje/laboratorios/medicación según configuración), pero se dejó esta lista para identificar brechas de documentación clínica en formularios SIH-SALUS.
+El inventario siguiente orienta la revisión de formularios para categoría II-1 /
+II-2. No certifica cobertura normativa ni que un flujo esté habilitado en el
+hospital. Antes de implementar cambios, comprobar el contrato del dominio, los
+módulos del distro y la norma vigente en fuentes oficiales.
 
-Cobertura estimada (categoría II-1 / II-2):
+### Formularios y metadata incluidos
 
-1. Cubierto por formularios o metadata de este paquete
-   - Atención ambulatoria y consulta externa: `CE-*`, `PSIC-*`
-   - Signos vitales y urgencia: metadata y contrato separados para el registro longitudinal del
-     chart, el triaje de emergencia y la atención posterior. La captura debe implementarse en el
-     frontend como módulo embebido; este paquete no agrega un formulario JSON en `/ampathforms`.
-   - Obstetricia y neonatal: `OBST-*`, partograma, RN y puerperio
-   - Hospitalización: `HOSP-001`, `HOSP-004`, `HOSP-008`, `HOSP-009`, `HOSP-012`, `FormularioEpicrisisMédica`
-   - Referencia/contrarreferencia: `CE-REF-*`
-   - CRED y programas de continuidad: `CRED-*`, incluyendo Huanca Test adaptado (`CRED-026`) y lista de habilidades/conductas esperadas (`CRED-027`)
-   - Salud mental: `PSIC-001` a `PSIC-004`
-   - Odontología: `ODONT-*`
-   - Inmunizaciones: `INMU-001` y `INMU-002`; pendiente alinear el set de vacunas/productos contra la NTS 246-MINSA/DGIESP-2026.
+| Área | Contenido y límites |
+| --- | --- |
+| Consulta externa y salud mental | `CE-*` y `PSIC-001` a `PSIC-004`. Los diagnósticos se registran mediante Visit Notes. |
+| Signos vitales y emergencia | Metadata separada para el chart, triaje y atención posterior; el [contrato de encuentros](audits/2026-07-16-chart-vitals-encounter-contract.md) requiere captura embebida en el frontend. No hay un JSON AMPATH adicional. |
+| Obstetricia y neonatal | `OBST-*`, partograma, recién nacido y puerperio. |
+| Hospitalización | `HOSP-001`, `HOSP-004`, `HOSP-008`, `HOSP-009`, `HOSP-012` y `FormularioEpicrisisMédica`. |
+| Referencia | `CE-REF-*` y [catálogo de transporte](contracts/referral-transport-terminology.md). |
+| CRED | `CRED-*`, incluidos Huanca adaptado (`CRED-026`) y habilidades/conductas (`CRED-027`); la [revisión CRED](audits/2026-07-10-cred-nts238-forms.md) delimita los instrumentos resumidos. |
+| Odontología | `ODONT-*`; el odontograma es un componente separado. |
+| Inmunizaciones | `INMU-001` e `INMU-002`; la [auditoría NTS 246](audits/2026-06-17-inmunizaciones-nts-246.md) registra brechas de vacunas y productos. |
+| Laboratorio | Formularios de resultados y rangos con los límites del [contrato de laboratorio](contracts/laboratory-reporting.md). |
 
-1. Parcial o soportado por OpenMRS nativo (requiere validación local)
-   - Prescripción médica: formulario de prescripción + módulos de med list/order
-   - Laboratorio: resultados presentes; revisar si el flujo de solicitud/muestra está cubierto nativamente
-   - Farmacia: prescripción cubre parte del proceso; validar dispensación y conciliación con flujo nativo
-   - Radiología/imagen y patología: validar módulos instalados antes de crear formularios
-   - UCI y cirugía/electiva: revisar visittypes y módulos de urgencia/cirugía habilitados
+### Flujos que requieren comprobación o desarrollo coordinado
 
-1. Pendientes prioritarios para documentación MINSA por categoría II
-   - Documentación completa de urgencia más allá de la metadata de triaje: atención inicial,
-     observación/evolución y reanimación
-   - Formularios quirúrgicos y anestésicos (pre-operatorio, consentimiento, nota operatoria, anestesia, recuperación)
-   - Solicitud de laboratorio + toma y trazabilidad de muestra
-   - Solicitud e informe de imagen diagnóstica
-   - Solicitud/compatibilidad/administración transfusional
-   - Interconsulta y admisión hospitalaria no obstétrica (si aplica)
-   - Nutrición clínica y plan hospitalario
-   - Farmacia: dispensación y seguimiento farmacéutico en hospitalización
-   - Documentos de esterilización de material/central de esterilización
-   - II-2: ingreso y monitorización UCI, y soporte crítico (si aplica)
+| Área | Revisión pendiente documentada |
+| --- | --- |
+| Emergencia | Atención inicial, observación, evolución y reanimación, además de la metadata de triaje. |
+| Prescripción y farmacia | Verificar los módulos nativos de órdenes, dispensación y conciliación; completar seguimiento farmacéutico en hospitalización. |
+| Laboratorio y transfusión | Solicitud, toma y trazabilidad de muestra; solicitud, compatibilidad y administración transfusional. |
+| Imagen y patología | Comprobar módulos instalados y completar solicitud e informe. |
+| Cirugía y anestesia | Evaluación preoperatoria, consentimiento, notas operatoria y anestésica, recuperación. |
+| Hospitalización y cuidados críticos | Interconsulta, admisión no obstétrica, nutrición clínica y plan hospitalario; para II-2, ingreso y monitorización UCI según alcance aprobado. |
+| Esterilización | Documentos de material y central de esterilización. |
 
-Referencias mínimas
+### Referencias documentadas
 
-- NTS 021-MINSA/DGSP-V.03 (categorías de establecimientos): https://spij.minjus.gob.pe/Graficos/Peru/2011/Julio/16/RM-546-2011-MINSA.pdf
-- NTS 139-MINSA/2018/DGAIN (gestión de historia clínica): https://spij.minjus.gob.pe/Graficos/Peru/2018/Marzo/15/RM-214-2018-MINSA.pdf
-- NTS 238-MINSA/DGIESP-2025 (control de crecimiento y desarrollo del niño): https://www.gob.pe/institucion/minsa/informes-publicaciones/7857089-norma-tecnica-de-salud-para-el-control-de-crecimiento-y-desarrollo-del-nino-nts-n-238-minsa-dgiesp-2025
-- NTS 246-MINSA/DGIESP-2026 (esquema nacional de inmunizaciones): https://www.gob.pe/institucion/minsa/normas-legales/8265031-561-2026-minsa
-- Guía de Vigilancia del Neurodesarrollo - Huanca Payehuanca (manual de aplicación): https://repositorio.essalud.gob.pe/handle/20.500.12959/5846
+- [NTS 021-MINSA/DGSP-V.03: categorías de establecimientos](https://spij.minjus.gob.pe/Graficos/Peru/2011/Julio/16/RM-546-2011-MINSA.pdf).
+- [NTS 139-MINSA/2018/DGAIN: gestión de historia clínica](https://spij.minjus.gob.pe/Graficos/Peru/2018/Marzo/15/RM-214-2018-MINSA.pdf).
+- [NTS 238-MINSA/DGIESP-2025: crecimiento y desarrollo del niño](https://www.gob.pe/institucion/minsa/informes-publicaciones/7857089-norma-tecnica-de-salud-para-el-control-de-crecimiento-y-desarrollo-del-nino-nts-n-238-minsa-dgiesp-2025).
+- [NTS 246-MINSA/DGIESP-2026: esquema nacional de inmunizaciones](https://www.gob.pe/institucion/minsa/normas-legales/8265031-561-2026-minsa).
+- [Guía de Vigilancia del Neurodesarrollo de Huanca Payehuanca](https://repositorio.essalud.gob.pe/handle/20.500.12959/5846).
 
-Antes de crear o modificar formularios clínicos, revisar la norma técnica vigente en fuentes oficiales MINSA/gob.pe. No asumir que una NTS anterior sigue vigente si existe resolución posterior.
+Estas referencias conservan el contexto de las revisiones documentadas; no se
+ha realizado una nueva auditoría normativa como parte de esta limpieza.

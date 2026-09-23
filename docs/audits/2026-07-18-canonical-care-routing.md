@@ -1,5 +1,7 @@
 # Contrato canónico de cita, atención y cola
 
+> [Registro histórico](README.md): evidencia y estados correspondientes a la fecha de la revisión.
+
 Fecha: 2026-07-18  
 Estado: aprobado para implementación previa a PROD
 

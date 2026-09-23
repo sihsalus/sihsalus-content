@@ -1,7 +1,8 @@
 # Instrucciones para sihsalus-content
 
 Este repositorio distribuye metadata backend para OpenMRS. Leer el [README](README.md)
-y el contrato del dominio afectado antes de cambiar contenido. La mantenibilidad
+y el [contrato del dominio afectado](docs/README.md#contratos-por-dominio) antes de
+cambiar contenido. La mantenibilidad
 y la reducción de parches son criterios de aceptación, junto con la corrección
 funcional y las pruebas.
 

@@ -12,7 +12,7 @@ no equivalen a un despliegue en el hospital.
 ## Única fuente de permisos y alias operativo
 
 `configuration/roles/roles-core.csv` define el rol
-canónico `Admision` y sus 59 privilegios actuales. La migración nueva
+canónico `Admision` y sus 59 privilegios actuales. La migración publicada
 `reconcile-admission-operational-alias-20260921` reconoce una entrada histórica
 adicional: `Admision` con su UUID canónico y exactamente los 58 privilegios de
 `1.25.15`, junto con `SIHSALUS Admision` con los 55 privilegios exactos de
@@ -33,7 +33,7 @@ No se mantienen overrides de roles por servidor ni un alias de compatibilidad.
 
 Solo se admite ese conjunto exacto de 55 permisos con un destino canónico de
 58; cualquier diferencia, herencia o referencia no soportada bloquea la carga.
-Para las entradas originales de 57/58, la preparación nueva no cambia RBAC y
+Para las entradas originales de 57/58, la preparación de `20260921` no cambia RBAC y
 la reconciliación publicada mantiene su validación. El registro de la
 preparación sin cambios puede quedar confirmado aunque la guarda posterior
 rechace otra entrada: no se promete atomicidad entre changeSets. El historial
@@ -185,88 +185,58 @@ Initializer ni la aplicación dejen de arrancar. Antes de habilitar esta
 migración se debe coordinar y verificar
 `initializer.startup.load=fail_on_error` en las propiedades de runtime/sistema,
 y probar su efecto real en el backend. Una global property del contenido no
-establece esa configuración. Esta rama no modifica el distro ni ningún host.
+establece esa configuración. Este paquete no configura esas propiedades de
+runtime ni modifica hosts.
 
 No se deben borrar checksums, modificar el historial o relajar las
 precondiciones para conseguir un arranque verde.
 
 ## Validación reproducible y límites
 
-Las pruebas Python conservan el orden y los bytes de los diez changeSets
-publicados, incluida la reconciliación `20260907`. Reutilizan la fixture histórica
-`admission-role-1.25.15.csv` de MariaDB y fijan su SHA256, sin mantener otra lista
-de 58 permisos. Conservan las pruebas de aceptación y rechazo de las consultas
-de política compatibles con SQLite. No traducen la migración para simular
-transacciones MariaDB ni presentan ese modelo como una prueba de Liquibase.
+Cada capa aporta una evidencia distinta. Los comandos comunes están en la
+[guía de desarrollo](../development.md); los README de integración fijan pins,
+aislamiento, aserciones y límites.
 
-El harness de integración usa MariaDB `10.11.7`, Liquibase `4.32.0` y JDBC
-MariaDB `3.5.4`, correspondientes al stack examinado de OpenMRS `2.8.9`.
-Ejecuta el changelog completo sobre un esquema mínimo sintético, con estados
-históricos y fallos inducidos. No inicia OpenMRS, no ejecuta Initializer y no
-valida permisos efectivos de cuentas clínicas.
+| Capa | Contrato comprobado |
+| --- | --- |
+| [Pruebas Python](../../.github/scripts/test_admission_role_reconciliation.py) | Orden y bytes de los doce changesets publicados; SHA256 de la fixture histórica `admission-role-1.25.15.csv`; aceptación y rechazo de consultas de política compatibles con SQLite. No simulan transacciones MariaDB. |
+| [MariaDB/Liquibase](../../.github/integration/admission-role-reconciliation/README.md) | Changelog completo sobre esquema sintético, referencias, estados históricos, transacciones, fallos y reintentos. No inicia OpenMRS ni comprueba autorización efectiva. |
+| [Initializer](../../.github/integration/admission-initializer/README.md) | Backend fijado por digest, carga real, checksums, instalación nueva y actualización, reinicio y autorización REST con usuarios sintéticos. Solo en runners desechables de GitHub. |
 
-El ensayo adicional `admission-initializer.yml` usa el backend publicado fijado
-por digest y bases desechables en runners GitHub hospedados. Conserva la
-configuración ajena al paquete SIH de esa imagen y sustituye únicamente archivos
-propios verificados. Ejecuta tres escenarios independientes, `upgrade`, `fresh` y `operational`;
-el fallo de uno no cancela los otros y los tres deben pasar antes de publicar.
+Los tres escenarios de Initializer son independientes y deben pasar en el mismo
+SHA antes de publicar:
 
-`upgrade` arranca la baseline `1.25.15` y la reinicia sin cambiar contenido,
-historial ni checksums, antes de crear el snapshot y sembrar la migración.
-Comprueba los UUID de Full/High y los 58 permisos de Admisión. Desde ese estado
-prueba el CSV histórico sin cambios y el CSV candidato con los 59 permisos de
-Admisión, comparando todas las filas RBAC y referencias contempladas. Incluye
-rechazo de una política incompatible, un CSV canario posterior que debe quedar
-sin cargar, reintento sin borrar checksums e idempotencia.
+- `upgrade`: baseline `1.25.15`, reinicio intacto, CSV histórico sin cambios,
+  transición SQL de 57 a 58 permisos y carga posterior del CSV de 59. Compara
+  todas las filas RBAC y referencias admitidas, incluidos Full/High. Comprueba
+  rechazo, bloqueo del CSV canario y reintento sin borrar checksums.
+- `operational`: baseline `1.25.15`, alias de 55 permisos y suplemento reconocidos;
+  traslado de referencias, retiro del suplemento y reinicio idempotente.
+- `fresh`: paquete completo sobre base vacía, historial real, UUID de Full/High y
+  59 permisos de Admisión.
 
-`operational` usa una baseline real `1.25.15` con el alias de 55 permisos,
-cuentas exclusivamente sintéticas y UUID aleatorio para el alias. Comprueba
-transferencia de referencias, política canónica, reinicio idempotente y accesos
-permitidos/denegados por REST. Las actualizaciones y la instalación limpia
-exigen también el atributo de visita de confirmación de pago activo, FreeText,
-con cardinalidad 0..1; HTTP 200 no sustituye esta comprobación.
+En los tres casos se exige lectura REST, purga denegada con 403 sin alterar la
+relación activa y anulación con 204 que persiste `voided=1`. El atributo de pago
+debe estar activo, ser FreeText y tener cardinalidad 0..1. HTTP 200 por sí solo
+no satisface estos contratos.
 
-`fresh` inicia el candidato completo sobre una base vacía independiente y exige
-carga finalizada, historial y checksum reales, los UUID de Full/High y los 59
-permisos de Admisión. Los tres escenarios verifican mediante REST lectura, purga
-denegada con 403 sin modificar la relación activa y anulación con 204 que
-persiste `voided=1`. Sus resultados deben leerse por fase: definir el ensayo no
-equivale a haberlo aprobado ni sustituye aceptación clínica o revisión operativa.
-
-Consultar el [README del ensayo de Initializer](../../.github/integration/admission-initializer/README.md)
-para los pins, aislamiento, aserciones y límites. No ejecutarlo contra una
-instalación existente ni trasladar sus credenciales sintéticas a otro entorno.
-
-Comprobaciones rápidas desde la raíz:
+Para las comprobaciones específicas locales, desde la raíz:
 
 ```sh
 python3 .github/scripts/test_admission_role_reconciliation.py
 python3 .github/scripts/validate_liquibase.py
-python3 .github/scripts/validate_csv_widths.py
-python3 .github/scripts/test_csv_widths.py
-mvn --batch-mode --no-transfer-progress clean verify --file pom.xml
-git diff --check origin/main...HEAD
 ```
 
-El comando del harness es:
+No ejecutar fixtures de integración contra instalaciones existentes ni usar sus
+credenciales. Cada resultado debe registrar `PASSED`, `FAILED`, `NOT RUN` o
+`BLOCKED`, comando, SHA y entorno. No atribuir CI de un SHA anterior al candidato
+corregido. Definir un ensayo tampoco equivale a haberlo aprobado.
 
-```sh
-mvn --batch-mode --no-transfer-progress --file .github/integration/admission-role-reconciliation/pom.xml test
-```
+`Validate with SIHSALUS` se invoca después de confirmar el artefacto público, o
+manualmente. No sustituye estos ensayos ni la aceptación funcional; véase el
+[flujo de publicación](../development.md#validación-y-publicación).
 
-Requiere exclusivamente la base desechable sintética descrita en el README del
-harness. El workflow `admission-role-reconciliation.yml` la crea aislada en CI;
-no utilizar credenciales, servicios ni bases de instalaciones existentes. El
-job de build/publicación depende de este workflow: no basta que una prueba
-independiente termine después de publicar el paquete.
-
-Cada ejecución debe registrar `PASSED`, `FAILED`, `NOT RUN` o `BLOCKED`, comando,
-SHA y entorno. No atribuir CI de un SHA anterior al candidato corregido. El
-workflow `Validate with SIHSALUS` se invoca con el mismo commit después de que
-`publish` confirme el artefacto en Maven Central, o mediante ejecución manual;
-no es un gate de actualización del PR ni sustituye este harness.
-
-## Gates antes de merge, publicación y actualización
+## Requisitos para cambios y actualizaciones
 
 1. CI y revisión del diff final, sin alterar permisos declarativos ajenos a
    esta reconciliación. Una aprobación independiente es obligatoria; no usar
@@ -281,9 +251,11 @@ no es un gate de actualización del PR ni sustituye este harness.
 4. Aprobar inventario de módulos/referencias, ventana sin cambios concurrentes
    de roles, respaldo recuperable y procedimiento de recuperación. El lock de
    Liquibase no bloquea a administradores que editen roles en paralelo.
-5. Confirmar que la versión candidata sigue inédita antes del merge y coordinar
-   el pin del distro solo tras completar los controles. No reutilizar una
-   versión publicada ni desplegar directamente desde esta rama.
+5. Si cambia la metadata distribuida, usar una versión aún no publicada y
+   coordinar el pin del distro tras completar los controles. `1.25.24` ya está
+   publicada: no se reemplaza su artefacto. Los cambios solo de documentación
+   no requieren una versión nueva. La actualización del entorno es una acción
+   separada de publicar el paquete.
 
 No hay un rollback automático que reconstruya qué identidad tenía cada usuario
 antes de consolidarlas. Revertir el paquete no deshace una migración confirmada.

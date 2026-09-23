@@ -25,7 +25,7 @@ autorización con sesiones reales. Los totales orientan la lectura; el criterio
 de aceptación es la igualdad de los nombres de permisos, sensible a mayúsculas.
 
 Admisión utiliza únicamente el rol funcional canónico `Admision`, con sus 59
-privilegios de `roles-core.csv`. Esta candidata retira el suplemento
+privilegios de `roles-core.csv`. La versión `1.25.24` retira el suplemento
 `SIHSALUS Admision Hospitalaria` y sus 15 capacidades adicionales; los permisos
 efectivos del perfil pasan de 91 a 76. La
 [migración de admisión](admission-role-reconciliation.md) reconoce su definición
@@ -56,7 +56,7 @@ de Laboratorio. Los criterios maternos de los rangos de referencia llaman a
 2.8.9. Sin él, incluso una mujer sin inscripción materna puede recibir un error
 de autorización al guardar temperatura: debe consultarse la inscripción antes
 de descartarla. No se conceden creación, edición o purga de inscripciones.
-La referencia hospitalaria anterior tenía 69 permisos efectivos; esta candidata
+La referencia hospitalaria anterior tenía 69 permisos efectivos; desde `1.25.24` el perfil
 tiene 70 y necesita aceptación en el entorno. No se presenta como una aplicación
 ya realizada ni como una ampliación de permisos para administrar alertas.
 
@@ -68,7 +68,7 @@ los privilegios que agreguen módulos futuros requieren revisión explícita.
 El perfil no tiene `Purge Roles`; la prueba de administración permite crear y
 editar un rol temporal, verifica el rechazo de su purga y deja la limpieza al
 administrador de la prueba.
-Esta homologación reproduce el acceso operativo actual; la futura separación
+Esta homologación reproduce el acceso operativo observado en la revisión; la futura separación
 entre soporte técnico, administración de identidades y acceso clínico sigue
 siendo una decisión de política institucional.
 
@@ -80,9 +80,9 @@ una equivalencia de producción revisada para convertirlos en políticas del
 hospital. Se registran en `preservedTestProfiles` para poder detectar diferencias
 entre DEV y QLTY sin presentar esos perfiles como una política ya aprobada.
 
-DEV conserva `Record Clinical Audit Events` para admisión, consulta, triaje,
+El contrato de pruebas de DEV conserva `Record Clinical Audit Events` para admisión, consulta, triaje,
 farmacia, laboratorio, obstetricia y CRED, mediante el rol de pruebas existente.
-El auditor conserva además `View Clinical Audit Events`. QLTY usa los conjuntos
+El auditor conserva además `View Clinical Audit Events`. El contrato de QLTY usa los conjuntos
 base. Esta declaración de permisos no certifica el funcionamiento del receptor
 de auditoría ni su aceptación clínica.
 
@@ -160,10 +160,9 @@ Solo se ejecuta en contenedores desechables propiedad del runner de GitHub.
 ```sh
 python3 .github/scripts/validate_hospital_access_profiles.py
 python3 .github/scripts/test_hospital_access_profiles.py
-python3 .github/scripts/validate_csv_widths.py
-python3 .github/scripts/validate_appointment_queue_integrity.py
-mvn clean verify --batch-mode --file pom.xml
 ```
+
+Ejecutar también las [comprobaciones comunes](../development.md#validación-local).
 
 La validación de metadatos y API no sustituye pruebas completas de atención,
 dispensación con existencias ni validación del receptor de auditoría. Los

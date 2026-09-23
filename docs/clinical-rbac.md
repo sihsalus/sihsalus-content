@@ -30,9 +30,6 @@ separadas:
   `Create Attachments` y `View Attachments`, y conserva `Add Observations` y
   `Delete Observations` como parte de su contrato existente.
 
-Esta coordinación no amplía otros roles. Tampoco altera las asignaciones de
-borrado existentes ni promete impedirlo.
-
 La lectura declarativa de adjuntos forma parte de
 `Application: Uses Patient Summary`. El rol `SIHSALUS Consulta Externa` recibe
 además `Create Attachments` y ambos marcadores de forma directa; `Enfermera` los
@@ -47,9 +44,11 @@ conserva `Add Observations` como parte de su contrato clínico existente. No rec
 (`5a870421-1f01-46a6-8479-e3930266e9c1`) permanece intacto. Ninguna de estas
 asignaciones vuelve operativo el flujo con Attachments 4.0.0.
 
-`Laboratorio` ya incluía `Edit Observations` y `Delete Observations` antes de
-esta entrega. Este cambio no altera esas asignaciones ni promete impedir el
-borrado.
+`Laboratorio` conserva `Edit Observations` y `Delete Observations`. Declarar los
+marcadores de adjuntos no elimina capacidades de borrado existentes, ni en este
+rol ni en el editor genérico. El perfil hospitalario `SIHSALUS Laboratorio` tiene
+una composición distinta, documentada en el
+[contrato de perfiles](contracts/hospital-access-profiles.md).
 
 El contrato define el archivo PDF como suplemento documental. Cuando el flujo
 sea habilitado, su carga no deberá completar la orden, modificar su estado ni
@@ -57,7 +56,7 @@ sustituir observaciones estructuradas o la aprobación del resultado. Esas
 transiciones deberán seguir ocurriendo mediante acciones explícitas del módulo
 de laboratorio.
 
-### Compatibilidad y coordinación de release
+## Compatibilidad de adjuntos
 
 El frontend, esta metadata y la corrección backend deben publicarse como una
 unidad coordinada. Attachments 4.0.0 no es compatible y el flujo permanece no
@@ -66,6 +65,8 @@ Attachments `>=4.0.1-sihsalus.1 <5.0.0`, con autorización server-side y acceso
 interno acotado a la configuración del módulo. No se debe otorgar
 `Get Global Properties` a `Laboratorio`; el validador rechaza explícitamente
 esa ampliación.
+
+## Formularios, encuentros y Visit Notes
 
 Cuando un tipo de encuentro declara un privilegio específico, el frontend exige
 ese privilegio. La ausencia de metadata no equivale a acceso público y este
@@ -89,7 +90,7 @@ el UUID histórico mixto de Triaje
   el tipo `Hospitalización`.
 - varios consumidores todavía escriben signos vitales al Triaje histórico.
 
-Por ello, esta entrega prepara señalización de interfaz sin afirmar que existe
+Por ello, estos marcadores de interfaz no demuestran que exista
 segregación completa en backend. La matriz por dominio debe migrar primero los
 escritores y después asignar los privilegios de tipo de encuentro.
 
@@ -105,12 +106,11 @@ explícita y controlada.
 
 - Consulta Externa y Enfermería: conservan los marcadores declarativos previos;
   no se asume autorización backend con Attachments 4.0.0.
-- Adjuntador genérico: con una release backend compatible
-  `>=4.0.1-sihsalus.1 <5.0.0`, el rol lector debe conservar acceso de lectura y
+- Adjuntador genérico: con la [versión backend requerida](#compatibilidad-de-adjuntos),
+  el rol lector debe conservar acceso de lectura y
   el editor debe conservar lectura y creación, sin requerir
   `Get Global Properties`.
-- Laboratorio: el flujo PDF sigue no operativo con Attachments 4.0.0. Tras
-  coordinar una release compatible `>=4.0.1-sihsalus.1 <5.0.0`, se debe probar
+- Laboratorio: con esa versión compatible, se debe probar
   con usuario sintético la autorización server-side, la ausencia de
   `Get Global Properties` y que la carga no cambia el estado de la orden.
 - `Tecnico de Laboratorio`: conserva exactamente su contrato previo y no recibe
@@ -122,12 +122,13 @@ explícita y controlada.
 - La autorización server-side debe probarse por rol; ocultar controles en el
   frontend no reemplaza la autorización del servidor.
 
-`validate_csv_widths.py` verifica la estructura de los CSV, que
+[validate_csv_widths.py](../.github/scripts/validate_csv_widths.py)
+verifica la estructura de los CSV, que
 `SIHSALUS Consulta Externa` conserve sus asignaciones declarativas previas y
 que los roles canónicos lector/editor del adjuntador conserven su separación, y
 que únicamente el rol canónico de Laboratorio reciba sus marcadores
 preparatorios dentro de los roles de laboratorio. Rechaza la pérdida de
-`Add Observations`, `app:hoja.clinica.adjuntos.editar`,
-`Get Global Properties` y la ampliación del rol legado. No afirma impedir
-borrado ni valida la implementación backend pendiente o una matriz de tipos de
-encuentro; esas validaciones requieren la release coordinada.
+`Add Observations`, la concesión a Laboratorio de
+`app:hoja.clinica.adjuntos.editar` o `Get Global Properties`, y la ampliación del
+rol legado. La autorización backend y la matriz de tipos de encuentro requieren
+las comprobaciones operativas anteriores.

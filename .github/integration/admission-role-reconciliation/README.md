@@ -7,6 +7,11 @@ version and `utf8mb4_bin` collation match the distro test Compose configuration.
 It is not a content module, is not packaged in the content ZIP, and does not
 publish or deploy anything.
 
+The [admission contract](../../../docs/contracts/admission-role-reconciliation.md)
+defines the supported transitions; the [development guide](../../../docs/development.md)
+locates the other validation layers. “Candidate” here is the checked-out content
+under test, including already published changesets.
+
 ## Isolation and execution
 
 The reusable `admission-role-reconciliation.yml` workflow creates its own
@@ -116,7 +121,8 @@ The tests contain no patients, accounts from an environment, clinical records,
 or credentials from an environment. They cannot inventory arbitrary installed
 modules or validate a database upgrade against an operational backup.
 
-**NOT RUN by this harness:** Initializer **2.13.0-sihsalus.1**, from source
+The [separate Initializer harness](../admission-initializer/README.md) covers
+Initializer **2.13.0-sihsalus.1**, from source
 `3077975fb4f58c91ff3113d7fed1e3df88829476`, loading `roles-core.csv` through
 OpenMRS **2.8.9**, file/row checksums, and effective allowed/denied authorization
 for synthetic users. The source archive is pinned by the distro to SHA256

@@ -1,5 +1,7 @@
 # Auditoría y cableado de instrumentos de desarrollo SIHSALUS - 2026-07-09
 
+> [Registro histórico](README.md): evidencia y estados correspondientes a la fecha de la revisión.
+
 ## Alcance
 
 Se auditó y corrigió la cobertura terminológica y funcional del Test Peruano de Evaluación del Desarrollo del
