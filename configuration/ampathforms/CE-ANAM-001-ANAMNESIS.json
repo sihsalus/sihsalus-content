@@ -7,8 +7,8 @@
   "retired": false,
   "referencedForms": [],
   "uuid": "b0446b4e-1f2b-4e22-9a1a-79d797d4ce01",
-  "description": "Formulario de anamnesis para consulta externa. Registra motivo de consulta, tiempo de enfermedad, forma de inicio, curso y relato cronológico de la enfermedad actual según NTS 139-MINSA/2018/DGAIN y NTS 229-MINSA/DGIESP-2025. Incluye mejoras de usabilidad sin cambiar conceptos ni datos clínicos.",
-  "version": "1.0.3",
+  "description": "Anamnesis breve de Consulta Externa. Motivo, duración y detalle opcional; inicio, evolución y funciones biológicas mediante selección explícita, sin respuestas clínicas predeterminadas.",
+  "version": "1.1.0",
   "pages": [
     {
       "label": "Anamnesis",
@@ -68,7 +68,7 @@
                 "rendering": "textarea",
                 "concept": "71b58cff-879b-4358-98d5-2165434d4324",
                 "enablePreviousValue": true,
-                "rows": 3
+                "rows": 2
               },
               "id": "motivoConsulta",
               "label": "Motivo de consulta / Síntoma principal",
@@ -90,117 +90,261 @@
             {
               "type": "obs",
               "questionOptions": {
-                "rendering": "text",
+                "rendering": "select",
                 "concept": "34e03399-cb72-484b-85b8-616ef19919c1",
-                "enablePreviousValue": true,
-                "maxLength": "120"
+                "answers": [
+                  {
+                    "value": "Súbito",
+                    "label": "Súbito"
+                  },
+                  {
+                    "value": "Gradual",
+                    "label": "Gradual"
+                  },
+                  {
+                    "value": "Insidioso",
+                    "label": "Insidioso"
+                  },
+                  {
+                    "value": "No precisado",
+                    "label": "No precisado"
+                  }
+                ]
               },
               "id": "formaInicio",
               "label": "Forma de inicio",
-              "questionInfo": "Ejemplos: súbito, gradual, insidioso."
+              "questionInfo": "Seleccione lo referido o evaluado en esta consulta; deje sin responder si no se registró. Otros detalles pueden consignarse en el detalle breve."
             },
             {
               "type": "obs",
               "questionOptions": {
-                "rendering": "text",
+                "rendering": "select",
                 "concept": "e7d98188-16ba-4ef3-aed9-e891680bacf9",
-                "enablePreviousValue": true,
-                "maxLength": "120"
+                "answers": [
+                  {
+                    "value": "En mejoría",
+                    "label": "En mejoría"
+                  },
+                  {
+                    "value": "Sin cambios",
+                    "label": "Sin cambios"
+                  },
+                  {
+                    "value": "En empeoramiento",
+                    "label": "En empeoramiento"
+                  },
+                  {
+                    "value": "Intermitente",
+                    "label": "Intermitente"
+                  },
+                  {
+                    "value": "No precisado",
+                    "label": "No precisado"
+                  }
+                ]
               },
               "id": "cursoEnfermedad",
               "label": "Curso de la enfermedad",
-              "questionInfo": "Ejemplos: progresivo, intermitente, estacionario, recurrente."
+              "questionInfo": "Seleccione lo referido o evaluado en esta consulta; deje sin responder si no se registró. Otros detalles pueden consignarse en el detalle breve."
             },
             {
               "type": "obs",
               "questionOptions": {
                 "rendering": "textarea",
                 "concept": "6d99603e-ae9d-4838-8a09-ba75e27ff1e9",
-                "rows": 8,
+                "rows": 3,
                 "enablePreviousValue": true
               },
               "id": "relatoEnfermedadActual",
-              "label": "Relato cronológico de la enfermedad actual",
-              "questionInfo": "Describa cronología, síntomas asociados, factores desencadenantes, evolución, manejo previo y respuesta."
+              "label": "Detalle breve (opcional)",
+              "questionInfo": "Añada solo los detalles relevantes que no estén recogidos en las opciones."
             }
           ],
           "inlineRendering": "automatic"
         },
         {
           "label": "Funciones biológicas",
-          "isExpanded": "true",
+          "isExpanded": "false",
           "questions": [
             {
               "type": "obs",
               "questionOptions": {
-                "rendering": "text",
+                "rendering": "select",
                 "concept": "f0000182-0000-4000-8000-000000000182",
-                "enablePreviousValue": true,
-                "maxLength": "120"
+                "answers": [
+                  {
+                    "value": "Conservado",
+                    "label": "Conservado"
+                  },
+                  {
+                    "value": "Disminuido",
+                    "label": "Disminuido"
+                  },
+                  {
+                    "value": "Aumentado",
+                    "label": "Aumentado"
+                  },
+                  {
+                    "value": "No evaluado",
+                    "label": "No evaluado"
+                  }
+                ]
               },
               "id": "apetito",
               "label": "Apetito",
-              "questionInfo": "Normal, aumentado, disminuido o detalle clínico breve."
+              "questionInfo": "Seleccione lo referido o evaluado en esta consulta; deje sin responder si no se registró. Otros detalles pueden consignarse en el detalle breve."
             },
             {
               "type": "obs",
               "questionOptions": {
-                "rendering": "text",
+                "rendering": "select",
                 "concept": "f0000183-0000-4000-8000-000000000183",
-                "enablePreviousValue": true,
-                "maxLength": "120"
+                "answers": [
+                  {
+                    "value": "Conservada",
+                    "label": "Conservada"
+                  },
+                  {
+                    "value": "Disminuida",
+                    "label": "Disminuida"
+                  },
+                  {
+                    "value": "Aumentada",
+                    "label": "Aumentada"
+                  },
+                  {
+                    "value": "No evaluada",
+                    "label": "No evaluada"
+                  }
+                ]
               },
               "id": "sed",
               "label": "Sed",
-              "questionInfo": "Normal, aumentada, disminuida o detalle clínico breve."
+              "questionInfo": "Seleccione lo referido o evaluado en esta consulta; deje sin responder si no se registró. Otros detalles pueden consignarse en el detalle breve."
             },
             {
               "type": "obs",
               "questionOptions": {
-                "rendering": "text",
+                "rendering": "select",
                 "concept": "f0000184-0000-4000-8000-000000000184",
-                "enablePreviousValue": true,
-                "maxLength": "120"
+                "answers": [
+                  {
+                    "value": "Conservado",
+                    "label": "Conservado"
+                  },
+                  {
+                    "value": "Disminuido",
+                    "label": "Disminuido"
+                  },
+                  {
+                    "value": "Aumentado",
+                    "label": "Aumentado"
+                  },
+                  {
+                    "value": "No reparador",
+                    "label": "No reparador"
+                  },
+                  {
+                    "value": "No evaluado",
+                    "label": "No evaluado"
+                  }
+                ]
               },
               "id": "sueno",
               "label": "Sueño",
-              "questionInfo": "Conservado, alterado o detalle clínico breve."
+              "questionInfo": "Seleccione lo referido o evaluado en esta consulta; deje sin responder si no se registró. Otros detalles pueden consignarse en el detalle breve."
             },
             {
               "type": "obs",
               "questionOptions": {
-                "rendering": "text",
+                "rendering": "select",
                 "concept": "f0000185-0000-4000-8000-000000000185",
-                "enablePreviousValue": true,
-                "maxLength": "120"
+                "answers": [
+                  {
+                    "value": "Sin cambios referidos",
+                    "label": "Sin cambios referidos"
+                  },
+                  {
+                    "value": "Tristeza",
+                    "label": "Tristeza"
+                  },
+                  {
+                    "value": "Ansiedad",
+                    "label": "Ansiedad"
+                  },
+                  {
+                    "value": "Irritabilidad",
+                    "label": "Irritabilidad"
+                  },
+                  {
+                    "value": "No evaluado",
+                    "label": "No evaluado"
+                  }
+                ]
               },
               "id": "estadoAnimo",
               "label": "Estado de ánimo",
-              "questionInfo": "Eutímico, irritable, ansioso, triste o detalle clínico breve."
+              "questionInfo": "Seleccione lo referido o evaluado en esta consulta; deje sin responder si no se registró. Otros detalles pueden consignarse en el detalle breve."
             },
             {
               "type": "obs",
               "questionOptions": {
-                "rendering": "text",
+                "rendering": "select",
                 "concept": "f0000186-0000-4000-8000-000000000186",
-                "enablePreviousValue": true,
-                "maxLength": "120"
+                "answers": [
+                  {
+                    "value": "Sin cambios referidos",
+                    "label": "Sin cambios referidos"
+                  },
+                  {
+                    "value": "Disminuida",
+                    "label": "Disminuida"
+                  },
+                  {
+                    "value": "Aumentada",
+                    "label": "Aumentada"
+                  },
+                  {
+                    "value": "Dolor al orinar",
+                    "label": "Dolor al orinar"
+                  },
+                  {
+                    "value": "No evaluada",
+                    "label": "No evaluada"
+                  }
+                ]
               },
               "id": "orina",
               "label": "Orina",
-              "questionInfo": "Normal o detalle de color, frecuencia, dolor, volumen u otros cambios."
+              "questionInfo": "Seleccione lo referido o evaluado en esta consulta; deje sin responder si no se registró. Otros detalles pueden consignarse en el detalle breve."
             },
             {
               "type": "obs",
               "questionOptions": {
-                "rendering": "text",
+                "rendering": "select",
                 "concept": "f0000187-0000-4000-8000-000000000187",
-                "enablePreviousValue": true,
-                "maxLength": "120"
+                "answers": [
+                  {
+                    "value": "Sin cambios referidos",
+                    "label": "Sin cambios referidos"
+                  },
+                  {
+                    "value": "Diarrea",
+                    "label": "Diarrea"
+                  },
+                  {
+                    "value": "Estreñimiento",
+                    "label": "Estreñimiento"
+                  },
+                  {
+                    "value": "No evaluadas",
+                    "label": "No evaluadas"
+                  }
+                ]
               },
               "id": "deposiciones",
               "label": "Deposiciones",
-              "questionInfo": "Normal o detalle de frecuencia, consistencia, sangre, diarrea, estreñimiento u otros cambios."
+              "questionInfo": "Seleccione lo referido o evaluado en esta consulta; deje sin responder si no se registró. Otros detalles pueden consignarse en el detalle breve."
             }
           ],
           "inlineRendering": "automatic"

@@ -5,9 +5,10 @@ ephemeral GitHub-hosted Linux runner. It does not build Maven modules, publish
 images, deploy, contact DEV/QLTY/PROD, or use existing accounts or patients.
 The local unit tests are not evidence that the containers or migration passed.
 
-Fresh installation and both upgrade scenarios also check the three reviewed
-clinical form schemas (CRED, maternal care and the dedicated outpatient examination) and eighteen laboratory range criteria against the candidate
-files. Upgrades preserve the UUID, database identity, version and schema hash of
+Fresh installation and both upgrade scenarios also check five reviewed clinical
+form schemas (CRED, maternal care, anamnesis, the dedicated examination and retired
+outpatient SOAP) and eighteen laboratory range criteria against the candidate
+files. Publication and retirement flags must match the declarations. Upgrades preserve the UUID, database identity, version and schema hash of
 previous forms; a restart must leave the resulting forms unchanged. These are
 loader checks, not clinical encounter save/edit tests.
 

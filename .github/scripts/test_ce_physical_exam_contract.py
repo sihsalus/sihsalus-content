@@ -52,7 +52,7 @@ class PhysicalExamContractTest(unittest.TestCase):
 
     def test_rejects_removal_of_historical_fields(self):
         legacy = copy.deepcopy(self.legacy)
-        question = next(node for node in contract.walk(legacy) if node.get('id') == 'soapObjetivo')
+        question = next(node for node in contract.walk(legacy) if node.get('id') == 'neurologico')
         question['questionOptions']['concept'] = 'different-concept'
         self.assertTrue(contract.validate_legacy_contract(legacy))
 

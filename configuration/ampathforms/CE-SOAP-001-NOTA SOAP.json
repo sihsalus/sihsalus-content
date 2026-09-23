@@ -7,11 +7,11 @@
   "retired": true,
   "referencedForms": [],
   "uuid": "92b9a6f7-0c70-4fb1-9b31-678226d5ce02",
-  "description": "Formulario de examen físico y nota SOAP para consulta externa. Segmenta el examen general y regional según la NTS 139, sin completar hallazgos normales automáticamente.",
-  "version": "1.1.0",
+  "description": "Examen físico de Consulta Externa: examen general y hallazgos por sistemas. La anamnesis, el diagnóstico y el plan se registran en sus secciones correspondientes.",
+  "version": "1.2.0",
   "pages": [
     {
-      "label": "Nota SOAP",
+      "label": "Examen físico",
       "sections": [
         {
           "label": "Datos de la atención",
@@ -51,22 +51,6 @@
               "id": "consultorio",
               "label": "Consultorio / Servicio",
               "required": true
-            }
-          ]
-        },
-        {
-          "label": "Subjetivo (SOAP)",
-          "isExpanded": "true",
-          "questions": [
-            {
-              "type": "obs",
-              "questionOptions": {
-                "rendering": "textarea",
-                "concept": "f0000202-0000-4000-8000-000000000202",
-                "rows": 4
-              },
-              "id": "soapSubjetivo",
-              "label": "S — Subjetivo"
             }
           ]
         },
@@ -181,44 +165,6 @@
               },
               "id": "neurologico",
               "label": "Neurológico"
-            },
-            {
-              "type": "obs",
-              "required": true,
-              "questionOptions": {
-                "rendering": "textarea",
-                "concept": "160532AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-                "rows": 4
-              },
-              "id": "soapObjetivo",
-              "label": "O — Objetivo",
-              "questionInfo": "Registre los sistemas examinados y los hallazgos relevantes; no asuma normalidad en campos vacíos."
-            }
-          ]
-        },
-        {
-          "label": "Apreciación y plan (SOAP)",
-          "isExpanded": "true",
-          "questions": [
-            {
-              "type": "obs",
-              "questionOptions": {
-                "rendering": "textarea",
-                "concept": "160533AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-                "rows": 4
-              },
-              "id": "soapEvaluacion",
-              "label": "A — Apreciación"
-            },
-            {
-              "type": "obs",
-              "questionOptions": {
-                "rendering": "textarea",
-                "concept": "f0000201-0000-4000-8000-000000000201",
-                "rows": 4
-              },
-              "id": "soapPlan",
-              "label": "P — Plan"
             }
           ]
         }

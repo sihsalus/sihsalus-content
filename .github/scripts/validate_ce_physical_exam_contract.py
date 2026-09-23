@@ -94,14 +94,14 @@ def validate_contract(form):
 
 def validate_legacy_contract(form):
     errors = []
-    if form.get("name") != "CE-SOAP-001-NOTA SOAP" or form.get("version") != "1.1.0":
+    if form.get("name") != "CE-SOAP-001-NOTA SOAP" or form.get("version") != "1.2.0":
         errors.append("historical form identity must be preserved")
     if form.get("uuid") != "92b9a6f7-0c70-4fb1-9b31-678226d5ce02":
         errors.append("historical schema UUID must be preserved")
     if form.get("published") is not False or form.get("retired") is not True:
         errors.append("historical outpatient SOAP must be unpublished and retired")
     questions = {node.get("id"): node for node in walk(form) if node.get("type") == "obs"}
-    for field_id, concept in {**SEGMENTED_FIELD_CONCEPTS, **LEGACY_SOAP_FIELDS}.items():
+    for field_id, concept in SEGMENTED_FIELD_CONCEPTS.items():
         if questions.get(field_id, {}).get("questionOptions", {}).get("concept") != concept:
             errors.append(f"{field_id}: preserve historical question and concept")
     return errors

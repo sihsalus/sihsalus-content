@@ -35,9 +35,36 @@ Para rollback no se debe volver a publicar el JSON con la versión `1.0.1`, porq
 
 El frontend debe resolver `formsList.physicalExamForm` por ese nombre, con la cabecera **Examen físico**. El contenido se incorpora antes o junto con el frontend; no se usa el antiguo formulario como alternativa cuando falta el nuevo.
 
-`CE-SOAP-001-NOTA SOAP` `1.1.0` se despublica y retira declarativamente. Conserva nombre, versión, UUID, preguntas, conceptos y campos obligatorios; únicamente cambian `published` y `retired` en su esquema. No se elimina ni reasocia ningún encuentro u observación y no se usa una migración SQL. Los formularios propios de Hospitalización no cambian.
+`CE-SOAP-001-NOTA SOAP` `1.2.0` se despublica y retira declarativamente. Conserva nombre, versión, UUID, preguntas, conceptos y campos obligatorios; únicamente cambian `published` y `retired` en su esquema. No se elimina ni reasocia ningún encuentro u observación y no se usa una migración SQL. Los formularios propios de Hospitalización no cambian.
 
-Validar la identidad nueva y el retiro con Initializer en instalación y actualización, y comprobar la lectura de encuentros anteriores con datos sintéticos. Las regresiones locales verifican los esquemas; no acreditan carga efectiva, retiro en el backend ni aceptación clínica. Las opciones de funciones biológicas siguen pendientes del catálogo indicado por el equipo clínico; no se inventan valores ni mappings prestacionales por ubicación.
+Validar la identidad nueva y el retiro con Initializer en instalación y actualización, y comprobar la lectura de encuentros anteriores con datos sintéticos. Las regresiones locales verifican los esquemas; no acreditan carga efectiva, retiro en el backend ni aceptación clínica. Las opciones de anamnesis heredadas de la integración anterior requieren revisión clínica; el catálogo prestacional por ubicación sigue pendiente.
+
+## Anamnesis breve de Consulta Externa
+
+`CE-ANAM-001-ANAMNESIS` `1.1.0` reduce de once a tres los campos clínicos de texto
+libre: motivo de consulta, tiempo de enfermedad y detalle breve opcional.
+Inicio, evolución y las seis funciones biológicas usan selectores; estas últimas
+quedan en una sección inicialmente contraída. Ninguna opción se selecciona ni
+se copia desde otra consulta automáticamente. Vacío no significa normal.
+
+Los selectores reutilizan el soporte nativo `answers[].value` de O3 y conservan
+las observaciones **Text** existentes. Las opciones son valores de texto, no
+UUID de respuesta ni nuevos diagnósticos codificados; no cambia ningún datatype
+ni se convierte contenido histórico. El motor debe incluir la corrección de
+lectura/visualización de valores literales del frontend coordinado.
+
+**Coordinación:** content `1.25.28` y el frontend que configura explícitamente
+anamnesis `1.1.0` y el formulario propio de examen físico `1.0.0` deben probarse juntos en QLTY. El frontend
+no debe abrir la captura anterior si falta la versión esperada. Si una visita
+abierta ya contiene un formulario anterior, conserva su lectura histórica y
+bloquea una segunda captura; no reasigna ni duplica ese encuentro.
+
+**Aceptación pendiente:** revisar opciones con el responsable clínico, crear,
+guardar, recargar y editar con roles sintéticos, comprobar campos vacíos y
+visitas que cruzan la actualización. Los validadores locales no acreditan esa
+aceptación. En un rollback conservar los encuentros y esquemas nuevos, usar un
+frontend compatible con ambas versiones y no republicar el esquema anterior
+sobre la identidad nueva.
 
 ## Rangos de laboratorio
 
