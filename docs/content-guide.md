@@ -39,8 +39,9 @@ obligatorio; los sistemas se completan según la evaluación realizada. No hay
 un segundo resumen objetivo ni hallazgos normales predeterminados.
 
 Se conservan los conceptos de texto y los identificadores de pregunta de cada
-sistema. Initializer 2.9.0 crea la nueva versión y retira la versión anterior
-mediante su loader nativo; no se agrega SQL ni se sobrescriben sus esquemas o
+sistema. Initializer `2.13.0-sihsalus.1` crea la nueva versión y retira la versión anterior
+mediante su [loader nativo](https://github.com/mekomsolutions/openmrs-module-initializer/blob/3077975fb4f58c91ff3113d7fed1e3df88829476/api/src/main/java/org/openmrs/module/initializer/api/loaders/AmpathFormsLoader.java);
+no se agrega SQL ni se sobrescriben sus esquemas o
 encuentros históricos. La integración de Initializer comprueba los esquemas
 nuevos y la conservación de las versiones previas durante la actualización.
 
