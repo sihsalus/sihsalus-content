@@ -299,7 +299,7 @@ class HarnessContracts(unittest.TestCase):
                 node.text = "backend_configuration/" + node.text
         historical = ET.tostring(old)
         cases = (
-            (guards.IMAGE_CONTENT_SHA, "1.25.12", "configuration/backend_configuration", historical),
+            (guards.IMAGE_CONTENT_SHA, guards.IMAGE_CONTENT_VERSION, "configuration", current),
             (guards.BASELINE_SHA, "1.25.15", "configuration/backend_configuration", historical),
             ("a" * 40, None, "configuration", current),
         )
@@ -609,6 +609,7 @@ class HarnessContracts(unittest.TestCase):
                 "initializer_log_present": True, "initializer_log_bytes": 20,
                 "initializer_last_loading_domain": None,
                 "initializer_last_completed_domain": None,
+                "initializer_aborted_domains": [],
                 "initializer_failure_hints": [],
             })
 
@@ -706,8 +707,11 @@ class HarnessContracts(unittest.TestCase):
         self.assertIsNone(diagnostic["initializer_last_loading_domain"])
         self.assertIsNone(diagnostic["initializer_last_completed_domain"])
         self.assertEqual(diagnostic["initializer_failure_hints"], [])
+        self.assertIsInstance(diagnostic["initializer_aborted_domains"], list)
+        self.assertTrue(all(domain in harness.LOADER_DOMAINS for domain in diagnostic["initializer_aborted_domains"]))
         self.assertTrue(all(isinstance(value, bool) or value is None
-                            for name, value in diagnostic.items() if name != "initializer_failure_hints"))
+                            for name, value in diagnostic.items()
+                            if name not in {"initializer_failure_hints", "initializer_aborted_domains"}))
         self.assertNotIn("synthetic-private", json.dumps(emit.call_args.kwargs))
         return emit.call_args.kwargs
 
@@ -1177,6 +1181,7 @@ class LoaderDiagnostics(unittest.TestCase):
         self.assertEqual(harness.loader_progress(logs), {
             "initializer_last_loading_domain": "ocl",
             "initializer_last_completed_domain": "roles",
+            "initializer_aborted_domains": [],
             "initializer_failure_hints": ["connection_timeout"],
         })
 
@@ -1190,14 +1195,33 @@ class LoaderDiagnostics(unittest.TestCase):
         self.assertEqual(harness.loader_progress(logs), {
             "initializer_last_loading_domain": None,
             "initializer_last_completed_domain": None,
+            "initializer_aborted_domains": [],
             "initializer_failure_hints": [],
         })
+
+    def test_aborted_domains_are_distinct_from_last_loading_and_sanitized(self):
+        logs = (
+            "The loading of the 'ampathforms' configuration file was aborted:\n/private/form.json\n"
+            "Loading file /openmrs/data/configuration/fhirpatientidentifiersystems/private.csv\n"
+            "The pre-loading of the 'drugs' configuration file was aborted:\n/private/drug.csv\n"
+            "The loading of the 'ampathforms' configuration file was aborted:\n/private/form.json\n"
+            "The loading of the 'privatevalue' configuration file was aborted:\n/private/secret.csv\n"
+        )
+        progress = harness.loader_progress(logs)
+        self.assertEqual(progress["initializer_last_loading_domain"], "fhirpatientidentifiersystems")
+        self.assertEqual(progress["initializer_aborted_domains"], ["ampathforms", "drugs"])
+        self.assertNotIn("private", json.dumps(progress))
 
     def test_failure_hints_are_bounded_and_do_not_repeat_raw_matches(self):
         logs = "java.lang.OutOfMemoryError: private\n" * 100
         logs += "Lock wait timeout exceeded; private SQL\n"
         self.assertEqual(harness.loader_progress(logs)["initializer_failure_hints"],
                          ["out_of_memory", "database_lock_timeout"])
+
+    def test_retired_form_validation_reports_only_a_fixed_category(self):
+        logs = "private form: retireReason: general.retiredReason.empty\n" * 2
+        self.assertEqual(harness.loader_progress(logs)["initializer_failure_hints"],
+                         ["missing_retire_reason"])
 
 
 if __name__ == "__main__":

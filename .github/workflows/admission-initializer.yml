@@ -24,7 +24,7 @@ jobs:
         run: |
           git fetch --no-tags --depth=1 origin \
             8000b27f48bf124fe9a553d4ba41c678e9acc231 \
-            57690d4e976ef6d97a925c68103d532d10ee15cf
+            762920145a806f989fd8876ab2938ef217f57aab
       - name: Test the harness isolation and assertions without Docker
         run: python3 -B .github/integration/admission-initializer/test_harness.py
       - name: Exercise the pinned backend with exclusively synthetic data

@@ -11,9 +11,10 @@ import tarfile
 import xml.etree.ElementTree as ET
 from pathlib import Path, PurePosixPath
 
-BACKEND = "ghcr.io/sihsalus/sihsalus-backend@sha256:d03384f0368052101bfb949c0de24547f6e5aaf7caedce874f1eb7c296711fe2"
-DISTRO_SHA = "492757585d30b9f2b70c3bbff603d16f635e5d28"
-IMAGE_CONTENT_SHA = "57690d4e976ef6d97a925c68103d532d10ee15cf"
+BACKEND = "ghcr.io/sihsalus/sihsalus-backend@sha256:ae9afe41f7632f25268203772ec74266fd0a5495ad7b9ab5e09c9e6a6df6fcd8"
+DISTRO_SHA = "fb11da724dced859d00974c9ff2928aae135e704"
+IMAGE_CONTENT_SHA = "762920145a806f989fd8876ab2938ef217f57aab"
+IMAGE_CONTENT_VERSION = "1.25.26"
 BASELINE_SHA = "8000b27f48bf124fe9a553d4ba41c678e9acc231"
 DATABASE_IMAGE = "mariadb:10.11.7"
 DATABASE = "admission_initializer_ci"
@@ -26,7 +27,7 @@ EMRAPI_ROLES = {
     "Privilege Level: High": "f089471c-e00b-468e-96e8-46aea1b339af",
 }
 CHANGESET = "reconcile-admission-role-20260907"
-INITIALIZER_VERSION = "2.13.0-sihsalus.1"
+INITIALIZER_VERSION = "2.13.0-sihsalus.2"
 CONFIG_PREFIX = "configuration"
 LEGACY_CONFIG_PREFIX = "configuration/backend_configuration"
 ROLES_FILE = "roles/roles-core.csv"

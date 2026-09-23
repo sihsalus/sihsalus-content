@@ -19,7 +19,7 @@ from collections import Counter
 from pathlib import Path, PurePosixPath
 
 from guards import (
-    BACKEND, DISTRO_SHA, IMAGE_CONTENT_SHA, BASELINE_SHA, DATABASE_IMAGE, DATABASE,
+    BACKEND, DISTRO_SHA, IMAGE_CONTENT_SHA, IMAGE_CONTENT_VERSION, BASELINE_SHA, DATABASE_IMAGE, DATABASE,
     OWNER_LABEL, CANONICAL_ROLE, LEGACY_ROLE, CANONICAL_UUID, EMRAPI_ROLES, CHANGESET,
     INITIALIZER_VERSION, ROLES_FILE, CURRENT_ADMISSION_ADDITIONS, LIQUIBASE_FILE,
     ROLES_CHECKSUM, LIQUIBASE_CHECKSUM, UUID_PATTERN, STRICT_JAVA, HarnessFailure,
@@ -50,7 +50,7 @@ REVIEWED_RANGES = (
 OPERATIONAL_CHANGESET = "reconcile-admission-operational-alias-20260921"
 COMPLETION = "OpenMRS config loading process completed."
 ABORT = "The loading of the 'liquibase' configuration file was aborted:"
-FILE_ABORT = re.compile(r"The (?:pre-)?loading of the '[^'\r\n]+' configuration file was aborted:")
+FILE_ABORT = re.compile(r"The (?:pre-)?loading of the '(?P<domain>[^'\r\n]+)' configuration file was aborted:")
 INITIALIZER_STOPPED = re.compile(r"Disposing of ModuleClassLoader: \{ModuleClassLoader: uid=-?\d+; initializer\}")
 STATE_TABLES = {
     "role": "role", "role_privilege": "role,privilege",
@@ -97,10 +97,13 @@ def loader_progress(logs):
         "dns_failure": "java.net.UnknownHostException",
         "database_deadlock": "Deadlock found when trying to get lock",
         "database_lock_timeout": "Lock wait timeout exceeded",
+        "missing_retire_reason": "general.retiredReason.empty",
     }
     return {
         "initializer_last_loading_domain": loading[-1] if loading and loading[-1] in LOADER_DOMAINS else None,
         "initializer_last_completed_domain": completed[-1] if completed and completed[-1] in LOADER_DOMAINS else None,
+        "initializer_aborted_domains": sorted({match.group("domain") for match in FILE_ABORT.finditer(logs)
+                                               if match.group("domain") in LOADER_DOMAINS}),
         "initializer_failure_hints": [name for name, marker in categories.items() if marker in logs],
     }
 
@@ -230,7 +233,7 @@ class Harness:
             require(node.text == version, "unexpected_content_version")
         prefix = validate_assembly(
             checked(["git", "show", sha + ":assembly.xml"], cwd=ROOT).stdout,
-            legacy=sha in (IMAGE_CONTENT_SHA, BASELINE_SHA),
+            legacy=sha == BASELINE_SHA,
         )
         archive = checked(["git", "archive", sha, prefix], cwd=ROOT, timeout=180).stdout
         extract_archive(archive, destination, prefix, package=True)
@@ -263,10 +266,10 @@ class Harness:
         startup = self.copy_file(probe, "/openmrs/startup.sh").decode()
         require("source /openmrs/startup-init.sh" in startup and "/usr/local/tomcat/bin/catalina.sh run" in startup, "unverified_image_entrypoint")
         distro = properties(self.copy_file(probe, "/openmrs/distribution/openmrs-distro.properties"))
-        require(distro.get("content.sihsalus-content") == "1.25.12", "image_content_version_mismatch")
+        require(distro.get("content.sihsalus-content") == IMAGE_CONTENT_VERSION, "image_content_version_mismatch")
         self.remove_container(probe)
-        original, baseline, candidate = [self.directory / name for name in ("source-12", "source-15", "source-candidate")]
-        for sha, version, path in ((IMAGE_CONTENT_SHA, "1.25.12", original), (BASELINE_SHA, "1.25.15", baseline), (self.candidate_sha, None, candidate)):
+        original, baseline, candidate = [self.directory / name for name in ("source-image", "source-15", "source-candidate")]
+        for sha, version, path in ((IMAGE_CONTENT_SHA, IMAGE_CONTENT_VERSION, original), (BASELINE_SHA, "1.25.15", baseline), (self.candidate_sha, None, candidate)):
             self.git_configuration(sha, version, path)
         self.privileges = admission_privileges(baseline)
         self.candidate_privileges = admission_privileges(candidate, CURRENT_ADMISSION_ADDITIONS)
@@ -508,7 +511,7 @@ class Harness:
                 next_diagnostic = now + 60
                 require(has_errors is not True, "installation_reported_errors")
             # A separate failure cannot be masked by the expected Liquibase
-            # rejection. Never emit the matched domain, filename or raw log.
+            # rejection. Diagnostics allow only known domains, never filenames or raw logs.
             if unexpected_abort:
                 raise HarnessFailure("unexpected_initializer_abort")
             if expected_rejection:
