@@ -2,7 +2,8 @@
 
 Revisión clínica y normativa inicial: **2026-09-12**. Cambios incorporados
 desde el paquete publicado **1.25.19**. La corrección de selección del
-**2026-09-23**, candidata a `1.25.25`, se describe abajo; no acredita aceptación
+**2026-09-23**, iniciada en `1.25.25` y ampliada en el candidato `1.25.26`, se
+describe abajo; no acredita aceptación
 clínica ni sustituye los procedimientos institucionales.
 Este contrato distingue el contenido requerido del informe, los puntos de corte
 diagnósticos y la representación informática. Una release OCL publicada no
@@ -123,8 +124,10 @@ ni implementa una conversión automática.
 
 ## Selección de poblaciones desde 1.25.25
 
-Las filas neonatales usan las semanas/meses completos a la fecha de la muestra,
-mediante los helpers nativos de Core. Reutilizan el concepto `sihsalus:1030`
+Desde `1.25.26`, todas las bandas de edad de hemoglobina usan semanas, meses o
+años completos a la fecha de la muestra mediante los helpers nativos de Core. Así, una muestra
+neonatal histórica no coincide también con la banda de edad actual del paciente.
+Las filas neonatales reutilizan el concepto `sihsalus:1030`
 (`c2380004-0000-4000-8000-000000000004`), semanas de prematuridad, capturado por
 CRED-009 y CRED-026: un valor positivo hasta 20 identifica prematuridad; cero
 explícito permite los rangos de nacidos a término. Un dato ausente, inválido o

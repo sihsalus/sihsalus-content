@@ -32,6 +32,9 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - Los rangos de hemoglobina neonatal exigen prematuridad explícita y usan la edad
   a la fecha de la muestra. Los maternos distinguen los estados prenatales y de
   posparto; las 40 semanas dejan de funcionar como sustituto del parto.
+- Extiende en `1.25.26` la edad a la fecha de la muestra a las siete bandas restantes
+  de hemoglobina. Evita que muestras neonatales históricas coincidan también con
+  rangos de la edad actual del paciente.
 - Desactiva las dos reglas de creatinina normalizada por peso que se aplicaban
   a la medición absoluta de 24 horas. Conserva UUIDs y valores históricos; Core
   vuelve a los límites del concepto, pendientes de validación institucional.
@@ -43,9 +46,8 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   regresiones con datos sintéticos.
 
 La limpieza de estructura y documentación conserva la metadata de `1.25.24`.
-Las correcciones de formularios y rangos se incorporaron en `1.25.25`.
-La captura de alta neonatal prepara **`1.25.26`**, pendiente de revisión y aceptación
-en QLTY; no reemplaza artefactos publicados.
+Las correcciones iniciales de formularios y rangos corresponden a `1.25.25`;
+la ampliación a todas las edades prepara **`1.25.26`**, aún sin publicar.
 
 ## [1.25.24] - 2026-09-22
 
