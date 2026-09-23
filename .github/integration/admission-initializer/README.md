@@ -304,12 +304,22 @@ and their `MD5SUM` provide the XML execution evidence.
 
 Each scenario runs on its own runner with only one backend (4 GiB, 2 CPUs) and
 one database (1 GiB, 1 CPU) concurrently. Within `upgrade`, baseline snapshots
-are reused for the upgrade and rejection branches. Each backend startup allows
-at most 35 minutes, sharing an 80-minute total budget per scenario; cleanup has
-a separate three-minute global budget and at most 45 seconds per Docker
-operation. Each matrix job has a 90-minute timeout.
-A cold full baseline can exhaust these budgets; timeout is a failed validation,
-not permission to reduce the loader scope or accept partial startup.
+are reused for the upgrade and rejection branches. The first historical baseline
+startup allows at most 45 minutes; every other startup allows at most 35 minutes.
+All startups share an 80-minute total budget per scenario; cleanup has a separate
+three-minute global budget and at most 45 seconds per Docker operation. Each
+matrix job has a 90-minute timeout.
+
+The baseline allowance addresses the cold-start timeout observed in
+[main CI 35932198274](https://github.com/sihsalus/sihsalus-content/actions/runs/35932198274):
+both update scenarios were still producing Initializer log output when the
+35-minute limit expired, with no abort or CSV error marker. The identical source
+passed all scenarios in
+[PR CI 35929593687](https://github.com/sihsalus/sihsalus-content/actions/runs/35929593687).
+This increases only the first baseline startup allowance; it does not identify
+the cause of the runtime variation. No elapsed time, progress counter or log
+activity proves readiness: completion and the real started module are still
+required. Exhausting either budget remains a failed validation.
 
 Stdout contains only sanitized JSON phase results, public source identifiers,
 checksums and fixed diagnostic codes. Preserve only that JSONL in the separate

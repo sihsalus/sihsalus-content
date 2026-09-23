@@ -613,6 +613,34 @@ class HarnessContracts(unittest.TestCase):
                 "initializer_failure_hints": [],
             })
 
+    def test_cold_baseline_extra_time_requires_completion_and_respects_other_limits(self):
+        cases = (("baseline", 80, True, True), ("baseline", 30, True, False),
+                 ("fresh_candidate", 80, True, False), ("baseline", 80, False, False))
+        for stage, scenario_minutes, completes, passes in cases:
+            with self.subTest(stage=stage, scenario_minutes=scenario_minutes, completes=completes):
+                self.setup_lifecycle("")
+                self.runtime.deadline = scenario_minutes * 60
+                self.runtime.remaining = harness.Harness.remaining.__get__(self.runtime)
+                self.runtime.module_status = Mock(return_value=True)
+                clock = {"now": 0}
+                def advance(seconds):
+                    clock["now"] += 60
+                self.runtime.lifecycle_logs.side_effect = lambda backend: (
+                    harness.COMPLETION if completes and clock["now"] >= 36 * 60 else "", True, 20)
+                with patch.object(harness.time, "monotonic", side_effect=lambda: clock["now"]), \
+                        patch.object(harness.time, "sleep", side_effect=advance), patch.object(harness, "emit") as emit:
+                    if passes:
+                        self.runtime.wait_initializer("owned", stage)
+                        self.runtime.effective_strict.assert_called_once_with("owned")
+                        self.runtime.module_status.assert_called_once_with("owned")
+                        emit.assert_any_call(stage, "PASSED", initializer_started=True)
+                    else:
+                        with self.assertRaisesRegex(HarnessFailure, "^initializer_lifecycle_not_proven_before_timeout$"):
+                            self.runtime.wait_initializer("owned", stage)
+                        self.runtime.module_status.assert_not_called()
+                        self.assertFalse(any(call.args[1] == "PASSED" for call in emit.call_args_list))
+                self.assertLessEqual(clock["now"], min(scenario_minutes, 45) * 60)
+
     def test_lifecycle_waits_for_real_module_after_completion_log(self):
         self.setup_lifecycle(harness.COMPLETION)
         self.runtime.request = Mock(side_effect=[(302, None), (200, self.module())])

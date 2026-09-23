@@ -482,7 +482,9 @@ class Harness:
 
     def wait_initializer(self, backend, stage, reject=False):
         started_at = time.monotonic()
-        deadline = started_at + self.remaining()
+        # The historical baseline can still be loading at the normal startup limit.
+        startup_budget = self.remaining(45 * 60) if stage == "baseline" else self.remaining()
+        deadline = started_at + startup_budget
         next_diagnostic = started_at
         observed = None
         while time.monotonic() < deadline:
