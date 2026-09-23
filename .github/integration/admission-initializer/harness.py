@@ -19,7 +19,7 @@ from collections import Counter
 from pathlib import Path, PurePosixPath
 
 from guards import (
-    BACKEND, DISTRO_SHA, IMAGE_CONTENT_SHA, BASELINE_SHA, DATABASE_IMAGE, DATABASE,
+    BACKEND, DISTRO_SHA, IMAGE_CONTENT_SHA, IMAGE_CONTENT_VERSION, BASELINE_SHA, DATABASE_IMAGE, DATABASE,
     OWNER_LABEL, CANONICAL_ROLE, LEGACY_ROLE, CANONICAL_UUID, EMRAPI_ROLES, CHANGESET,
     INITIALIZER_VERSION, ROLES_FILE, CURRENT_ADMISSION_ADDITIONS, LIQUIBASE_FILE,
     ROLES_CHECKSUM, LIQUIBASE_CHECKSUM, UUID_PATTERN, STRICT_JAVA, HarnessFailure,
@@ -97,6 +97,7 @@ def loader_progress(logs):
         "dns_failure": "java.net.UnknownHostException",
         "database_deadlock": "Deadlock found when trying to get lock",
         "database_lock_timeout": "Lock wait timeout exceeded",
+        "missing_retire_reason": "general.retiredReason.empty",
     }
     return {
         "initializer_last_loading_domain": loading[-1] if loading and loading[-1] in LOADER_DOMAINS else None,
@@ -230,7 +231,7 @@ class Harness:
             require(node.text == version, "unexpected_content_version")
         prefix = validate_assembly(
             checked(["git", "show", sha + ":assembly.xml"], cwd=ROOT).stdout,
-            legacy=sha in (IMAGE_CONTENT_SHA, BASELINE_SHA),
+            legacy=sha == BASELINE_SHA,
         )
         archive = checked(["git", "archive", sha, prefix], cwd=ROOT, timeout=180).stdout
         extract_archive(archive, destination, prefix, package=True)
@@ -263,10 +264,10 @@ class Harness:
         startup = self.copy_file(probe, "/openmrs/startup.sh").decode()
         require("source /openmrs/startup-init.sh" in startup and "/usr/local/tomcat/bin/catalina.sh run" in startup, "unverified_image_entrypoint")
         distro = properties(self.copy_file(probe, "/openmrs/distribution/openmrs-distro.properties"))
-        require(distro.get("content.sihsalus-content") == "1.25.12", "image_content_version_mismatch")
+        require(distro.get("content.sihsalus-content") == IMAGE_CONTENT_VERSION, "image_content_version_mismatch")
         self.remove_container(probe)
-        original, baseline, candidate = [self.directory / name for name in ("source-12", "source-15", "source-candidate")]
-        for sha, version, path in ((IMAGE_CONTENT_SHA, "1.25.12", original), (BASELINE_SHA, "1.25.15", baseline), (self.candidate_sha, None, candidate)):
+        original, baseline, candidate = [self.directory / name for name in ("source-image", "source-15", "source-candidate")]
+        for sha, version, path in ((IMAGE_CONTENT_SHA, IMAGE_CONTENT_VERSION, original), (BASELINE_SHA, "1.25.15", baseline), (self.candidate_sha, None, candidate)):
             self.git_configuration(sha, version, path)
         self.privileges = admission_privileges(baseline)
         self.candidate_privileges = admission_privileges(candidate, CURRENT_ADMISSION_ADDITIONS)

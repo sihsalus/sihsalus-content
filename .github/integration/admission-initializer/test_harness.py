@@ -299,7 +299,7 @@ class HarnessContracts(unittest.TestCase):
                 node.text = "backend_configuration/" + node.text
         historical = ET.tostring(old)
         cases = (
-            (guards.IMAGE_CONTENT_SHA, "1.25.12", "configuration/backend_configuration", historical),
+            (guards.IMAGE_CONTENT_SHA, guards.IMAGE_CONTENT_VERSION, "configuration", current),
             (guards.BASELINE_SHA, "1.25.15", "configuration/backend_configuration", historical),
             ("a" * 40, None, "configuration", current),
         )
@@ -1198,6 +1198,11 @@ class LoaderDiagnostics(unittest.TestCase):
         logs += "Lock wait timeout exceeded; private SQL\n"
         self.assertEqual(harness.loader_progress(logs)["initializer_failure_hints"],
                          ["out_of_memory", "database_lock_timeout"])
+
+    def test_retired_form_validation_reports_only_a_fixed_category(self):
+        logs = "private form: retireReason: general.retiredReason.empty\n" * 2
+        self.assertEqual(harness.loader_progress(logs)["initializer_failure_hints"],
+                         ["missing_retire_reason"])
 
 
 if __name__ == "__main__":
