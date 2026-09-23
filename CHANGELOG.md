@@ -10,6 +10,16 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Consulta externa — candidata `1.25.27`
+
+- Examen físico `1.2.0`: solo examen general y por sistemas, sin Subjetivo,
+  Objetivo, Apreciación ni Plan duplicados.
+- Anamnesis `1.1.0`: ocho selectores explícitos, tres campos de texto y funciones
+  biológicas contraídas. Conserva conceptos Text y no predetermina normalidad.
+- Evolución por el loader nativo de formularios, con conservación del histórico;
+  amplía la integración de Initializer a ambos esquemas. Requiere el frontend
+  coordinado y aceptación clínica QLTY antes de producción.
+
 ### Agregado
 
 - Captura opcional de fecha/hora de alta neonatal en el formulario de nacimiento

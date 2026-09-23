@@ -32,6 +32,7 @@ for page in form["pages"]:
         for question in section.get("questions", []):
             if question.get("id") == "apetito":
                 question["questionOptions"]["rendering"] = "select"
+                question["questionOptions"]["answers"] = [{"concept": "synthetic-answer-uuid", "label": "Respuesta codificada"}]
 path.write_text(json.dumps(form, ensure_ascii=False, indent=2))
 PY
 if python3 "$validator" >/dev/null 2>&1; then

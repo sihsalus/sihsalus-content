@@ -31,15 +31,45 @@ Para rollback no se debe volver a publicar el JSON con la versión `1.0.1`, porq
 
 ## Contrato de examen físico de Consulta Externa
 
-`CE-SOAP-001-NOTA SOAP` versión `1.1.0` conserva la versión histórica `1.0.0` y segmenta el examen
-general y regional. Estado general, conciencia y orientación, piel y faneras y cada sistema regional
-usan su concepto de texto canónico existente. El estado general solicita consignar hidratación y
-nutrición cuando sean pertinentes; el resumen regional conserva el campo objetivo SOAP histórico.
-Los consumidores identifican cada dato por su `formFieldPath`, no por la posición de la observación.
+`CE-SOAP-001-NOTA SOAP` conserva su nombre técnico y usa la versión `1.2.0`.
+La captura muestra **Examen físico**, con examen general y hallazgos por sistemas.
+Retira Subjetivo, Objetivo, Apreciación y Plan: la anamnesis, el diagnóstico y el
+tratamiento pertenecen a sus secciones existentes. Solo estado general es
+obligatorio; los sistemas se completan según la evaluación realizada. No hay
+un segundo resumen objetivo ni hallazgos normales predeterminados.
 
-El formulario no propone ni persiste hallazgos normales automáticamente. El estado general y el
-resumen regional/objetivo son obligatorios; los sistemas específicos se registran según pertinencia clínica.
-La versión nueva preserva los encuentros y el esquema `1.0.0` para lectura histórica.
+Se conservan los conceptos de texto y los identificadores de pregunta de cada
+sistema. Initializer 2.9.0 crea la nueva versión y retira la versión anterior
+mediante su loader nativo; no se agrega SQL ni se sobrescriben sus esquemas o
+encuentros históricos. La integración de Initializer comprueba los esquemas
+nuevos y la conservación de las versiones previas durante la actualización.
+
+## Anamnesis breve de Consulta Externa
+
+`CE-ANAM-001-ANAMNESIS` `1.1.0` reduce de once a tres los campos clínicos de texto
+libre: motivo de consulta, tiempo de enfermedad y detalle breve opcional.
+Inicio, evolución y las seis funciones biológicas usan selectores; estas últimas
+quedan en una sección inicialmente contraída. Ninguna opción se selecciona ni
+se copia desde otra consulta automáticamente. Vacío no significa normal.
+
+Los selectores reutilizan el soporte nativo `answers[].value` de O3 y conservan
+las observaciones **Text** existentes. Las opciones son valores de texto, no
+UUID de respuesta ni nuevos diagnósticos codificados; no cambia ningún datatype
+ni se convierte contenido histórico. El motor debe incluir la corrección de
+lectura/visualización de valores literales del frontend coordinado.
+
+**Coordinación:** content `1.25.27` y el frontend que configura explícitamente
+anamnesis `1.1.0` y examen físico `1.2.0` deben probarse juntos en QLTY. El frontend
+no debe abrir la captura anterior si falta la versión esperada. Si una visita
+abierta ya contiene un formulario anterior, conserva su lectura histórica y
+bloquea una segunda captura; no reasigna ni duplica ese encuentro.
+
+**Aceptación pendiente:** revisar opciones con el responsable clínico, crear,
+guardar, recargar y editar con roles sintéticos, comprobar campos vacíos y
+visitas que cruzan la actualización. Los validadores locales no acreditan esa
+aceptación. En un rollback conservar los encuentros y esquemas nuevos, usar un
+frontend compatible con ambas versiones y no republicar el esquema anterior
+sobre la identidad nueva.
 
 ## Rangos de laboratorio
 

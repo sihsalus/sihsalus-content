@@ -10,8 +10,8 @@ FORM_PATH = Path(
     "configuration/ampathforms/CE-SOAP-001-NOTA SOAP.json"
 )
 EXPECTED_NAME = "CE-SOAP-001-NOTA SOAP"
-EXPECTED_VERSION = "1.1.0"
-REQUIRED_FIELDS = {"estadoGeneral", "soapObjetivo"}
+EXPECTED_VERSION = "1.2.0"
+REQUIRED_FIELDS = {"estadoGeneral"}
 SEGMENTED_FIELD_CONCEPTS = {
     "estadoGeneral": "b564fd45-c5e8-4889-ba05-e878b485cdd1",
     "estadoConciencia": "2944f99e-bda8-4acc-8a4e-d5709dd82041",
@@ -23,7 +23,6 @@ SEGMENTED_FIELD_CONCEPTS = {
     "genitourinario": "57746a04-5f9e-4e42-9233-efeeeb3db0d0",
     "musculoesqueleticoExtremidades": "479e125e-e5be-4538-8c4e-ed6fd9c8d515",
     "neurologico": "d55d40c3-9ba8-4c7f-8728-f28ddb22cbd3",
-    "soapObjetivo": "160532AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
 }
 LEGACY_SOAP_FIELDS = {"soapSubjetivo", "soapObjetivo", "soapEvaluacion", "soapPlan"}
 
@@ -44,7 +43,7 @@ def validate_contract(form):
         errors.append(f"form name must remain {EXPECTED_NAME!r}")
     if form.get("version") != EXPECTED_VERSION:
         errors.append(
-            f"form version must remain {EXPECTED_VERSION}; do not overwrite historical 1.0.0"
+            f"form version must remain {EXPECTED_VERSION}; do not overwrite historical 1.0.0 or 1.1.0"
         )
 
     questions = {
@@ -56,9 +55,9 @@ def validate_contract(form):
     if missing:
         errors.append(f"missing segmented physical-exam fields: {sorted(missing)}")
 
-    missing_legacy = LEGACY_SOAP_FIELDS - questions.keys()
-    if missing_legacy:
-        errors.append(f"missing legacy SOAP compatibility fields: {sorted(missing_legacy)}")
+    duplicated_soap = LEGACY_SOAP_FIELDS & questions.keys()
+    if duplicated_soap:
+        errors.append(f"physical examination must not duplicate SOAP fields: {sorted(duplicated_soap)}")
 
     for field_id in sorted(SEGMENTED_FIELD_CONCEPTS.keys() & questions.keys()):
         question = questions[field_id]
@@ -99,7 +98,7 @@ def main():
         return 1
 
     print(
-        "Validated CE-SOAP 1.1.0 segmented general/regional examination without "
+        "Validated CE-SOAP 1.2.0 segmented general/regional examination without "
         "automatic normal findings."
     )
     return 0

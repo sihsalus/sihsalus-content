@@ -29,7 +29,8 @@ from guards import (
 )
 
 ROOT = Path(__file__).resolve().parents[3]
-REVIEWED_FORMS = ("CRED-001-TAMIZAJE DE ANEMIA.json", "OBST-002-EMBARAZO ACTUAL.json")
+REVIEWED_FORMS = ("CRED-001-TAMIZAJE DE ANEMIA.json", "OBST-002-EMBARAZO ACTUAL.json",
+                  "CE-ANAM-001-ANAMNESIS.json", "CE-SOAP-001-NOTA SOAP.json")
 REVIEWED_RANGES = (
     "f0c6d3dc-a0d2-497c-921f-b7266d448fcf", "a769e98e-e91f-4d4c-b029-1c66e267f32a",
     "0502ff16-270e-423f-8fa6-95255fdc9b19", "a75289e3-427c-4e14-ad67-50fc34dcc733",
