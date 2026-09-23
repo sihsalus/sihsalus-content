@@ -718,8 +718,11 @@ class Harness:
         for filename in REVIEWED_FORMS:
             data = (self.candidate_config / "ampathforms" / filename).read_bytes()
             schema = json.loads(data)
-            expected = "\t".join([schema["version"], "0", hashlib.md5(data).hexdigest()])
-            active_hashes.add(hashlib.md5(data).hexdigest())
+            # Core's OpenmrsObjectSaveHandler applies Java String.trim() when
+            # saving ClobDatatypeStorage. Preserve every byte inside the JSON.
+            stored_hash = hashlib.md5(data.strip(bytes(range(33)))).hexdigest()
+            expected = "\t".join([schema["version"], "0", stored_hash])
+            active_hashes.add(stored_hash)
             rows = self.query(db,
                 "SELECT f.version,f.retired,MD5(c.value) FROM form f "
                 "JOIN form_resource r ON r.form_id=f.form_id AND r.name='JSON schema' "

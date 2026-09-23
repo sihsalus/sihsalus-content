@@ -37,5 +37,9 @@ urine-creatinine rules with incompatible units. These check selection behavior,
 not institutional approval of reference intervals. OpenMRS test logging stays
 under `target/openmrs`.
 
+`FormSchemaPersistenceTest` checks Core's native save handler on the two shipped
+form schemas. It verifies outer-whitespace trimming and preserved internal bytes,
+which the Initializer harness must account for when comparing persisted hashes.
+
 All dependencies are test-only. The project is outside the content release
 reactor and packaged configuration; CI blocks publication if its tests fail.
