@@ -2,7 +2,7 @@
 
 Los archivos JSON de este directorio contienen el nombre y la versión del formulario
 como propiedades separadas. Por ejemplo, `CE-001-CONSULTA EXTERNA` usa `1.0.2` y
-`CE-SOAP-001-NOTA SOAP` usa `1.1.0`. La versión no lleva un prefijo de área ni de código.
+`CE-EXF-001-EXAMEN FISICO` usa `1.0.0`. La versión no lleva un prefijo de área ni de código.
 
 Conservar los nombres de archivo y las propiedades `name`, `version` y `uuid` existentes
 durante una limpieza documental. Las versiones históricas incluyen formatos como `1.0`
@@ -22,7 +22,7 @@ con archivos sintéticos; las pruebas específicas de CE-001 e historia social
 reutilizan el mismo cálculo de identidad.
 
 La [guía de contenido](../../docs/content-guide.md) explica el retiro de CE-001
-`1.0.1`, su versión canónica `1.0.2` y la conservación de SOAP `1.0.0` al incorporar
-`1.1.0`. Sus comprobaciones están en
+`1.0.1`, su versión canónica `1.0.2` y el formulario propio de examen físico.
+El esquema anterior de consulta externa se conserva completo y se retira de captura. Sus comprobaciones están en
 [validate_ce001_diagnosis_contract.py](../../.github/scripts/validate_ce001_diagnosis_contract.py)
 y [validate_ce_physical_exam_contract.py](../../.github/scripts/validate_ce_physical_exam_contract.py).

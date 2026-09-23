@@ -17,6 +17,8 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ### Cambiado
 
+- Content `1.25.27`: Consulta externa usa `CE-EXF-001-EXAMEN FISICO` `1.0.0`, con examen general y regional sin campos SOAP duplicados. Retira y despublica la captura anterior conservando sus preguntas, conceptos e identidad para la historia. Requiere el frontend con `formsList.physicalExamForm`; pendiente de validación de carga y aceptación clínica.
+
 - Organiza las fuentes directamente bajo `configuration/`, conservando las
   rutas y los bytes de los 207 archivos del ZIP publicado `1.25.24`.
 - Simplifica el build y los validadores, retira configuración de formato sin

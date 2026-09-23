@@ -31,15 +31,13 @@ Para rollback no se debe volver a publicar el JSON con la versión `1.0.1`, porq
 
 ## Contrato de examen físico de Consulta Externa
 
-`CE-SOAP-001-NOTA SOAP` versión `1.1.0` conserva la versión histórica `1.0.0` y segmenta el examen
-general y regional. Estado general, conciencia y orientación, piel y faneras y cada sistema regional
-usan su concepto de texto canónico existente. El estado general solicita consignar hidratación y
-nutrición cuando sean pertinentes; el resumen regional conserva el campo objetivo SOAP histórico.
-Los consumidores identifican cada dato por su `formFieldPath`, no por la posición de la observación.
+`CE-EXF-001-EXAMEN FISICO` versión `1.0.0` es el formulario propio de examen físico ambulatorio. Conserva los diez conceptos e identificadores de examen general y regional ya existentes; no incluye Subjetivo, Objetivo, Apreciación ni Plan. Estado general sigue siendo obligatorio y los sistemas específicos se registran según pertinencia clínica, sin completar hallazgos normales automáticamente. Anamnesis, diagnóstico y tratamiento mantienen sus formularios y servicios existentes.
 
-El formulario no propone ni persiste hallazgos normales automáticamente. El estado general y el
-resumen regional/objetivo son obligatorios; los sistemas específicos se registran según pertinencia clínica.
-La versión nueva preserva los encuentros y el esquema `1.0.0` para lectura histórica.
+El frontend debe resolver `formsList.physicalExamForm` por ese nombre, con la cabecera **Examen físico**. El contenido se incorpora antes o junto con el frontend; no se usa el antiguo formulario como alternativa cuando falta el nuevo.
+
+`CE-SOAP-001-NOTA SOAP` `1.1.0` se despublica y retira declarativamente. Conserva nombre, versión, UUID, preguntas, conceptos y campos obligatorios; únicamente cambian `published` y `retired` en su esquema. No se elimina ni reasocia ningún encuentro u observación y no se usa una migración SQL. Los formularios propios de Hospitalización no cambian.
+
+Validar la identidad nueva y el retiro con Initializer en instalación y actualización, y comprobar la lectura de encuentros anteriores con datos sintéticos. Las regresiones locales verifican los esquemas; no acreditan carga efectiva, retiro en el backend ni aceptación clínica. Las opciones de funciones biológicas siguen pendientes del catálogo indicado por el equipo clínico; no se inventan valores ni mappings prestacionales por ubicación.
 
 ## Rangos de laboratorio
 
