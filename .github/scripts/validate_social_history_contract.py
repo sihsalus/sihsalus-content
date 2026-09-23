@@ -7,8 +7,8 @@ from pathlib import Path
 from validate_ampath_forms import walk
 from validate_ce001_diagnosis_contract import ampath_persisted_form_uuid
 
-FORM_PATH = Path('configuration/backend_configuration/ampathforms/CE-SOC-001-HISTORIA SOCIAL.json')
-ENCOUNTER_PATH = Path('configuration/backend_configuration/encountertypes/encountertypes.csv')
+FORM_PATH = Path('configuration/ampathforms/CE-SOC-001-HISTORIA SOCIAL.json')
+ENCOUNTER_PATH = Path('configuration/encountertypes/encountertypes.csv')
 FORM_UUID = '76067e7a-48e5-3f69-92a4-70cf53e3e994'
 ENCOUNTER_UUID = 'c7059f4b-385f-45e7-82ad-204e5b380196'
 CONCEPTS = {

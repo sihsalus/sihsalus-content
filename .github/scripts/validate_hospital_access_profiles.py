@@ -13,7 +13,7 @@ from uuid import UUID
 
 ROOT = Path(__file__).resolve().parents[2]
 CONTRACT = Path("docs/contracts/hospital-access-profiles.json")
-CONFIG = Path("configuration/backend_configuration")
+CONFIG = Path("configuration")
 OPERATIONS = {
     "SIHSALUS Laboratorio": "cf57784d-c859-40ee-b3f2-a3075388d6d4",
     "SIHSALUS Soporte": "ac0ac0e6-2520-4181-9023-7891a82dabd2",

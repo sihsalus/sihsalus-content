@@ -4,8 +4,8 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${script_dir}/../.." && pwd)"
 validator=".github/scripts/validate_reference_ranges.sh"
-ocl_dir="configuration/backend_configuration/ocl"
-range_dir="configuration/backend_configuration/conceptreferencerange"
+ocl_dir="configuration/ocl"
+range_dir="configuration/conceptreferencerange"
 hemoglobin_uuid="0ffe780c-a3ee-4c9c-b4dd-bf2e0f79dc7f"
 saturation_uuid="5092AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 

@@ -15,13 +15,13 @@ from pathlib import Path
 
 
 repo_root = Path(sys.argv[1])
-range_dir = repo_root / "configuration/backend_configuration/conceptreferencerange"
-ocl_dir = repo_root / "configuration/backend_configuration/ocl"
+range_dir = repo_root / "configuration/conceptreferencerange"
+ocl_dir = repo_root / "configuration/ocl"
 programs_path = (
     repo_root
-    / "configuration/backend_configuration/programs/programs-package-peruhce.csv"
+    / "configuration/programs/programs-package-peruhce.csv"
 )
-roles_dir = repo_root / "configuration/backend_configuration/roles"
+roles_dir = repo_root / "configuration/roles"
 
 csv_paths = sorted(range_dir.glob("*.csv"))
 zip_paths = sorted(ocl_dir.glob("*.zip"))

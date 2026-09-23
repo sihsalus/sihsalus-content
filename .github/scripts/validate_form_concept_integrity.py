@@ -23,8 +23,8 @@ import zipfile
 from collections import defaultdict
 from pathlib import Path
 
-OCL_DIR = Path("configuration/backend_configuration/ocl")
-FORM_DIR = Path("configuration/backend_configuration/ampathforms")
+OCL_DIR = Path("configuration/ocl")
+FORM_DIR = Path("configuration/ampathforms")
 BASELINE_PATH = Path(".github/scripts/form_concept_integrity_baseline.json")
 
 # El label promete un código pero el concepto guarda texto libre.

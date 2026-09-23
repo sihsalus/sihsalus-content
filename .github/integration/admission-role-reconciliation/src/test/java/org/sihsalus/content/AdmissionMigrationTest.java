@@ -97,7 +97,7 @@ public class AdmissionMigrationTest {
         execute("CREATE TABLE admission_harness_owner (owner VARCHAR(36) PRIMARY KEY) ENGINE=InnoDB");
         execute("INSERT INTO admission_harness_owner VALUES (?)", OWNER);
         Path content = Path.of(System.getProperty("content.root")).toRealPath();
-        candidate = content.resolve("configuration/backend_configuration/liquibase/liquibase.xml");
+        candidate = content.resolve("configuration/liquibase/liquibase.xml");
         historicalPrivileges = readHistoricalPrivileges();
         assertEquals(58, historicalPrivileges.size());
         assertTrue(historicalPrivileges.contains("Delete Relationships"));

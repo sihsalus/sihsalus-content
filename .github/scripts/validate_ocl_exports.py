@@ -10,16 +10,16 @@ from collections import defaultdict
 from pathlib import Path
 
 
-OCL_DIR = Path("configuration/backend_configuration/ocl")
-FORM_DIR = Path("configuration/backend_configuration/ampathforms")
+OCL_DIR = Path("configuration/ocl")
+FORM_DIR = Path("configuration/ampathforms")
 GLOBAL_PROPERTIES_PATH = Path(
-    "configuration/backend_configuration/globalproperties/globalproperties-sihsalus.xml"
+    "configuration/globalproperties/globalproperties-sihsalus.xml"
 )
 ADDRESS_CONFIGURATION_PATH = Path(
-    "configuration/backend_configuration/addresshierarchy/addressConfiguration.xml"
+    "configuration/addresshierarchy/addressConfiguration.xml"
 )
 PERSON_ATTRIBUTE_TYPES_PATH = Path(
-    "configuration/backend_configuration/personattributetypes/personattributetypes.csv"
+    "configuration/personattributetypes/personattributetypes.csv"
 )
 EXPECTED_SIHSALUS_SUBSCRIPTION_URL = (
     "https://api.openconceptlab.org/orgs/SIHSALUS/sources/sihsalus/2026-07-16-02"
@@ -80,7 +80,7 @@ NEIGHBORHOOD_PRESENTATION_METADATA = {
 REFERRAL_SOURCE = "referencia-institucional"
 REFERRAL_VERSION = "2026-08-25-01"
 REFERRAL_TRANSPORT_CSV = Path(
-    "configuration/backend_configuration/concepts/referral_transport_concepts.csv"
+    "configuration/concepts/referral_transport_concepts.csv"
 )
 REFERRAL_CONCEPTS_EXPORT = OCL_DIR / (
     f"16_SIHSALUS_{REFERRAL_SOURCE}_concepts_{REFERRAL_VERSION}.zip"

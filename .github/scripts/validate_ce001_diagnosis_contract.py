@@ -11,9 +11,9 @@ from pathlib import Path
 
 
 CE001_PATH = Path(
-    "configuration/backend_configuration/ampathforms/CE-001-CONSULTA EXTERNA.json"
+    "configuration/ampathforms/CE-001-CONSULTA EXTERNA.json"
 )
-LIQUIBASE_PATH = Path("configuration/backend_configuration/liquibase/liquibase.xml")
+LIQUIBASE_PATH = Path("configuration/liquibase/liquibase.xml")
 EXPECTED_NAME = "CE-001-CONSULTA EXTERNA"
 PREVIOUS_VERSION = "1.0.1"
 EXPECTED_VERSION = "1.0.2"

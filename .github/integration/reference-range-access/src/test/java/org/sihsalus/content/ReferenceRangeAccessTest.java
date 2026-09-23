@@ -41,7 +41,7 @@ public class ReferenceRangeAccessTest {
 
     @Before
     public void setUp() throws Exception {
-        criteria = rows(ROOT.resolve("configuration/backend_configuration/conceptreferencerange/conceptreferencerange_vital_signs.csv"))
+        criteria = rows(ROOT.resolve("configuration/conceptreferencerange/conceptreferencerange_vital_signs.csv"))
             .stream().filter(row -> TEMPERATURE_RANGE.equals(row.get("Uuid"))).findFirst().get().get("Criteria");
         Patient patient = new Patient(101);
         patient.setGender("F");
@@ -154,7 +154,7 @@ public class ReferenceRangeAccessTest {
     private void useRole(String name) throws Exception {
         grants.clear();
         List<Map<String, String>> roles = new ArrayList<>();
-        try (Stream<Path> files = Files.list(ROOT.resolve("configuration/backend_configuration/roles"))) {
+        try (Stream<Path> files = Files.list(ROOT.resolve("configuration/roles"))) {
             for (Path path : files.filter(p -> p.toString().endsWith(".csv")).collect(Collectors.toList())) roles.addAll(rows(path));
         }
         List<Map<String, String>> found = roles.stream().filter(row -> name.equals(row.get("Role name"))).collect(Collectors.toList());

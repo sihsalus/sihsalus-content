@@ -7,6 +7,7 @@ import subprocess
 import tarfile
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -225,19 +226,77 @@ class HarnessContracts(unittest.TestCase):
         self.assertEqual(checked.call_args.kwargs["operation"], "docker_image")
 
     def test_archive_keeps_owned_files_and_honors_exact_packaging_excludes(self):
-        entries = [
-            ("configuration", (tarfile.DIRTYPE,)),
-            ("configuration/backend_configuration", (tarfile.DIRTYPE,)),
-            ("configuration/backend_configuration/roles/roles-core.csv", b"synthetic"),
-            ("configuration/backend_configuration/roles/.gitkeep", b""),
-            ("configuration/backend_configuration/.DS_Store", b""),
-            ("configuration/backend_configuration/ampathforms/Readme", b"ignored"),
-            ("configuration/backend_configuration/ampathforms/_deprecated/a.json", b"ignored"),
-        ]
-        destination = self.root / "extracted"
-        guards.extract_archive(archive(entries), destination, guards.CONFIG_PREFIX, package=True)
-        self.assertEqual(set(guards.manifest(destination)), {"roles/roles-core.csv"})
-        self.assertEqual((destination / "roles/roles-core.csv").read_bytes(), b"synthetic")
+        for index, prefix in enumerate(("configuration", "configuration/backend_configuration")):
+            with self.subTest(prefix=prefix):
+                entries = [
+                    (prefix, (tarfile.DIRTYPE,)),
+                    (prefix + "/roles/roles-core.csv", b"synthetic"),
+                    (prefix + "/roles/.gitkeep", b""),
+                    (prefix + "/.DS_Store", b""),
+                    (prefix + "/ampathforms/Readme", b"ignored"),
+                    (prefix + "/ampathforms/_deprecated/a.json", b"ignored"),
+                ]
+                destination = self.root / str(index)
+                guards.extract_archive(archive(entries), destination, prefix, package=True)
+                self.assertEqual(set(guards.manifest(destination)), {"roles/roles-core.csv"})
+                self.assertEqual((destination / "roles/roles-core.csv").read_bytes(), b"synthetic")
+
+    def test_git_configuration_preserves_runtime_paths_for_current_and_historical_sources(self):
+        current = (harness.ROOT / "assembly.xml").read_bytes()
+        ns = {"a": "http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.3"}
+        old = ET.fromstring(current)
+        content = old.findall("a:fileSets/a:fileSet", ns)[1]
+        content.remove(content.find("a:outputDirectory", ns))
+        content.find("a:includes/a:include", ns).text = "backend_configuration/**/*"
+        for node in content.findall("a:excludes/a:exclude", ns):
+            if node.text.startswith("ampathforms/"):
+                node.text = "backend_configuration/" + node.text
+        historical = ET.tostring(old)
+        cases = (
+            (guards.IMAGE_CONTENT_SHA, "1.25.12", "configuration/backend_configuration", historical),
+            (guards.BASELINE_SHA, "1.25.15", "configuration/backend_configuration", historical),
+            ("a" * 40, None, "configuration", current),
+        )
+        for index, (sha, version, prefix, assembly) in enumerate(cases):
+            with self.subTest(sha=sha):
+                pom = ('<project xmlns="http://maven.apache.org/POM/4.0.0"><version>'
+                       + (version or "1.25.24") + '</version></project>').encode()
+                data = archive([(prefix + "/roles/roles-core.csv", b"synthetic")])
+                with patch.object(harness, "checked", side_effect=[
+                    completed(), completed(stdout=pom), completed(stdout=assembly), completed(stdout=data),
+                ]) as checked:
+                    destination = self.root / str(index)
+                    self.runtime.git_configuration(sha, version, destination)
+                self.assertEqual(checked.call_args.args[0], ["git", "archive", sha, prefix])
+                self.assertEqual(set(guards.manifest(destination)), {"roles/roles-core.csv"})
+                self.assertEqual((destination / "roles/roles-core.csv").read_bytes(), b"synthetic")
+        with self.assertRaises(HarnessFailure):
+            guards.validate_assembly(historical)
+
+    def test_assembly_rejects_changed_source_or_runtime_layout(self):
+        assembly = (harness.ROOT / "assembly.xml").read_bytes()
+        mutations = (
+            (b"<outputDirectory>configuration/backend_configuration</outputDirectory>", b"", "output"),
+            (b"<outputDirectory>configuration/backend_configuration", b"<outputDirectory>backend_configuration", "output"),
+            (b"<includeBaseDirectory>false", b"<includeBaseDirectory>true", "output"),
+            (b"${project.basedir}/configuration", b"${project.basedir}/docs", "directories"),
+            (b"<include>**/*</include>", b"<include>roles/**/*</include>", "includes"),
+        )
+        for before, after, reason in mutations:
+            with self.subTest(before=before), self.assertRaisesRegex(HarnessFailure, "unreviewed_assembly_" + reason):
+                guards.validate_assembly(assembly.replace(before, after))
+
+    def test_assembly_rejects_filters_moved_to_another_file_set(self):
+        ns = {"a": "http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.3"}
+        for kind in ("includes", "excludes"):
+            with self.subTest(kind=kind):
+                root = ET.fromstring((harness.ROOT / "assembly.xml").read_bytes())
+                properties, metadata = root.findall("a:fileSets/a:fileSet", ns)
+                filters = metadata.find("a:" + kind, ns)
+                metadata.remove(filters)
+                properties.append(filters)
+                with self.assertRaisesRegex(HarnessFailure, "unreviewed_assembly_" + kind):
+                    guards.validate_assembly(ET.tostring(root))
 
     def test_archive_rejects_traversal_links_duplicates_and_other_prefix(self):
         cases = [

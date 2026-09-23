@@ -27,7 +27,7 @@ completarse a partir de texto corrupto, referencias informales o inferencias.
 | `Country` | `PERU` |
 
 Los significados de estos campos están definidos por
-`configuration/backend_configuration/addresshierarchy/addressConfiguration.xml`.
+`configuration/addresshierarchy/addressConfiguration.xml`.
 
 ## Atributos institucionales
 

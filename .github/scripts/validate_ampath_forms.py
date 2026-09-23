@@ -8,10 +8,10 @@ from collections import defaultdict
 from pathlib import Path
 
 
-FORM_DIR = Path("configuration/backend_configuration/ampathforms")
-OCL_DIR = Path("configuration/backend_configuration/ocl")
+FORM_DIR = Path("configuration/ampathforms")
+OCL_DIR = Path("configuration/ocl")
 ENCOUNTER_TYPES_PATH = Path(
-    "configuration/backend_configuration/encountertypes/encountertypes.csv"
+    "configuration/encountertypes/encountertypes.csv"
 )
 REQUIRED_TOP_LEVEL = {
     "name",

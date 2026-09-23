@@ -27,7 +27,7 @@ export tiene SHA-256 `9a85ebac1f3710be861ddb092fb9806eee0e5d60557e494bcdb742be51
 
 El validador fija source, versión, release, inventario, UUIDs, códigos, nombres, descripciones, clase,
 datatype, URLs y unicidad dentro del bundle. También exige que
-`configuration/backend_configuration/concepts/referral_transport_concepts.csv` permanezca ausente.
+`configuration/concepts/referral_transport_concepts.csv` permanezca ausente.
 
 Este catálogo conserva su release independiente del source principal. Su migración no modifica los
 mappings `Q-AND-A` de `sihsalus`; el frontend coordinado utiliza explícitamente los tres UUIDs

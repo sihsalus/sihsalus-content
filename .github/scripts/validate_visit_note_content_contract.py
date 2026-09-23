@@ -13,12 +13,12 @@ from pathlib import Path
 
 
 CONTRACT_PATH = Path("docs/contracts/visit-note-content-contract.json")
-LIQUIBASE_PATH = Path("configuration/backend_configuration/liquibase/liquibase.xml")
+LIQUIBASE_PATH = Path("configuration/liquibase/liquibase.xml")
 ENCOUNTER_TYPES_PATH = Path(
-    "configuration/backend_configuration/encountertypes/encountertypes.csv"
+    "configuration/encountertypes/encountertypes.csv"
 )
 METADATA_MAPPINGS_PATH = Path(
-    "configuration/backend_configuration/metadatatermmappings/"
+    "configuration/metadatatermmappings/"
     "metadatatermmappings-core-sihsalus.csv"
 )
 EXPECTED_FORM = {
@@ -80,7 +80,7 @@ def validate_contract_shape(contract):
 def load_concept_catalog(root, errors):
     """Return uuid -> datatype -> sources from active package concept definitions."""
     catalog = defaultdict(lambda: defaultdict(list))
-    concept_dir = root / "configuration/backend_configuration/concepts"
+    concept_dir = root / "configuration/concepts"
     for csv_path in sorted(concept_dir.glob("*.csv")):
         try:
             with csv_path.open(newline="") as stream:
@@ -94,7 +94,7 @@ def load_concept_catalog(root, errors):
         except (OSError, csv.Error) as error:
             errors.append(f"{csv_path}: cannot read concept CSV: {error}")
 
-    ocl_dir = root / "configuration/backend_configuration/ocl"
+    ocl_dir = root / "configuration/ocl"
     for zip_path in sorted(ocl_dir.glob("*concepts*.zip")):
         try:
             with zipfile.ZipFile(zip_path) as archive:

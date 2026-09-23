@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 FORM_PATH = Path(
-    "configuration/backend_configuration/ampathforms/CE-SOAP-001-NOTA SOAP.json"
+    "configuration/ampathforms/CE-SOAP-001-NOTA SOAP.json"
 )
 EXPECTED_NAME = "CE-SOAP-001-NOTA SOAP"
 EXPECTED_VERSION = "1.1.0"
