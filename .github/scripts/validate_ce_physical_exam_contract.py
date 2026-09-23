@@ -43,6 +43,20 @@ def walk(value):
             yield from walk(child)
 
 
+def validate_no_soap_capture(form):
+    errors = []
+    if form.get("retired") is True or form.get("published") is False:
+        return errors
+    for node in walk(form):
+        field_id = node.get("id", "")
+        concept = node.get("questionOptions", {}).get("concept")
+        if ("soap" in str(field_id).lower() or
+                "soap" in str(node.get("label", "")).lower() or
+                concept in LEGACY_SOAP_FIELDS.values()):
+            errors.append(f"{form.get('name')}: SOAP capture is not allowed in active outpatient forms")
+    return errors
+
+
 def validate_contract(form):
     errors = []
     if form.get("name") != EXPECTED_NAME:
@@ -63,10 +77,7 @@ def validate_contract(form):
 
     if form.get("published") is not True or form.get("retired") is not False:
         errors.append("physical-exam form must be published and active")
-    for field_id, question in questions.items():
-        if (field_id in LEGACY_SOAP_FIELDS or
-                question.get("questionOptions", {}).get("concept") in LEGACY_SOAP_FIELDS.values()):
-            errors.append(f"{field_id}: SOAP capture does not belong in the physical-exam form")
+    errors.extend(validate_no_soap_capture(form))
 
     for field_id in sorted(SEGMENTED_FIELD_CONCEPTS.keys() & questions.keys()):
         question = questions[field_id]
@@ -116,6 +127,8 @@ def main():
         return 1
 
     errors = validate_contract(form) + validate_legacy_contract(legacy)
+    for path in FORM_PATH.parent.glob("CE-*.json"):
+        errors.extend(validate_no_soap_capture(json.loads(path.read_text(encoding="utf-8"))))
     if errors:
         print("Consulta Externa physical-exam contract validation failed:", file=sys.stderr)
         for error in errors:

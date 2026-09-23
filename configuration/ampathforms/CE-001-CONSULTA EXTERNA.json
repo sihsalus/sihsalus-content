@@ -7,8 +7,8 @@
   "retired": false,
   "referencedForms": [],
   "uuid": "a8db00d0-8acd-4459-97a8-43827b0a23e8",
-  "description": "Formulario de Consulta Externa ambulatoria. Registra motivo de consulta, examen clínico (SOAP), plan de tratamiento, financiador y pertenencia étnica. El diagnóstico CIE-10 se registra exclusivamente mediante Visit Notes para persistirlo como diagnóstico nativo del encuentro. Basado en el FUA y la NTS N° 029-MINSA.",
-  "version": "1.0.2",
+  "description": "Formulario de Consulta Externa ambulatoria. Registra motivo de consulta, anamnesis, plan de tratamiento, financiador y pertenencia étnica. El examen físico se registra en su formulario específico. El diagnóstico CIE-10 se registra exclusivamente mediante Visit Notes para persistirlo como diagnóstico nativo del encuentro. Basado en el FUA y la NTS N° 029-MINSA.",
+  "version": "1.0.3",
   "pages": [
     {
       "label": "Motivo de Consulta",
@@ -110,57 +110,6 @@
               },
               "id": "relatoEnfermedadActual",
               "label": "Relato cronológico de la enfermedad actual"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "label": "Notas SOAP",
-      "sections": [
-        {
-          "label": "Evaluación Clínica (SOAP)",
-          "isExpanded": "true",
-          "questions": [
-            {
-              "type": "obs",
-              "questionOptions": {
-                "rendering": "textarea",
-                "concept": "f0000202-0000-4000-8000-000000000202",
-                "rows": 4
-              },
-              "id": "soapSubjetivo",
-              "label": "S — Subjetivo (relato del paciente)"
-            },
-            {
-              "type": "obs",
-              "questionOptions": {
-                "rendering": "textarea",
-                "concept": "160532AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-                "rows": 4
-              },
-              "id": "soapObjetivo",
-              "label": "O — Objetivo (hallazgos del examen físico)"
-            },
-            {
-              "type": "obs",
-              "questionOptions": {
-                "rendering": "textarea",
-                "concept": "160533AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-                "rows": 4
-              },
-              "id": "soapEvaluacion",
-              "label": "A — Evaluación (análisis / impresión diagnóstica)"
-            },
-            {
-              "type": "obs",
-              "questionOptions": {
-                "rendering": "textarea",
-                "concept": "f0000201-0000-4000-8000-000000000201",
-                "rows": 4
-              },
-              "id": "soapPlan",
-              "label": "P — Plan (conducta terapéutica)"
             }
           ]
         }

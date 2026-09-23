@@ -21,6 +21,12 @@ class PhysicalExamContractTest(unittest.TestCase):
             ampath_persisted_form_uuid(self.legacy['name'], self.legacy['version']),
         )
 
+    def test_all_active_outpatient_forms_exclude_soap(self):
+        for path in contract.FORM_PATH.parent.glob("CE-*.json"):
+            with self.subTest(form=path.name):
+                form = json.loads(path.read_text())
+                self.assertEqual([], contract.validate_no_soap_capture(form))
+
     def test_preserves_existing_segmented_fields_and_encounter_type(self):
         def questions(form):
             return {node.get('id'): node for node in contract.walk(form) if node.get('type') == 'obs'}

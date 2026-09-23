@@ -72,8 +72,8 @@ form = json.loads(path.read_text())
 for page in form["pages"]:
     for section in page.get("sections", []):
         for question in section.get("questions", []):
-            if question.get("id") == "indicacionesTerapeuticas":
-                question["questionOptions"]["concept"] = "f0000201-0000-4000-8000-000000000201"
+            if question.get("id") == "procedimientos":
+                question["label"] = "Procedimientos realizados"
 path.write_text(json.dumps(form, ensure_ascii=False, indent=2))
 PY
 if python3 "$validator" >/dev/null 2>&1; then
