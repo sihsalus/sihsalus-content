@@ -4,8 +4,7 @@ import csv
 import json
 from pathlib import Path
 
-from validate_ampath_forms import walk
-from validate_ce001_diagnosis_contract import ampath_persisted_form_uuid
+from validate_ampath_forms import ampath_persisted_form_uuid, walk
 
 FORM_PATH = Path('configuration/ampathforms/CE-SOC-001-HISTORIA SOCIAL.json')
 ENCOUNTER_PATH = Path('configuration/encountertypes/encountertypes.csv')

@@ -13,6 +13,12 @@ y versión. El `uuid` del JSON no equivale necesariamente a esa identidad. Cambi
 o la versión requiere revisar la actualización y la conservación de los encuentros históricos;
 no es una corrección de formato.
 
+`validate_ampath_forms.py` rechaza archivos que resuelven al mismo UUID persistido,
+aunque sus UUID JSON sean distintos. También exige nombres y versiones de texto
+no vacíos y al menos un formulario. `test_ampath_forms.py` cubre estas condiciones
+con archivos sintéticos; las pruebas específicas de CE-001 e historia social
+reutilizan el mismo cálculo de identidad.
+
 La [guía de contenido](../../docs/content-guide.md) explica el retiro de CE-001
 `1.0.1`, su versión canónica `1.0.2` y la conservación de SOAP `1.0.0` al incorporar
 `1.1.0`. Sus comprobaciones están en

@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Protect the single, native-diagnosis workflow used by Consulta Externa."""
 
-import hashlib
 import json
 import sys
 import unicodedata
-import uuid
 import xml.etree.ElementTree as ET
 from pathlib import Path
+
+from validate_ampath_forms import ampath_persisted_form_uuid
 
 
 CE001_PATH = Path(
@@ -17,7 +17,6 @@ LIQUIBASE_PATH = Path("configuration/liquibase/liquibase.xml")
 EXPECTED_NAME = "CE-001-CONSULTA EXTERNA"
 PREVIOUS_VERSION = "1.0.1"
 EXPECTED_VERSION = "1.0.2"
-AMPATH_FORMS_NAMESPACE_UUID = "794c4598-ab82-47ca-8d18-483a8abe6f4f"
 PREVIOUS_PERSISTED_FORM_UUID = "da631d8c-c695-3c4a-9d77-19bbbf0174e3"
 EXPECTED_PERSISTED_FORM_UUID = "df1a34b4-0e8f-3564-84d9-55ce9e4284bd"
 RETIRE_CHANGE_SET_ID = "retire-legacy-ce001-form-1-0-1-20260825"
@@ -53,12 +52,6 @@ def normalized(value):
     return " ".join(
         without_accents.lower().replace("-", " ").split()
     )
-
-
-def ampath_persisted_form_uuid(name, version):
-    """Mirror Initializer 2.12 Utils.generateUuidFromObjects for form identity."""
-    seed = f"{AMPATH_FORMS_NAMESPACE_UUID}_{name}_{version}".encode()
-    return str(uuid.UUID(bytes=hashlib.md5(seed).digest(), version=3))
 
 
 def local_name(tag):

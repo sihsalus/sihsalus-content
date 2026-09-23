@@ -130,11 +130,17 @@ El SHA256 del ZIP público es
 la comparación se hizo por entrada, sin exigir igualdad de fechas o compresión.
 
 Pasaron los 14 validadores Python, la validación de rangos, las cuatro regresiones
-Bash, 122 pruebas Python de dominio, 66 del arnés y nueve pruebas Java
+Bash, 128 pruebas Python de dominio, 66 del arnés y nueve pruebas Java
 (`HarnessGuardTest` y `ReferenceRangeAccessTest`, ejecutadas localmente con Java 21).
 El arnés también extrajo correctamente los dos commits históricos fijados,
 `57690d4` y `8000b27`, con sus 200 archivos por escenario y las rutas de ejecución
 esperadas. Se revisaron el diff y los enlaces locales de documentación.
+
+Las seis regresiones de AMPATH comprueban con archivos sintéticos la identidad
+persistida, las versiones distintas y el rechazo de entradas vacías o inválidas.
+Antes de corregir el validador, se reprodujo que aceptaba dos JSON con el mismo
+nombre/versión y UUID JSON distintos, y también una carpeta sin formularios.
+El cálculo de identidad se comparte con CE-001 e historia social.
 
 Los ensayos completos de MariaDB e Initializer quedan pendientes del CI:
 Docker no tenía un daemon disponible y el arnés de Initializer exige un runner

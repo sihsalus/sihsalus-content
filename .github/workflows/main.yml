@@ -43,6 +43,8 @@ jobs:
           java-version: 8
       - name: Validate AMPATH forms
         run: python3 .github/scripts/validate_ampath_forms.py
+      - name: Test AMPATH form identity validation
+        run: python3 .github/scripts/test_ampath_forms.py
       - name: Validate CE-001 diagnosis contract
         run: python3 .github/scripts/validate_ce001_diagnosis_contract.py
       - name: Test CE-001 diagnosis contract validator
