@@ -29,6 +29,15 @@ from guards import (
 )
 
 ROOT = Path(__file__).resolve().parents[3]
+REVIEWED_FORMS = ("CRED-001-TAMIZAJE DE ANEMIA.json", "OBST-002-EMBARAZO ACTUAL.json")
+REVIEWED_RANGES = (
+    "f0c6d3dc-a0d2-497c-921f-b7266d448fcf", "a769e98e-e91f-4d4c-b029-1c66e267f32a",
+    "0502ff16-270e-423f-8fa6-95255fdc9b19", "a75289e3-427c-4e14-ad67-50fc34dcc733",
+    "539619f8-19ff-4063-9f6a-03a8d9331012", "5c20e5ae-08d4-4546-b33b-50f757e09ba0",
+    "9b3bf521-3b38-478f-8eba-0e329b4fd424", "a486f5a4-3ca6-440f-a8dc-60aab2ea1fd3",
+    "1db1f541-ca0b-4f73-9396-f85588ed92a5", "45c9787e-8d00-417e-8d1b-c969dc4e0d9e",
+    "90a78c49-0304-47e9-932a-cab13fde4055",
+)
 OPERATIONAL_CHANGESET = "reconcile-admission-operational-alias-20260921"
 COMPLETION = "OpenMRS config loading process completed."
 ABORT = "The loading of the 'liquibase' configuration file was aborted:"
@@ -686,6 +695,49 @@ class Harness:
                 "arrival_payment_metadata_invalid")
         emit("arrival_payment_metadata", "PASSED", active=True, min_occurs=0, max_occurs=1)
 
+    def form_schema_snapshot(self, db):
+        names = [json.loads((self.candidate_config / "ampathforms" / name).read_text())["name"]
+                 for name in REVIEWED_FORMS]
+        return self.query(db,
+            "SELECT f.uuid,f.form_id,f.version,f.retired,MD5(c.value) FROM form f "
+            "JOIN form_resource r ON r.form_id=f.form_id AND r.name='JSON schema' "
+            "JOIN clob_datatype_storage c ON c.uuid=r.value_reference WHERE f.name IN ("
+            + ",".join(map(sql_string, names)) + ") ORDER BY f.uuid")
+
+    def check_clinical_form_updates(self, db, phase, previous=None):
+        """Verify Initializer writes current schemas/criteria and preserves historical forms."""
+        current = self.form_schema_snapshot(db)
+        active_hashes = set()
+        for filename in REVIEWED_FORMS:
+            data = (self.candidate_config / "ampathforms" / filename).read_bytes()
+            schema = json.loads(data)
+            expected = "\t".join([schema["version"], "0", hashlib.md5(data).hexdigest()])
+            active_hashes.add(hashlib.md5(data).hexdigest())
+            rows = self.query(db,
+                "SELECT f.version,f.retired,MD5(c.value) FROM form f "
+                "JOIN form_resource r ON r.form_id=f.form_id AND r.name='JSON schema' "
+                "JOIN clob_datatype_storage c ON c.uuid=r.value_reference WHERE f.name="
+                + sql_string(schema["name"]) + " AND f.version=" + sql_string(schema["version"]))
+            require(rows == [expected], "clinical_form_schema_not_loaded")
+        by_uuid = {row.split("\t")[0]: row.split("\t") for row in current}
+        for row in previous or []:
+            old = row.split("\t")
+            loaded = by_uuid.get(old[0])
+            require(loaded is not None and loaded[:3] == old[:3] and loaded[4] == old[4],
+                    "historical_form_identity_or_schema_changed")
+            require(loaded[3] == ("0" if loaded[4] in active_hashes else "1"),
+                    "historical_form_retirement_invalid")
+        with (self.candidate_config / "conceptreferencerange/conceptreferencerange_laboratory.csv").open() as stream:
+            ranges = {row["Uuid"]: row for row in csv.DictReader(stream)}
+        for identifier in REVIEWED_RANGES:
+            row = ranges[identifier]
+            require(self.query(db, "SELECT MD5(criteria) FROM concept_reference_range WHERE uuid="
+                    + sql_string(identifier)) == [hashlib.md5(row["Criteria"].encode()).hexdigest()],
+                    "clinical_reference_range_not_updated")
+        emit("clinical_form_updates", "PASSED", phase=phase, forms=len(REVIEWED_FORMS),
+             ranges=len(REVIEWED_RANGES), historical_schemas_checked=len(previous or []))
+        return current
+
     def check_clinical_drug(self, backend, db, phase, previous=None):
         """Verify the catalog entry in storage and the prescribing search response."""
         drug = CLINICAL_DRUG
@@ -836,6 +888,7 @@ class Harness:
         self.check_emrapi_roles(db)
         self.check_clinical_drug(backend, db, "fresh")
         self.check_ocl_refresh(db, "fresh")
+        self.check_clinical_form_updates(db, "fresh")
         self.create_fixtures(backend)
         self.check_admission(db, self.candidate_privileges)
         self.rbac(backend, db)
@@ -926,6 +979,7 @@ class Harness:
         emit("operational_upgrade" if operational else "upgrade", "RUNNING")
         db = self.start_database("upgrade")
         self.import_baseline(db)
+        forms_before = self.form_schema_snapshot(db)
         if operational:
             self.seed_operational_alias(db)
             self.seed_admission_supplement(db)
@@ -945,6 +999,7 @@ class Harness:
         self.assert_state(db, expected, "upgrade_changed_unapproved_rbac_or_references")
         clinical_drug = self.check_clinical_drug(backend, db, "upgrade")
         ocl_refresh = self.check_ocl_refresh(db, "upgrade")
+        clinical_forms = self.check_clinical_form_updates(db, "upgrade", previous=forms_before)
         state, history = self.state(db), self.history(db)
         self.rbac(backend, db)
         self.docker("stop", "--time", "30", backend, timeout=45)
@@ -957,6 +1012,8 @@ class Harness:
         require(self.history(db) == history, "second_start_changed_history")
         self.check_clinical_drug(backend, db, "idempotence", previous=clinical_drug)
         self.check_ocl_refresh(db, "idempotence", previous=ocl_refresh)
+        require(self.check_clinical_form_updates(db, "idempotence", previous=clinical_forms) == clinical_forms,
+                "second_start_changed_clinical_forms")
         self.docker("stop", "--time", "30", backend, timeout=45)
         self.remove_container(backend)
         backend, _ = self.start_backend("current-policy", self.candidate_config, data_volume=volume)

@@ -1,0 +1,11 @@
+{
+  "name": "sihsalus-content-form-expression-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test forms.test.mjs"
+  },
+  "devDependencies": {
+    "dayjs": "1.11.20"
+  }
+}
