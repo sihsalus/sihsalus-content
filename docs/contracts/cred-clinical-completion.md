@@ -1,9 +1,59 @@
 # CRED: contratos clínicos y dependencias pendientes
 
-Revisión del 23 de septiembre de 2026 sobre content `a54fde1` y frontend `41926436d`.
-La propuesta se integra después con content `28c205d` (PR #240), que ya corrige
-los límites de altitud. Esta revisión y sus pruebas locales no constituyen aceptación
-clínica ni evidencia de QLTY.
+Estado comprobado el **23 de septiembre de 2026, 08:17 (America/Lima)**.
+Los cambios de curvas y alta neonatal están integrados en `main`; la publicación,
+el despliegue y la aceptación clínica se verifican por separado.
+
+## Integración y alcance
+
+| Componente | Cambio integrado | Revisión de integración |
+| --- | --- | --- |
+| Frontend | [PR #1093](https://github.com/sihsalus/sihsalus-frontend/pull/1093): curvas escolares y primer control neonatal desde el alta. | `84f371aecd9146a88f852e58c6de7ec887c15818` |
+| Content | [PR #240](https://github.com/sihsalus/sihsalus-content/pull/240): advertencia de Hb desde 500 m y captura hasta 5500 m en CRED-001 1.2.1. | `28c205d080502f66ce4e2ad1212677f2ff2951e2` |
+| Content | [PR #241](https://github.com/sihsalus/sihsalus-content/pull/241): alta neonatal opcional, contrato CRED y versión del paquete 1.25.26. | `931a8a222855e7227b686253d204edf02c3de372` |
+
+La revisión documental usa frontend `37e678e16` y content `c840f35`. Este último
+incluye también el [PR #242](https://github.com/sihsalus/sihsalus-content/pull/242),
+que evalúa los rangos de hemoglobina con la edad a la fecha de la muestra. Esa
+selección de rangos no calcula ni persiste Hb ajustada por altitud; su contrato
+pertenece a [laboratorio](laboratory-reporting.md).
+
+Las curvas escolares reutilizan el gráfico Carbon existente y las tablas OMS 2007
+para ambos sexos, entre 61 y 228 meses. El IMC exige peso y talla positivos de la
+misma atención. No se extrapola al mes 60 ni se persisten z o clasificaciones;
+la [procedencia de los datos y el cálculo LMS](https://github.com/sihsalus/sihsalus-frontend/blob/main/packages/apps/esm-crecimiento-desarrollo-app/src/ui/growth-chart/data-sets/WhoReference2007/README.md)
+se mantienen en el componente responsable.
+
+El contexto del alta se consulta para el primer control cuando el paciente tiene
+menos de 29 días. Un parto institucional exige alta válida y un mínimo exacto de
+48 horas; una lectura incompleta o fallida no habilita el control. El segundo
+control incluye el día 14 y conserva siete días mínimos desde el control anterior.
+La reanudación del mismo control conserva su número. La notificación de parto
+extrainstitucional y los registros retrospectivos siguen pendientes en #98.
+
+## Evidencia disponible
+
+Esta tabla conserva el SHA y alcance de las pruebas ejecutadas. No acredita una
+nueva ejecución sobre merges posteriores ni sustituye el ensayo con el backend
+desplegado. Los estados de CI corresponden a la consulta fechada arriba.
+
+| Estado | Comprobación | Revisión y resultado |
+| --- | --- | --- |
+| PASSED | Frontend: `yarn verify:changed --base origin/main --head HEAD` | `0ce17cb9b`: 47/47 tareas, 43 de caché; CRED ejecutó 290/290 pruebas en 36 archivos, lint, TypeScript y build. |
+| PASSED | Chromium local con datos sintéticos | Componentes de `0ce17cb9b`: 12/12 casos de idioma, sexo y tamaño; IMC/talla, percentiles/z, sin errores JavaScript ni desbordamiento. Backend y permisos simulados; no prueba persistencia. |
+| PASSED | CI del [PR frontend #1093](https://github.com/sihsalus/sihsalus-frontend/pull/1093/checks) | Checks técnicos correctos en `0ce17cb9b`; `e2e`, `candidate-quality` y `publish-candidate` omitidos. |
+| PASSED | Content: validadores Python, unittest y comprobaciones shell | `906455c`: 112 formularios, 3673 referencias, 130/130 pruebas; sin regresiones sobre las 128 incidencias conocidas de integridad de conceptos. |
+| PASSED | Expresiones del formulario: `npm test --prefix .github/integration/form-expressions` | `906455c`: 4/4 casos en America/Lima y 4/4 en America/New_York. Incluye límites de altitud heredados de #240. |
+| PASSED | `mvn clean verify --batch-mode --file pom.xml` | `906455c`: ZIP local 1.25.26 validado; no demuestra publicación en Maven Central. |
+| NOT RUN | Integración/publicación completa de content 1.25.26 | El [run del merge #241](https://github.com/sihsalus/sihsalus-content/actions/runs/35863976842) fue cancelado. El [run de `c840f35`](https://github.com/sihsalus/sihsalus-content/actions/runs/35864758036) estaba pendiente; no consta resultado final en esta revisión. |
+| BLOCKED | Conceptos contra servidor y E2E con rol operativo en QLTY | Sin sesión clínica de prueba ni versión desplegada coordinadas para esta iteración. Guardar, recargar, editar y comprobar permisos sigue pendiente. |
+| BLOCKED | Aceptación clínica y digitalización completa | Faltan terminología OCL, versiones aprobadas de instrumentos, acreditación del permiso M-CHAT y revisión funcional. |
+
+Los logs y doce capturas del ensayo local se conservaron en
+`Scratch/sihsalus-backlog-production-20260921/cred-clinical-visual/`; esa ruta del
+workspace no es un artefacto publicado en GitHub. Los PR registran los comandos y
+las advertencias de lint/build. No se utilizó Docker local ni se crearon pacientes
+externos en esta iteración.
 
 ## Cambios de contenido
 
@@ -27,16 +77,16 @@ ya incluye 500 m en la advertencia y admite captura hasta 5500 m,
 de acuerdo con la tabla 1 de la [RM 429-2024/MINSA](https://bvs.minsa.gob.pe/local/fi-admin/RM-429-2024-minsa.pdf).
 No calcula ni persiste todavía hemoglobina ajustada.
 
-## Estado por issue
+## Estado por issue al 23/09/2026
 
 | Issue | Resultado de esta revisión | Pendiente para cerrar |
 | --- | --- | --- |
 | [58](https://github.com/sihsalus/sihsalus-frontend.tasktree/issues/58) | Frontend incorpora IMC/edad y talla/edad OMS 2007, con cálculo LMS para la interpretación del gráfico. | Publicar conceptos por indicador y persistir resultado, clasificación, referencia y mediciones fuente; aceptación clínica. |
 | [98](https://github.com/sihsalus/sihsalus-frontend.tasktree/issues/98) | Fecha de alta reutilizable; frontend aplica 48 horas para el primer control institucional y admite el día 14 en la ventana del segundo. | QLTY, captación tardía y registro retrospectivo; concepto y captura de notificación de nacimiento extrainstitucional. |
 | [99](https://github.com/sihsalus/sihsalus-frontend.tasktree/issues/99) | Revisada la tabla vigente y conservada la corrección de captura/advertencia del PR #240. Hb medida preservada. | Terminología de factor/Hb ajustada y cálculo/persistencia en el componente clínico backend. |
-| [93](https://github.com/sihsalus/sihsalus-frontend.tasktree/issues/93) | EDI sigue siendo transcripción resumida de cinco ejes, no una aplicación por ítems. | Conceptos individuales, versión clínica aprobada, reglas completas y prueba normal/rezago/riesgo. |
-| [94](https://github.com/sihsalus/sihsalus-frontend.tasktree/issues/94) | Huanca sigue guardando áreas y detalles; no cada hito por edad. | Conceptos por hito, versión adaptada aprobada y prueba de cada pauta. |
-| [96](https://github.com/sihsalus/sihsalus-frontend.tasktree/issues/96) | M-CHAT conserva puntaje y resumen; no incluye veinte preguntas ni entrevista R/F. | Permiso de distribución, conceptos por ítem/seguimiento y validación del flujo de dos etapas. |
+| [93](https://github.com/sihsalus/sihsalus-frontend.tasktree/issues/93) | EDI (`CRED-009`) sigue siendo transcripción resumida de cinco ejes, no una aplicación por ítems. | Conceptos individuales, versión clínica aprobada, reglas completas y prueba normal/rezago/riesgo. |
+| [94](https://github.com/sihsalus/sihsalus-frontend.tasktree/issues/94) | Huanca (`CRED-026`) sigue guardando áreas y detalles; no cada hito por edad. | Conceptos por hito, versión adaptada aprobada y prueba de cada pauta. |
+| [96](https://github.com/sihsalus/sihsalus-frontend.tasktree/issues/96) | M-CHAT (`CRED-010`) conserva puntaje y resumen; no incluye veinte preguntas ni entrevista R/F. | Permiso de distribución, conceptos por ítem/seguimiento y validación del flujo de dos etapas. |
 
 Los seis issues permanecen abiertos hasta satisfacer su alcance completo. No se
 publicaron conceptos OCL ni se alteraron sus ZIP. Se solicitó la ubicación del acceso
@@ -66,6 +116,24 @@ clínica y la validación de resultados derivados pertenecen al backend responsa
 no se añadirá una segunda regla en SQL, un script de carga o un cálculo AMPATH
 para suplir su ausencia. La interpretación de una curva en frontend no acredita
 persistencia ni un diagnóstico clínico.
+
+## Siguiente iteración y aceptación en QLTY
+
+1. El mantenedor de OCL debe localizar equivalencias en la fuente canónica y
+   publicar los conceptos ausentes con su export. El responsable funcional CRED
+   (Gonzalo, según los issues) debe confirmar las versiones de EDI/Huanca y la
+   autorización/versionado de M-CHAT-R/F. No hay cuentas GitHub asignadas por inferencia.
+2. Con esa terminología, implementar resultados derivados en el backend
+   responsable y captura declarativa de instrumentos en content. Conservar la Hb
+   original, procedencia de mediciones, referencia, respuestas y resultados de cada
+   etapa. La corrección del aviso de altitud no satisface #99.
+3. Coordinar en QLTY una versión de content que incluya el campo de alta antes de
+   activar el frontend dependiente. Registrar SHA de frontend, versión de content,
+   backend/módulos, perfil operativo y paciente sintético. Verificar apertura de
+   una atención histórica, guardado, recarga y edición sin duplicar el control.
+4. Ejecutar los casos clínicos siguientes y registrar resultado, aprobación
+   funcional y limpieza de datos sintéticos. Cerrar cada issue cuando cumpla su
+   alcance completo; un merge o un CI técnico correcto no cubre esa aceptación.
 
 ## Fuentes y casos de aceptación
 
