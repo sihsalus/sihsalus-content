@@ -609,8 +609,37 @@ class HarnessContracts(unittest.TestCase):
                 "initializer_log_present": True, "initializer_log_bytes": 20,
                 "initializer_last_loading_domain": None,
                 "initializer_last_completed_domain": None,
+                "initializer_aborted_domains": [],
                 "initializer_failure_hints": [],
             })
+
+    def test_cold_baseline_extra_time_requires_completion_and_respects_other_limits(self):
+        cases = (("baseline", 80, True, True), ("baseline", 30, True, False),
+                 ("fresh_candidate", 80, True, False), ("baseline", 80, False, False))
+        for stage, scenario_minutes, completes, passes in cases:
+            with self.subTest(stage=stage, scenario_minutes=scenario_minutes, completes=completes):
+                self.setup_lifecycle("")
+                self.runtime.deadline = scenario_minutes * 60
+                self.runtime.remaining = harness.Harness.remaining.__get__(self.runtime)
+                self.runtime.module_status = Mock(return_value=True)
+                clock = {"now": 0}
+                def advance(seconds):
+                    clock["now"] += 60
+                self.runtime.lifecycle_logs.side_effect = lambda backend: (
+                    harness.COMPLETION if completes and clock["now"] >= 36 * 60 else "", True, 20)
+                with patch.object(harness.time, "monotonic", side_effect=lambda: clock["now"]), \
+                        patch.object(harness.time, "sleep", side_effect=advance), patch.object(harness, "emit") as emit:
+                    if passes:
+                        self.runtime.wait_initializer("owned", stage)
+                        self.runtime.effective_strict.assert_called_once_with("owned")
+                        self.runtime.module_status.assert_called_once_with("owned")
+                        emit.assert_any_call(stage, "PASSED", initializer_started=True)
+                    else:
+                        with self.assertRaisesRegex(HarnessFailure, "^initializer_lifecycle_not_proven_before_timeout$"):
+                            self.runtime.wait_initializer("owned", stage)
+                        self.runtime.module_status.assert_not_called()
+                        self.assertFalse(any(call.args[1] == "PASSED" for call in emit.call_args_list))
+                self.assertLessEqual(clock["now"], min(scenario_minutes, 45) * 60)
 
     def test_lifecycle_waits_for_real_module_after_completion_log(self):
         self.setup_lifecycle(harness.COMPLETION)
@@ -706,8 +735,11 @@ class HarnessContracts(unittest.TestCase):
         self.assertIsNone(diagnostic["initializer_last_loading_domain"])
         self.assertIsNone(diagnostic["initializer_last_completed_domain"])
         self.assertEqual(diagnostic["initializer_failure_hints"], [])
+        self.assertIsInstance(diagnostic["initializer_aborted_domains"], list)
+        self.assertTrue(all(domain in harness.LOADER_DOMAINS for domain in diagnostic["initializer_aborted_domains"]))
         self.assertTrue(all(isinstance(value, bool) or value is None
-                            for name, value in diagnostic.items() if name != "initializer_failure_hints"))
+                            for name, value in diagnostic.items()
+                            if name not in {"initializer_failure_hints", "initializer_aborted_domains"}))
         self.assertNotIn("synthetic-private", json.dumps(emit.call_args.kwargs))
         return emit.call_args.kwargs
 
@@ -1227,6 +1259,7 @@ class LoaderDiagnostics(unittest.TestCase):
         self.assertEqual(harness.loader_progress(logs), {
             "initializer_last_loading_domain": "ocl",
             "initializer_last_completed_domain": "roles",
+            "initializer_aborted_domains": [],
             "initializer_failure_hints": ["connection_timeout"],
         })
 
@@ -1240,8 +1273,22 @@ class LoaderDiagnostics(unittest.TestCase):
         self.assertEqual(harness.loader_progress(logs), {
             "initializer_last_loading_domain": None,
             "initializer_last_completed_domain": None,
+            "initializer_aborted_domains": [],
             "initializer_failure_hints": [],
         })
+
+    def test_aborted_domains_are_distinct_from_last_loading_and_sanitized(self):
+        logs = (
+            "The loading of the 'ampathforms' configuration file was aborted:\n/private/form.json\n"
+            "Loading file /openmrs/data/configuration/fhirpatientidentifiersystems/private.csv\n"
+            "The pre-loading of the 'drugs' configuration file was aborted:\n/private/drug.csv\n"
+            "The loading of the 'ampathforms' configuration file was aborted:\n/private/form.json\n"
+            "The loading of the 'privatevalue' configuration file was aborted:\n/private/secret.csv\n"
+        )
+        progress = harness.loader_progress(logs)
+        self.assertEqual(progress["initializer_last_loading_domain"], "fhirpatientidentifiersystems")
+        self.assertEqual(progress["initializer_aborted_domains"], ["ampathforms", "drugs"])
+        self.assertNotIn("private", json.dumps(progress))
 
     def test_failure_hints_are_bounded_and_do_not_repeat_raw_matches(self):
         logs = "java.lang.OutOfMemoryError: private\n" * 100

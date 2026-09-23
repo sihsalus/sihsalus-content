@@ -248,7 +248,8 @@ never proves rejection, and all abort, checksum, journal and canary checks remai
 The file-abort detector recognizes both loading and pre-loading failures from
 any domain using the exact message shape in the pinned
 [BaseFileLoader](https://github.com/mekomsolutions/openmrs-module-initializer/blob/3077975fb4f58c91ff3113d7fed1e3df88829476/api/src/main/java/org/openmrs/module/initializer/api/loaders/BaseFileLoader.java).
-It emits only an abort boolean, never a domain or filename. Only the exact
+It emits an abort boolean and a deduplicated list of domains restricted to the
+pinned enum, never a filename or raw message. Only the exact
 Liquibase loading abort together with the candidate changeSet marker qualifies
 as the expected rejection, still requiring no completion and the actual stopped
 module. Any other domain abort, pre-loading abort, or CSV error summary fails
@@ -303,12 +304,22 @@ and their `MD5SUM` provide the XML execution evidence.
 
 Each scenario runs on its own runner with only one backend (4 GiB, 2 CPUs) and
 one database (1 GiB, 1 CPU) concurrently. Within `upgrade`, baseline snapshots
-are reused for the upgrade and rejection branches. Each backend startup allows
-at most 35 minutes, sharing an 80-minute total budget per scenario; cleanup has
-a separate three-minute global budget and at most 45 seconds per Docker
-operation. Each matrix job has a 90-minute timeout.
-A cold full baseline can exhaust these budgets; timeout is a failed validation,
-not permission to reduce the loader scope or accept partial startup.
+are reused for the upgrade and rejection branches. The first historical baseline
+startup allows at most 45 minutes; every other startup allows at most 35 minutes.
+All startups share an 80-minute total budget per scenario; cleanup has a separate
+three-minute global budget and at most 45 seconds per Docker operation. Each
+matrix job has a 90-minute timeout.
+
+The baseline allowance addresses the cold-start timeout observed in
+[main CI 35932198274](https://github.com/sihsalus/sihsalus-content/actions/runs/35932198274):
+both update scenarios were still producing Initializer log output when the
+35-minute limit expired, with no abort or CSV error marker. The identical source
+passed all scenarios in
+[PR CI 35929593687](https://github.com/sihsalus/sihsalus-content/actions/runs/35929593687).
+This increases only the first baseline startup allowance; it does not identify
+the cause of the runtime variation. No elapsed time, progress counter or log
+activity proves readiness: completion and the real started module are still
+required. Exhausting either budget remains a failed validation.
 
 Stdout contains only sanitized JSON phase results, public source identifiers,
 checksums and fixed diagnostic codes. Preserve only that JSONL in the separate
@@ -352,8 +363,11 @@ Neither `hasErrors=false`, `initializationComplete=true`, nor an HTTP code can
 replace the Initializer lifecycle assertions. Installer messages, error pages,
 log lines, response bodies, credentials and exception text are never emitted.
 The loader observations also expose the last loading and last completed domain,
-restricted to names in the pinned Initializer's `Domain` enum. Unknown names are
-reported as `null`; filenames, paths and values are never copied. A bounded list
+plus `initializer_aborted_domains` from actual abort markers, all restricted to
+names in the pinned Initializer's `Domain` enum. The last loading domain is not
+necessarily the one that failed; loading and completion records may refer to
+other files. Unknown last-domain names are reported as `null`; unknown aborted
+domains are omitted. Filenames, paths and values are never copied. A bounded list
 of fixed failure hints identifies memory exhaustion, connection timeout/refusal,
 DNS failure, database lock/deadlock messages and Core's missing retirement-reason
 validation code. It contains category names only,

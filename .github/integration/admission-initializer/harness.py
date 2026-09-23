@@ -50,7 +50,7 @@ REVIEWED_RANGES = (
 OPERATIONAL_CHANGESET = "reconcile-admission-operational-alias-20260921"
 COMPLETION = "OpenMRS config loading process completed."
 ABORT = "The loading of the 'liquibase' configuration file was aborted:"
-FILE_ABORT = re.compile(r"The (?:pre-)?loading of the '[^'\r\n]+' configuration file was aborted:")
+FILE_ABORT = re.compile(r"The (?:pre-)?loading of the '(?P<domain>[^'\r\n]+)' configuration file was aborted:")
 INITIALIZER_STOPPED = re.compile(r"Disposing of ModuleClassLoader: \{ModuleClassLoader: uid=-?\d+; initializer\}")
 STATE_TABLES = {
     "role": "role", "role_privilege": "role,privilege",
@@ -102,6 +102,8 @@ def loader_progress(logs):
     return {
         "initializer_last_loading_domain": loading[-1] if loading and loading[-1] in LOADER_DOMAINS else None,
         "initializer_last_completed_domain": completed[-1] if completed and completed[-1] in LOADER_DOMAINS else None,
+        "initializer_aborted_domains": sorted({match.group("domain") for match in FILE_ABORT.finditer(logs)
+                                               if match.group("domain") in LOADER_DOMAINS}),
         "initializer_failure_hints": [name for name, marker in categories.items() if marker in logs],
     }
 
@@ -480,7 +482,9 @@ class Harness:
 
     def wait_initializer(self, backend, stage, reject=False):
         started_at = time.monotonic()
-        deadline = started_at + self.remaining()
+        # The historical baseline can still be loading at the normal startup limit.
+        startup_budget = self.remaining(45 * 60) if stage == "baseline" else self.remaining()
+        deadline = started_at + startup_budget
         next_diagnostic = started_at
         observed = None
         while time.monotonic() < deadline:
@@ -509,7 +513,7 @@ class Harness:
                 next_diagnostic = now + 60
                 require(has_errors is not True, "installation_reported_errors")
             # A separate failure cannot be masked by the expected Liquibase
-            # rejection. Never emit the matched domain, filename or raw log.
+            # rejection. Diagnostics allow only known domains, never filenames or raw logs.
             if unexpected_abort:
                 raise HarnessFailure("unexpected_initializer_abort")
             if expected_rejection:
