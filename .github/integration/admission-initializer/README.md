@@ -305,7 +305,10 @@ workspace, broad directory or unlabelled resource.
 ### Bounded progress diagnostics
 
 During lifecycle waits, a sanitized `WAITING` record appears initially and at
-most once per minute. It contains only the observed HTTP code (or `null` for
+most once per minute, plus a final record immediately before an unexpected
+loader abort. The final record preserves the same bounded observations when
+the failure happens between progress intervals; it does not expose raw errors
+or change the rejection criteria. It contains only the observed HTTP code (or `null` for
 transport unavailability), running state, and boolean completion/abort/candidate
 marker/CSV-error signals from the current container. At the same bounded
 interval, an anonymous, no-redirect, no-retry GET to the fixed internal
