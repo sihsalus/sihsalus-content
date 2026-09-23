@@ -90,6 +90,23 @@
               },
               "id": "perimetroToracicoAlNacer",
               "label": "Perímetro torácico al nacer"
+            },
+            {
+              "id": "fechaAltaRecienNacido",
+              "label": "Fecha y hora de alta del recién nacido",
+              "type": "obs",
+              "questionInfo": "Registre el alta del recién nacido tras el nacimiento institucional. No use la fecha de alta de la madre ni la de una hospitalización posterior.",
+              "questionOptions": {
+                "rendering": "datetime",
+                "concept": "e911fe60-6d45-40c7-8d65-1ab93b3c77f4"
+              },
+              "validators": [
+                {
+                  "type": "date",
+                  "allowFutureDates": "false",
+                  "message": "El alta no puede estar en el futuro"
+                }
+              ]
             }
           ]
         },

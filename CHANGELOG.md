@@ -10,6 +10,11 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Agregado
+
+- Captura opcional de fecha/hora de alta neonatal en el formulario de nacimiento
+  y contrato de dependencias clínicas de CRED, sin modificar observaciones históricas.
+
 ### Cambiado
 
 - Organiza las fuentes directamente bajo `configuration/`, conservando las
