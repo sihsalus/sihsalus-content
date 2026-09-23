@@ -720,6 +720,23 @@ class HarnessContracts(unittest.TestCase):
                     diagnostic = self.assert_unexpected_loader_abort(signal + "\nsynthetic-private-path", reject)
                     self.assertIs(diagnostic["abort_seen"], True)
 
+    def test_abort_between_progress_intervals_preserves_final_safe_diagnostic(self):
+        self.setup_lifecycle("")
+        self.runtime.module_status = Mock()
+        logs = ("Loading file /openmrs/data/configuration/ampathforms/synthetic-private.json\n"
+                "The loading of the 'ampathforms' configuration file was aborted:\n"
+                "synthetic-private-error")
+        self.runtime.lifecycle_logs.side_effect = [("", False, None), (logs, True, len(logs))]
+        with patch.object(harness.time, "monotonic", side_effect=[0, 0, 0, 5, 5]), \
+                patch.object(harness.time, "sleep"), patch.object(harness, "emit") as emit:
+            with self.assertRaisesRegex(HarnessFailure, "^unexpected_initializer_abort$"):
+                self.runtime.wait_initializer("owned", "upgrade")
+        self.assertEqual(emit.call_count, 2)
+        self.assertIs(emit.call_args.kwargs["abort_seen"], True)
+        self.assertEqual(emit.call_args.kwargs["initializer_last_loading_domain"], "ampathforms")
+        self.assertNotIn("synthetic-private", json.dumps(emit.call_args_list, default=str))
+        self.runtime.module_status.assert_not_called()
+
     def test_expected_liquibase_rejection_never_masks_another_abort_or_csv_error(self):
         expected = harness.ABORT + "\n" + guards.CHANGESET
         for other in ("The loading of the 'ocl' configuration file was aborted:",

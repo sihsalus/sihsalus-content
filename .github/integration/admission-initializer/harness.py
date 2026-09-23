@@ -490,8 +490,11 @@ class Harness:
             logs, log_present, log_bytes = self.lifecycle_logs(backend)
             abort_messages = [match.group(0) for match in FILE_ABORT.finditer(logs)]
             csv_error = "BEGINNING OF CSV FILE ERROR SUMMARY" in logs
+            expected_rejection = reject and ABORT in logs and CHANGESET in logs
+            unexpected_abort = csv_error or any(message != ABORT for message in abort_messages) or (
+                bool(abort_messages) and not expected_rejection)
             now = time.monotonic()
-            if now >= next_diagnostic:
+            if now >= next_diagnostic or unexpected_abort:
                 has_errors, installation_complete, action_counter, percentage = self.installation_progress(backend)
                 emit(stage, "WAITING", backend_running=True, bootstrap_http_code=bootstrap_code,
                      completion_seen=COMPLETION in logs, abort_seen=bool(abort_messages),
@@ -506,13 +509,11 @@ class Harness:
                 require(has_errors is not True, "installation_reported_errors")
             # A separate failure cannot be masked by the expected Liquibase
             # rejection. Never emit the matched domain, filename or raw log.
-            if any(message != ABORT for message in abort_messages) or csv_error:
+            if unexpected_abort:
                 raise HarnessFailure("unexpected_initializer_abort")
-            if reject and ABORT in logs and CHANGESET in logs:
+            if expected_rejection:
                 require(COMPLETION not in logs, "initializer_continued_after_rejection")
                 observed = False
-            elif abort_messages:
-                raise HarnessFailure("unexpected_initializer_abort")
             if COMPLETION in logs:
                 require(not reject, "expected_rejection_did_not_occur")
                 observed = True
