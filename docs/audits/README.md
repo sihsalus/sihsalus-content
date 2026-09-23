@@ -14,6 +14,7 @@ estructura actual lo indican expresamente.
 
 | Fecha | Revisión | Alcance |
 | --- | --- | --- |
+| 2026-09-23 | [Formularios y reglas clínicas](2026-09-23-forms-clinical-review.md) | 112 JSON, validadores, casos sintéticos, fuentes MINSA y defectos pendientes; distingue alertas heurísticas de problemas confirmados. |
 | 2026-09-22 | [Liquibase e Initializer](2026-09-22-liquibase-initializer.md) | Doce changesets publicados, capacidades verificadas y condiciones para reducir SQL. |
 | 2026-09-21 | [Mantenibilidad de Admisión](2026-09-21-admission-maintainability.md) | Revisión anterior a `1.25.24`; inventario parcial de artefactos y entornos. |
 | 2026-09-12 | [Actualización OCL](2026-09-12-ocl-refresh.md) | Export principal `2026-09-09-1`, exclusiones y suscripción remota. |

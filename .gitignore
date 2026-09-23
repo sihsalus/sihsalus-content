@@ -32,3 +32,5 @@ build/
 # Bytecode generado por Python
 __pycache__/
 *.py[cod]
+
+node_modules/

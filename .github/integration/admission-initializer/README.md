@@ -5,6 +5,12 @@ ephemeral GitHub-hosted Linux runner. It does not build Maven modules, publish
 images, deploy, contact DEV/QLTY/PROD, or use existing accounts or patients.
 The local unit tests are not evidence that the containers or migration passed.
 
+Fresh installation and both upgrade scenarios also check the two corrected
+clinical form schemas and eleven laboratory range criteria against the candidate
+files. Upgrades preserve the UUID, database identity, version and schema hash of
+previous forms; a restart must leave the resulting forms unchanged. These are
+loader checks, not clinical encounter save/edit tests.
+
 See the [admission contract](../../../docs/contracts/admission-role-reconciliation.md)
 for supported migration inputs and the [development guide](../../../docs/development.md)
 for the other validation layers. Here, “candidate” means the checked-out content

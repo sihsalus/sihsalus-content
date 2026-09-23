@@ -1,8 +1,9 @@
 # Captura de laboratorio y compatibilidad con la normativa peruana
 
-Revisión clínica y normativa documentada: **2026-09-12**. Cambios incorporados
-desde el paquete publicado **1.25.19**; esta actualización documental no amplía
-la revisión de fuentes ni acredita aceptación clínica.
+Revisión clínica y normativa inicial: **2026-09-12**. Cambios incorporados
+desde el paquete publicado **1.25.19**. La corrección de selección del
+**2026-09-23**, candidata a `1.25.25`, se describe abajo; no acredita aceptación
+clínica ni sustituye los procedimientos institucionales.
 Este contrato distingue el contenido requerido del informe, los puntos de corte
 diagnósticos y la representación informática. Una release OCL publicada no
 demuestra por sí sola compatibilidad con los tres.
@@ -79,8 +80,17 @@ un cambio de magnitud; esto no demuestra que OpenMRS importe la unidad.
 La clave admitida por el importador es `units`. Esa metadata ya se corrigió en
 HEAD remoto en la [revisión del 12 de septiembre](../audits/2026-09-12-ocl-remote-corrections.md),
 junto con la recuperación de la magnitud histórica de `5400`.
-Las dos filas CSV que declaran `mg/kg/24h` bajo ese UUID siguen pendientes de una
-definición coordinada de la medición y no se corrigieron con una conversión supuesta.
+En `1.25.25` las dos filas CSV que declaran `mg/kg/24h` bajo ese UUID conservan
+su identidad, pero llevan `Criteria=false`: no pueden seleccionarse. Core usa
+entonces los límites del `ConceptNumeric` existente en la magnitud absoluta.
+No se convierten valores ni se recalculan interpretaciones históricas.
+
+Initializer actualiza estos registros por UUID. `ConceptReferenceRange` no es
+retirable y el parser de ese dominio no implementa borrado: quitar las filas del
+CSV dejaría las reglas antiguas activas en instalaciones existentes. El criterio
+falso usa el mecanismo nativo de selección para desactivarlas sin SQL ni purga.
+Su sustitución por intervalos institucionalmente validados y cualquier revisión
+de resultados previos siguen pendientes del procedimiento de laboratorio.
 
 ## Hemoglobina
 
@@ -111,13 +121,36 @@ La NTS exige conservar Hb observada y ajustada cuando corresponde ajuste por
 altitud (§5.3.2–5.3.3, p. 22). Este cambio no sobrescribe el valor observado
 ni implementa una conversión automática.
 
+## Selección de poblaciones desde 1.25.25
+
+Las filas neonatales usan las semanas/meses completos a la fecha de la muestra,
+mediante los helpers nativos de Core. Reutilizan el concepto `sihsalus:1030`
+(`c2380004-0000-4000-8000-000000000004`), semanas de prematuridad, capturado por
+CRED-009 y CRED-026: un valor positivo hasta 20 identifica prematuridad; cero
+explícito permite los rangos de nacidos a término. Un dato ausente, inválido o
+posterior a la muestra no establece esa condición. Las bandas de prematuros son
+0–<1, 1–<4 y 4–<8 semanas completas, conforme a las semanas de vida de tabla 13.
+
+Los rangos maternos reutilizan los estados del programa existente: «Control
+Prenatal»/«Parto» para gestación y «Posparto» para puerperio. Se consulta el estado
+activo en la fecha de la muestra; no se infiere parto a partir de 40 semanas.
+El tercer trimestre continúa mientras persista el estado gestacional. Las
+observaciones de edad gestacional posteriores a la muestra no se utilizan.
+
+`getLatestObs` selecciona la última observación creada. La guarda de fecha evita
+usar una observación futura, pero no busca una observación anterior alternativa.
+Sin un rango coincidente, Core puede usar los límites generales del concepto:
+ese fallback **no establece normalidad clínica específica por población**.
+Se requiere mantener los datos de nacimiento y las transiciones del programa,
+además de validar la captura y presentación en el entorno clínico.
+
 ## Pendientes de la actualización completa
 
-Las filas de prematuridad no comprueban esa condición; la edad gestacional
-40–48 semanas no identifica puerperio. Corregir los cuatro puntos de corte no
-resuelve esos problemas de selección de población ni los intervalos altos.
+Las correcciones de selección no validan los intervalos altos ni los métodos.
 La [auditoría previa](../audits/2026-09-10-laboratory-reference-ranges-pr-225.md)
-mantiene el detalle de estos problemas.
+conserva el diagnóstico inicial; la
+[revisión del 23 de septiembre](../audits/2026-09-23-forms-clinical-review.md)
+distingue los defectos identificados y el alcance de las correcciones.
 
 Para completar laboratorio se necesita el procedimiento/formato institucional,
 los métodos y equipos/reactivos aplicados y sus intervalos verificados. Las

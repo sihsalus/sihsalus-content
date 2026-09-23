@@ -45,6 +45,14 @@ jobs:
         run: python3 .github/scripts/validate_ampath_forms.py
       - name: Test AMPATH form identity validation
         run: python3 .github/scripts/test_ampath_forms.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Test clinical form expressions
+        run: |
+          npm ci --prefix .github/integration/form-expressions --ignore-scripts
+          npm test --prefix .github/integration/form-expressions
+          TZ=America/New_York npm test --prefix .github/integration/form-expressions
       - name: Validate CE-001 diagnosis contract
         run: python3 .github/scripts/validate_ce001_diagnosis_contract.py
       - name: Test CE-001 diagnosis contract validator

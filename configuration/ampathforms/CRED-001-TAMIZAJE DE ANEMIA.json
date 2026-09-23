@@ -72,13 +72,13 @@
                 "rendering": "number",
                 "concept": "c1010001-0000-4000-8000-000000000001",
                 "min": "0",
-                "max": "5000",
+                "max": "5500",
                 "step": 1,
                 "disallowDecimals": true
               },
               "hideSteppers": true,
               "alert": {
-                "alertWhenExpression": "altitud > 500",
+                "alertWhenExpression": "altitud >= 500",
                 "message": "Debe corregir la hemoglobina por altitud antes de clasificar, según NTS 213 y RM 429-2024/MINSA."
               },
               "validators": []
@@ -200,5 +200,5 @@
   "referencedForms": [],
   "uuid": "56805405-c308-429d-84d9-2a5447922734",
   "description": "Registro de tamizaje de anemia según NTS 213-MINSA/DGIESP-2024 y RM 429-2024/MINSA. Exige edad y altitud y conserva la hemoglobina medida; la clasificación debe realizarse con el valor ajustado y el corte por edad.",
-  "version": "1.2.0"
+  "version": "1.2.1"
 }
