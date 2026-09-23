@@ -47,7 +47,10 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 La limpieza de estructura y documentación conserva la metadata de `1.25.24`.
 Las correcciones iniciales de formularios y rangos corresponden a `1.25.25`;
-la ampliación a todas las edades prepara **`1.25.26`**, aún sin publicar.
+el alta neonatal y la ampliación a todas las edades están integradas en `main`
+para **`1.25.26`**. El merge no acredita publicación ni despliegue; consultar la
+[evidencia fechada de CRED](docs/contracts/cred-clinical-completion.md#evidencia-disponible)
+y el resultado del workflow correspondiente.
 
 ## [1.25.24] - 2026-09-22
 

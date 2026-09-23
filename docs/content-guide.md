@@ -87,7 +87,7 @@ módulos del distro y la norma vigente en fuentes oficiales.
 | Obstetricia y neonatal | `OBST-*`, partograma, recién nacido y puerperio. |
 | Hospitalización | `HOSP-001`, `HOSP-004`, `HOSP-008`, `HOSP-009`, `HOSP-012` y `FormularioEpicrisisMédica`. |
 | Referencia | `CE-REF-*` y [catálogo de transporte](contracts/referral-transport-terminology.md). |
-| CRED | `CRED-*`, incluidos Huanca adaptado (`CRED-026`) y habilidades/conductas (`CRED-027`); la [revisión CRED](audits/2026-07-10-cred-nts238-forms.md) delimita los instrumentos resumidos. |
+| CRED | `CRED-*`, incluidos Huanca adaptado (`CRED-026`) y habilidades/conductas (`CRED-027`); el [contrato CRED actualizado](contracts/cred-clinical-completion.md) reúne integración, pruebas y pendientes. La [auditoría de julio](audits/2026-07-10-cred-nts238-forms.md) conserva su alcance histórico. |
 | Odontología | `ODONT-*`; el odontograma es un componente separado. |
 | Inmunizaciones | `INMU-001` e `INMU-002`; la [auditoría NTS 246](audits/2026-06-17-inmunizaciones-nts-246.md) registra brechas de vacunas y productos. |
 | Laboratorio | Formularios de resultados y rangos con los límites del [contrato de laboratorio](contracts/laboratory-reporting.md). |
