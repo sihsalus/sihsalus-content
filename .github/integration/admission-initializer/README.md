@@ -11,6 +11,10 @@ files. Upgrades preserve the UUID, database identity, version and schema hash of
 previous forms; a restart must leave the resulting forms unchanged. These are
 loader checks, not clinical encounter save/edit tests.
 
+The expected schema hash applies Core's `OpenmrsObjectSaveHandler` outer-whitespace
+trimming when saving `ClobDatatypeStorage`; internal JSON bytes must still match.
+Historical hashes are compared as stored, without modifying previous schemas.
+
 See the [admission contract](../../../docs/contracts/admission-role-reconciliation.md)
 for supported migration inputs and the [development guide](../../../docs/development.md)
 for the other validation layers. Here, “candidate” means the checked-out content

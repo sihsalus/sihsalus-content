@@ -80,12 +80,12 @@ class HarnessContracts(unittest.TestCase):
         self.runtime.candidate_config = self.root
         (self.root / "ampathforms").mkdir()
         (self.root / "conceptreferencerange").mkdir()
-        schema = b'{"name":"Synthetic form","version":"2"}'
+        schema = b' \t{"name":"Synthetic form","version":"2"}\r\n'
         for filename in harness.REVIEWED_FORMS:
             (self.root / "ampathforms" / filename).write_bytes(schema)
         (self.root / "conceptreferencerange/conceptreferencerange_laboratory.csv").write_text(
             "Uuid,Criteria\n" + "".join(identifier + ",false\n" for identifier in harness.REVIEWED_RANGES))
-        schema_hash = harness.hashlib.md5(schema).hexdigest()
+        schema_hash = harness.hashlib.md5(b'{"name":"Synthetic form","version":"2"}').hexdigest()
         criteria_hash = harness.hashlib.md5(b"false").hexdigest()
         previous = ["old-uuid\t10\t1\t0\told-schema-hash"]
         current = ["old-uuid\t10\t1\t1\told-schema-hash", f"new-uuid\t11\t2\t0\t{schema_hash}"]
