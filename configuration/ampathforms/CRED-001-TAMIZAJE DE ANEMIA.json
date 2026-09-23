@@ -81,8 +81,7 @@
                 "alertWhenExpression": "altitud >= 500",
                 "message": "Debe corregir la hemoglobina por altitud antes de clasificar, según NTS 213 y RM 429-2024/MINSA."
               },
-              "validators": [],
-              "questionInfo": "Use la altitud de residencia aplicable según NTS 213. La tabla 1 modificada por RM 429-2024/MINSA incluye el rango 500–999 m y llega hasta 5500 m. La clasificación requiere revisión clínica."
+              "validators": []
             },
             {
               "label": "Clasificación de anemia ajustada por edad y altitud",
@@ -201,5 +200,5 @@
   "referencedForms": [],
   "uuid": "56805405-c308-429d-84d9-2a5447922734",
   "description": "Registro de tamizaje de anemia según NTS 213-MINSA/DGIESP-2024 y RM 429-2024/MINSA. Exige edad y altitud y conserva la hemoglobina medida; la clasificación debe realizarse con el valor ajustado y el corte por edad.",
-  "version": "1.2.0"
+  "version": "1.2.1"
 }

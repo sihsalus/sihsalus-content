@@ -36,7 +36,10 @@
                 <groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId><version>3.5.4</version>
                 <configuration>
                     <failIfNoTests>true</failIfNoTests>
-                    <systemPropertyVariables><content.root>${project.basedir}/../../..</content.root></systemPropertyVariables>
+                    <systemPropertyVariables>
+                        <content.root>${project.basedir}/../../..</content.root>
+                        <OPENMRS_APPLICATION_DATA_DIRECTORY>${project.build.directory}/openmrs</OPENMRS_APPLICATION_DATA_DIRECTORY>
+                    </systemPropertyVariables>
                 </configuration>
             </plugin>
         </plugins>

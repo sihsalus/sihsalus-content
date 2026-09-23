@@ -9,6 +9,22 @@
           "isExpanded": "true",
           "questions": [
             {
+              "label": "Fecha y hora de atención",
+              "type": "encounterDatetime",
+              "required": true,
+              "id": "fechaAtencion",
+              "questionOptions": {
+                "rendering": "datetime"
+              },
+              "validators": [
+                {
+                  "type": "date",
+                  "allowFutureDates": "false",
+                  "message": "La atención no puede tener una fecha futura"
+                }
+              ]
+            },
+            {
               "type": "obsGroup",
               "questionOptions": {
                 "rendering": "group",
@@ -140,6 +156,11 @@
                       "type": "date",
                       "allowFutureDates": "false",
                       "message": "El FUM no puede ser una fecha futura"
+                    },
+                    {
+                      "type": "js_expression",
+                      "failsWhenExpression": "myValue && fechaAtencion ? dayjs(myValue).isAfter(fechaAtencion, 'day') : false",
+                      "message": "La FUM no puede ser posterior a la fecha de atención"
                     }
                   ]
                 },
@@ -188,12 +209,13 @@
                   "type": "obs",
                   "required": false,
                   "id": "edadGestacionalFUM",
+                  "questionInfo": "Semanas completas desde la FUM a la fecha de atención.",
                   "questionOptions": {
                     "rendering": "number",
                     "disallowDecimals": false,
                     "concept": "fa067988-a6b6-4c0b-8a35-0eeb6564f613",
                     "calculate": {
-                      "calculateExpression": "calcTimeDifference(fum, 'w')"
+                      "calculateExpression": "fum && fechaAtencion ? dayjs(fechaAtencion).startOf('day').diff(dayjs(fum).startOf('day'), 'week') : undefined"
                     },
                     "min": "0",
                     "max": "42",
@@ -217,8 +239,8 @@
                   "validators": [
                     {
                       "type": "js_expression",
-                      "failsWhenExpression": "isDateBefore(myValue, today())",
-                      "message": "La fecha probable de parto no puede ser una fecha pasada"
+                      "failsWhenExpression": "myValue && fum ? dayjs(myValue).isBefore(fum, 'day') : false",
+                      "message": "La fecha probable de parto no puede ser anterior a la FUM"
                     }
                   ]
                 }
@@ -832,5 +854,5 @@
   "referencedForms": [],
   "uuid": "8616c1b5-126a-4ff9-addf-f15909f60e79",
   "description": "Registro de datos generales del embarazo actual",
-  "version": "1.0.1"
+  "version": "1.0.2"
 }

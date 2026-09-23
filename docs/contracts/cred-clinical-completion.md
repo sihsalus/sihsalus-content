@@ -1,7 +1,9 @@
 # CRED: contratos clínicos y dependencias pendientes
 
 Revisión del 23 de septiembre de 2026 sobre content `a54fde1` y frontend `41926436d`.
-Esta revisión y sus pruebas locales no constituyen aceptación clínica ni evidencia de QLTY.
+La propuesta se integra después con content `28c205d` (PR #240), que ya corrige
+los límites de altitud. Esta revisión y sus pruebas locales no constituyen aceptación
+clínica ni evidencia de QLTY.
 
 ## Cambios de contenido
 
@@ -20,7 +22,8 @@ guardar, recargar y corregir sin crear otra atención. El frontend requiere desp
 primero este contenido para poder completar un alta ausente.
 
 `CRED-001` conserva la hemoglobina medida y la clasificación confirmada por el
-profesional. Su advertencia incluye ahora 500 m y la captura admite hasta 5500 m,
+profesional. La versión `1.2.1`, incorporada por el [PR #240](https://github.com/sihsalus/sihsalus-content/pull/240),
+ya incluye 500 m en la advertencia y admite captura hasta 5500 m,
 de acuerdo con la tabla 1 de la [RM 429-2024/MINSA](https://bvs.minsa.gob.pe/local/fi-admin/RM-429-2024-minsa.pdf).
 No calcula ni persiste todavía hemoglobina ajustada.
 
@@ -30,7 +33,7 @@ No calcula ni persiste todavía hemoglobina ajustada.
 | --- | --- | --- |
 | [58](https://github.com/sihsalus/sihsalus-frontend.tasktree/issues/58) | Frontend incorpora IMC/edad y talla/edad OMS 2007, con cálculo LMS para la interpretación del gráfico. | Publicar conceptos por indicador y persistir resultado, clasificación, referencia y mediciones fuente; aceptación clínica. |
 | [98](https://github.com/sihsalus/sihsalus-frontend.tasktree/issues/98) | Fecha de alta reutilizable; frontend aplica 48 horas para el primer control institucional y admite el día 14 en la ventana del segundo. | QLTY, captación tardía y registro retrospectivo; concepto y captura de notificación de nacimiento extrainstitucional. |
-| [99](https://github.com/sihsalus/sihsalus-frontend.tasktree/issues/99) | Revisada la tabla vigente y corregido el rango de captura/advertencia. Hb medida preservada. | Terminología de factor/Hb ajustada y cálculo/persistencia en el componente clínico backend. |
+| [99](https://github.com/sihsalus/sihsalus-frontend.tasktree/issues/99) | Revisada la tabla vigente y conservada la corrección de captura/advertencia del PR #240. Hb medida preservada. | Terminología de factor/Hb ajustada y cálculo/persistencia en el componente clínico backend. |
 | [93](https://github.com/sihsalus/sihsalus-frontend.tasktree/issues/93) | EDI sigue siendo transcripción resumida de cinco ejes, no una aplicación por ítems. | Conceptos individuales, versión clínica aprobada, reglas completas y prueba normal/rezago/riesgo. |
 | [94](https://github.com/sihsalus/sihsalus-frontend.tasktree/issues/94) | Huanca sigue guardando áreas y detalles; no cada hito por edad. | Conceptos por hito, versión adaptada aprobada y prueba de cada pauta. |
 | [96](https://github.com/sihsalus/sihsalus-frontend.tasktree/issues/96) | M-CHAT conserva puntaje y resumen; no incluye veinte preguntas ni entrevista R/F. | Permiso de distribución, conceptos por ítem/seguimiento y validación del flujo de dos etapas. |

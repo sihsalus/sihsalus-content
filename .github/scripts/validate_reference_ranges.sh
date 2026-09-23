@@ -428,7 +428,7 @@ for label, normal_low in [
     ("Hemoglobina 24 - 59 meses", 11),
     ("Hemoglobina gestante 0 - <14 wks", 11),
     ("Hemoglobina gestante 14 - <28 wks", 10.5),
-    ("Hemoglobina gestante 28 - <40 wks", 11),
+    ("Hemoglobina gestante >=28 wks hasta el parto", 11),
 ]:
     require_value(label, "Normal low", normal_low, "NTS 213-MINSA/DGIESP-2024, tabla 13")
 

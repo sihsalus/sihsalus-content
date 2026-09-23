@@ -7,6 +7,9 @@ leer [AGENTS.md](../AGENTS.md) y el [contrato correspondiente](README.md#contrat
 
 - Python 3.9 o superior para los validadores y pruebas de biblioteca estándar.
 - Bash para las comprobaciones de rangos, terminología y publicación.
+- Node 24 y npm para ejecutar las expresiones JavaScript de formularios con la
+  misma biblioteca de fechas del motor. Esta prueba usa el runner nativo de Node;
+  los validadores Python no ejecutan JavaScript.
 - Maven 3 y Java: CI usa Java 8 para el paquete, Java 17 para autorización de
   rangos y Java 21 para MariaDB/Liquibase.
 - MariaDB y el backend de OpenMRS solo se necesitan en sus ensayos de integración;
@@ -28,6 +31,9 @@ for regression in .github/scripts/test_*.sh; do
   bash "$regression"
 done
 python3 -B .github/integration/admission-initializer/test_harness.py
+npm ci --prefix .github/integration/form-expressions --ignore-scripts
+npm test --prefix .github/integration/form-expressions
+TZ=America/New_York npm test --prefix .github/integration/form-expressions
 ```
 
 Las pruebas de regresión usan fixtures sintéticas y copias temporales cuando

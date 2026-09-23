@@ -26,17 +26,26 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ### Corregido
 
-- CRED-001 incluye 500 m en la advertencia de corrección de hemoglobina y admite
-  hasta 5500 m, conforme a la tabla modificada por RM 429-2024/MINSA. Conserva la Hb medida.
-
+- CRED-001 `1.2.1` activa el aviso de ajuste de hemoglobina desde 500 m e incluye
+  hasta 5.500 m. OBST-002 `1.0.2` calcula semanas completas a la fecha de atención,
+  conserva el vacío sin FUM y admite fechas probables de parto pasadas.
+- Los rangos de hemoglobina neonatal exigen prematuridad explícita y usan la edad
+  a la fecha de la muestra. Los maternos distinguen los estados prenatales y de
+  posparto; las 40 semanas dejan de funcionar como sustituto del parto.
+- Desactiva las dos reglas de creatinina normalizada por peso que se aplicaban
+  a la medición absoluta de 24 horas. Conserva UUIDs y valores históricos; Core
+  vuelve a los límites del concepto, pendientes de validación institucional.
+- Añade regresiones de expresiones y selección nativa de rangos; amplía el ensayo
+  de Initializer para comprobar esquemas históricos y criterios cargados.
 - El validador AMPATH rechaza colisiones de la identidad persistida aunque los
   UUID JSON sean distintos, nombres o versiones vacíos y carpetas sin formularios.
   Comparte el cálculo de identidad con CE-001 e historia social e incorpora
   regresiones con datos sintéticos.
 
-La reorganización previa conservó los bytes de `1.25.24`. Los cambios CRED de
-esta propuesta sí modifican metadata: requieren una nueva versión del paquete
-tras revisión y validación en QLTY; no reemplazan el artefacto ya publicado.
+La limpieza de estructura y documentación conserva la metadata de `1.25.24`.
+Las correcciones de formularios y rangos se incorporaron en `1.25.25`.
+La captura de alta neonatal prepara **`1.25.26`**, pendiente de revisión y aceptación
+en QLTY; no reemplaza artefactos publicados.
 
 ## [1.25.24] - 2026-09-22
 
