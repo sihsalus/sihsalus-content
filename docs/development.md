@@ -102,6 +102,17 @@ integración no oculta los resultados del build ni cancela los otros escenarios.
 La publicación en Maven Central exige que todas estas comprobaciones pasen en
 el mismo commit de `main` o `pre-release`; los PR solo validan.
 
+Después de publicar, `Validate with SIHSALUS` construye el backend con el paquete
+publicado y arranca `db` y `backend` mediante el `docker-compose.yml` normal del
+distro. Sus dependencias incluyen el generador nativo de `oauth2.properties`,
+incluso con autenticación local, y la política `initializer.startup.load=fail_on_error`.
+No usar el fixture histórico `docker-compose-no-volumes.yml`: omite esa
+configuración y puede producir fallos de módulos y permisos ajenos al paquete.
+La sonda de arranque se ejecuta dentro del backend, sin publicar un puerto del
+host. El proyecto exclusivo del runner se elimina con sus volúmenes al terminar;
+no usa datos ni servidores del hospital. El clasificador conserva el rechazo de
+errores de carga aun cuando el endpoint HTTP responda correctamente.
+
 El perfil `release` usa `autoPublish=true` y `waitUntil=validated`: Maven espera
 la subida y validación de Sonatype; los errores de cualquiera de ellas bloquean
 el workflow. La publicación continúa automáticamente y el paso obligatorio

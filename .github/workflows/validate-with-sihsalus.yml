@@ -23,6 +23,12 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 100
+    env:
+      # Use the distro's normal service definitions, including its native
+      # oauth2.properties writer and strict Initializer startup policy.
+      COMPOSE_FILE: ${{ github.workspace }}/sihsalus/docker-compose.yml
+      COMPOSE_ENV_FILES: ${{ github.workspace }}/sihsalus/.env
+      COMPOSE_PROJECT_NAME: content-validation
     steps:
       - name: Checkout content package
         uses: actions/checkout@v4
@@ -67,26 +73,27 @@ jobs:
           MYSQL_OPENMRS_PASSWORD=openmrs
           MYSQL_ROOT_PASSWORD=openmrs
           OMRS_OCL_TOKEN=
+          BACKEND_TAG=content-validation
           EOF
 
       - name: Build SIHSALUS backend image with current content package
         working-directory: sihsalus
-        run: docker build -t openmrs/openmrs-reference-application-3-backend:content-validation -f backend/Dockerfile .
+        run: docker build -t ghcr.io/sihsalus/sihsalus-backend:content-validation -f backend/Dockerfile .
 
       - name: Start SIHSALUS backend
         working-directory: sihsalus
-        env:
-          TAG: content-validation
-        run: docker compose -f docker-compose-no-volumes.yml up -d db backend
+        run: |
+          docker compose pull db backend-oauth2-config
+          docker compose up -d --no-build --pull never db backend
 
       - name: Wait for backend startup
         working-directory: sihsalus
         run: |
           timeout 40m bash -c '
-            until curl -fsS http://localhost:8080/openmrs/health/started; do
-              docker compose -f docker-compose-no-volumes.yml ps
-              if ! docker compose -f docker-compose-no-volumes.yml ps --status running --services | grep -qx backend; then
-                docker compose -f docker-compose-no-volumes.yml logs backend
+            until docker compose exec -T backend curl -fsS http://localhost:8080/openmrs/health/started; do
+              docker compose ps
+              if ! docker compose ps --status running --services | grep -qx backend; then
+                docker compose logs backend
                 exit 1
               fi
               sleep 20
@@ -94,8 +101,8 @@ jobs:
           '
 
       - name: Capture backend logs
-        if: always() && hashFiles('sihsalus/docker-compose-no-volumes.yml') != ''
-        run: docker compose -f sihsalus/docker-compose-no-volumes.yml logs backend | tee sihsalus/sihsalus-content-validation.log
+        if: always() && hashFiles('sihsalus/.env') != ''
+        run: docker compose logs backend | tee sihsalus/sihsalus-content-validation.log
 
       - name: Classify validation log errors
         if: always() && hashFiles('sihsalus/sihsalus-content-validation.log') != ''
@@ -104,8 +111,8 @@ jobs:
           bash ../content-package/.github/scripts/classify_validation_log.sh sihsalus-content-validation.log
 
       - name: Stop SIHSALUS backend
-        if: always() && hashFiles('sihsalus/docker-compose-no-volumes.yml') != ''
-        run: docker compose -f sihsalus/docker-compose-no-volumes.yml down -v
+        if: always() && hashFiles('sihsalus/.env') != ''
+        run: docker compose down --volumes --remove-orphans
 
       - name: Upload validation log
         if: always()
