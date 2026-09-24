@@ -86,6 +86,20 @@ fhirpatientidentifiersystems ampathforms ampathformstranslations htmlforms dispo
 """.split())
 
 
+def initializer_thread_stacks(output):
+    """Keep bounded Java method names, never thread names, arguments or raw dumps."""
+    stacks = []
+    for block in output.split('\n\n'):
+        frames = re.findall(
+            r'^\s+at (?:[\w.@+-]+/(?:[\w.@+-]*/)?)?((?:java|jdk|sun|org\.openmrs|org\.hibernate|org\.mariadb|org\.springframework|com\.mysql)\.[\w.$]+)\([^\r\n]*\)$',
+            block, re.MULTILINE)
+        if any(frame.startswith('org.openmrs.module.initializer.') for frame in frames):
+            stacks.append(frames[:24])
+            if len(stacks) == 3:
+                break
+    return stacks
+
+
 def loader_progress(logs):
     """Report only pinned Initializer domain names and fixed failure categories."""
     loading = re.findall(r"Loading file [^\r\n]*?/configuration/([a-z]+)/", logs)
@@ -319,7 +333,8 @@ class Harness:
              "--env-file", str(self.db_env),
              "--mount", "type=volume,src=" + volume + ",dst=/var/lib/mysql",
              "--mount", "type=bind,src=" + str(self.mysql_config) + ",dst=/run/admission-mysql.cnf,readonly"],
-            DATABASE_IMAGE, ["mariadbd", "--character-set-server=utf8mb4", "--collation-server=utf8mb4_bin"])
+            DATABASE_IMAGE, ["mariadbd", "--character-set-server=utf8mb4", "--collation-server=utf8mb4_bin",
+                             "--innodb-flush-log-at-trx-commit=2"])
         self.docker("start", name)
         deadline = time.monotonic() + self.remaining(180)
         while time.monotonic() < deadline:
@@ -328,6 +343,9 @@ class Harness:
             if result.returncode == 0:
                 require(result.stdout.decode().strip().startswith("10.11.7-"), "database_version_mismatch")
                 require(self.query(name, "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=" + sql_string(DATABASE)) == ["0"], "database_not_empty")
+                require(self.query(name, "SELECT @@GLOBAL.innodb_flush_log_at_trx_commit") == ["2"],
+                        "disposable_database_flush_mode_mismatch")
+                emit("database", "PASSED", innodb_flush_log_at_trx_commit=2, power_loss_durability_tested=False)
                 return name
             time.sleep(5)
         raise HarnessFailure("database_startup_timeout")
@@ -545,7 +563,19 @@ class Harness:
                         emit(stage, "PASSED", initializer_started=started)
                         return
             time.sleep(5)
+        emit(stage, "FAILED", reason="initializer_lifecycle_not_proven_before_timeout",
+             **self.jvm_diagnostic(backend))
         raise HarnessFailure("initializer_lifecycle_not_proven_before_timeout")
+
+    def jvm_diagnostic(self, backend):
+        self.owned("container", backend)
+        try:
+            result = self.docker("exec", backend, "jcmd", "0", "Thread.print", timeout=10, allow_failure=True)
+        except HarnessFailure:
+            result = None
+        available = result is not None and result.returncode == 0
+        return {"jvm_thread_dump_available": available,
+                "initializer_thread_stacks": initializer_thread_stacks(result.stdout.decode("utf-8", "replace")) if available else []}
 
     def checksum(self, backend, relative):
         value = self.copy_file(backend, "/openmrs/data/" + relative).decode("ascii")
