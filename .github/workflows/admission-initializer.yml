@@ -1,4 +1,5 @@
-name: Admission Initializer upgrade integration
+# Temporary diagnostic branch only; restore this workflow before preparing a fix PR.
+name: Temporary Initializer startup resource diagnostics
 
 on:
   workflow_call:
@@ -9,13 +10,13 @@ permissions:
 
 jobs:
   initializer-upgrade:
-    name: Initializer (${{ matrix.scenario }})
+    name: Startup resource profile (not validation)
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        scenario: [upgrade, fresh, operational]
+        scenario: [operational]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,32 +27,34 @@ jobs:
             8000b27f48bf124fe9a553d4ba41c678e9acc231 \
             762920145a806f989fd8876ab2938ef217f57aab
       - name: Test the harness isolation and assertions without Docker
-        run: python3 -B .github/integration/admission-initializer/test_harness.py
-      - name: Exercise the pinned backend with exclusively synthetic data
+        run: |
+          python3 -B .github/integration/admission-initializer/test_harness.py
+          python3 -B .github/integration/admission-initializer/test_startup_profile.py
+      - name: Collect a bounded startup profile (not upgrade validation)
         env:
           ADMISSION_INITIALIZER_DISPOSABLE: github-runner-only
           ADMISSION_INITIALIZER_SCENARIO: ${{ matrix.scenario }}
         shell: bash
         run: |
           set -euo pipefail
-          python3 -B .github/integration/admission-initializer/harness.py \
+          python3 -B .github/integration/admission-initializer/profile_startup.py \
             | tee admission-initializer-result.jsonl
       - name: Record validation boundaries
         if: always()
         run: |
           {
-            echo '## Admission Initializer ${{ matrix.scenario }} integration'
+            echo '## Startup resource diagnostic only; no upgrade acceptance result'
             echo "Source: ${GITHUB_SHA}"
             echo 'Pinned backend digest; owned ephemeral MariaDB/backend only.'
             echo 'See sanitized phase results for actual completion and assertions.'
             echo 'No DEV/QLTY/PROD access, existing accounts, live patients, or deployments.'
-            echo 'A narrow synthetic role/relationship smoke is not general clinical acceptance.'
+            echo 'Diagnostic collection only. Full upgrade validation was NOT RUN.'
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Preserve only sanitized phase results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: admission-initializer-${{ matrix.scenario }}-${{ github.sha }}
+          name: initializer-startup-profile-${{ github.sha }}
           path: admission-initializer-result.jsonl
           if-no-files-found: warn
           retention-days: 7
