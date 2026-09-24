@@ -310,6 +310,23 @@ All startups share an 80-minute total budget per scenario; cleanup has a separat
 three-minute global budget and at most 45 seconds per Docker operation. Each
 matrix job has a 90-minute timeout.
 
+The exclusively disposable database uses MariaDB 10.11's native
+[`innodb_flush_log_at_trx_commit=2`](https://mariadb.com/docs/server/server-usage/storage-engines/innodb/innodb-system-variables#innodb_flush_log_at_trx_commit):
+commits write the redo log while disk flushes occur periodically, avoiding a
+forced flush for every metadata transaction. The effective setting is checked
+before loading any content. SQL transactions, rollback, checksums and all
+assertions remain enabled. This fixture does **not** test durability under an
+operating-system crash or power loss. No deployed database configuration changes.
+The change addresses the write-heavy cold import after the operational baseline
+again exhausted 45 minutes in
+[main CI 35936258926](https://github.com/sihsalus/sihsalus-content/actions/runs/35936258926).
+That timeout did not identify its root cause; a successful candidate run must
+still prove the complete load. Raising the deadline again, changing historical
+metadata or skipping domains is not part of this change. CI owner: `@Duvet05`,
+tracking [SIHSalus #336](https://github.com/sihsalus/sihsalus/issues/336).
+Reassess this fixture setting if CI adds crash-recovery coverage or changes its
+storage; such coverage requires the normal durable database configuration.
+
 The baseline allowance addresses the cold-start timeout observed in
 [main CI 35932198274](https://github.com/sihsalus/sihsalus-content/actions/runs/35932198274):
 both update scenarios were still producing Initializer log output when the
@@ -376,6 +393,15 @@ where loading stopped without publishing application logs. These hints do not
 prove the root cause, and their absence does not prove that startup is healthy.
 
 These diagnostics are not passing test results.
+
+At a lifecycle timeout, one native `jcmd 0 Thread.print` sample is attempted
+inside the already verified, owned backend, with a ten-second diagnostic limit.
+Only stacks containing an Initializer method are selected: at most three stacks
+and 24 method names per stack, restricted to Java/OpenMRS/database/framework
+namespaces. Thread names, source locations, arguments, exception text, raw dumps
+and command errors are discarded. Unavailable diagnostics report a boolean and
+an empty list; the lifecycle timeout still fails. This does not extend the
+startup acceptance deadline or treat an incomplete load as successful.
 
 Pure tests exercise safety and assertion contracts without Docker. Only a
 successful run on the exact candidate SHA supplies the integration evidence
