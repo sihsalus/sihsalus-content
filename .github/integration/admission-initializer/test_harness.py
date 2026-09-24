@@ -76,6 +76,53 @@ class HarnessContracts(unittest.TestCase):
         self.runtime = object.__new__(harness.Harness)
         self.runtime.hospital_roles = []
 
+    def test_disposable_database_requires_effective_flush_configuration(self):
+        self.runtime.network, self.runtime.nonce = "private-network", "synthetic"
+        self.runtime.db_env, self.runtime.mysql_config = self.root / "db.env", self.root / "mysql.cnf"
+        self.runtime.volume = Mock(return_value="owned-volume")
+        self.runtime.container = Mock(return_value="owned-db")
+        self.runtime.docker = Mock(return_value=completed(stdout=b"10.11.7-MariaDB"))
+        self.runtime.remaining = Mock(return_value=10)
+        for effective, passes in ((["2"], True), (["1"], False), (["private-value"], False)):
+            self.runtime.query = Mock(side_effect=[["0"], effective])
+            with self.subTest(effective=effective), patch.object(harness, "emit") as emit:
+                if passes:
+                    self.assertEqual(self.runtime.start_database("baseline"), "owned-db")
+                    emit.assert_called_once_with("database", "PASSED", innodb_flush_log_at_trx_commit=2,
+                                                 power_loss_durability_tested=False)
+                else:
+                    with self.assertRaisesRegex(HarnessFailure, "^disposable_database_flush_mode_mismatch$"):
+                        self.runtime.start_database("baseline")
+                    emit.assert_not_called()
+
+    def test_initializer_thread_sample_drops_private_data_and_bounds_output(self):
+        block = ('"private-user-thread" secret\n'
+                 '   java.lang.Thread.State: RUNNABLE\n'
+                 '\tat java.base@21.0.8/sun.nio.ch.SocketDispatcher.read0(Native Method)\n'
+                 '\tat app//org.openmrs.module.initializer.InitializerActivator.started(InitializerActivator.java:123)\n'
+                 'password=private-value\n\tat private.namespace.secret(Unknown Source)\n')
+        stacks = harness.initializer_thread_stacks((block + '\n') * 5)
+        self.assertEqual(stacks, [['sun.nio.ch.SocketDispatcher.read0',
+                                  'org.openmrs.module.initializer.InitializerActivator.started']] * 3)
+        self.assertEqual(harness.initializer_thread_stacks('private response'), [])
+        long_block = block + '\tat org.openmrs.api.context.Context.openSession(Context.java:12)\n' * 30
+        self.assertEqual(len(harness.initializer_thread_stacks(long_block)[0]), 24)
+
+    def test_unavailable_jvm_diagnostic_never_emits_raw_errors(self):
+        self.runtime.owned = Mock()
+        for result in (completed(1, b"private-output", b"private-error"), HarnessFailure("docker_exec_timeout")):
+            self.runtime.docker = Mock(side_effect=result if isinstance(result, Exception) else None,
+                                       return_value=result)
+            self.assertEqual(self.runtime.jvm_diagnostic("owned-backend"),
+                             {"jvm_thread_dump_available": False, "initializer_thread_stacks": []})
+            self.runtime.docker.assert_called_once_with("exec", "owned-backend", "jcmd", "0", "Thread.print",
+                                                       timeout=10, allow_failure=True)
+        self.runtime.owned.side_effect = HarnessFailure("resource_ownership_mismatch")
+        self.runtime.docker.reset_mock()
+        with self.assertRaisesRegex(HarnessFailure, "^resource_ownership_mismatch$"):
+            self.runtime.jvm_diagnostic("foreign")
+        self.runtime.docker.assert_not_called()
+
     def test_clinical_form_updates_preserve_history_and_require_loaded_criteria(self):
         self.runtime.candidate_config = self.root
         (self.root / "ampathforms").mkdir()
@@ -597,8 +644,13 @@ class HarnessContracts(unittest.TestCase):
         self.assertEqual(self.runtime.installation_progress.call_count, 2)
         self.runtime.module_status.assert_not_called()
         self.runtime.effective_strict.assert_not_called()
-        self.assertEqual(emit.call_count, 2)
-        for call in emit.call_args_list:
+        self.assertEqual(emit.call_count, 3)
+        self.assertEqual(emit.call_args.args, ("baseline", "FAILED"))
+        self.assertEqual(emit.call_args.kwargs, {
+            "reason": "initializer_lifecycle_not_proven_before_timeout",
+            "jvm_thread_dump_available": True, "initializer_thread_stacks": [],
+        })
+        for call in emit.call_args_list[:-1]:
             self.assertEqual(call.args, ("baseline", "WAITING"))
             self.assertEqual(call.kwargs, {
                 "backend_running": True, "bootstrap_http_code": 200,
