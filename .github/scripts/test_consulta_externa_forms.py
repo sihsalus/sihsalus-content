@@ -49,6 +49,20 @@ class ConsultaExternaFormsTest(unittest.TestCase):
         self.assertEqual({"motivoConsulta", "tiempoEnfermedad", "relatoEnfermedadActual"}, free_text)
         self.assertIsNot(questions["relatoEnfermedadActual"].get("required"), True)
 
+    def test_outpatient_text_limits_and_responsible_provider(self):
+        for form, version in ((self.anamnesis, "1.1.1"), (self.exam, "1.0.1")):
+            with self.subTest(form=form["name"]):
+                self.assertEqual(version, form["version"])
+                questions = [question for question in physical.walk(form)
+                             if question.get("type") == "encounterProvider"]
+                self.assertEqual(1, len(questions))
+                self.assertIs(questions[0].get("readonly"), True)
+                textareas = [question for question in physical.walk(form)
+                             if question.get("questionOptions", {}).get("rendering") == "textarea"]
+                self.assertTrue(textareas)
+                self.assertTrue(all(question["questionOptions"].get("maxLength") == "4000"
+                                    for question in textareas))
+
 
 if __name__ == "__main__":
     unittest.main()

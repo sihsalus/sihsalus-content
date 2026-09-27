@@ -35,7 +35,10 @@ class PhysicalExamContractTest(unittest.TestCase):
         self.assertEqual(self.form['encounterType'], self.legacy['encounterType'])
         self.assertEqual(set(current), set(contract.SEGMENTED_FIELD_CONCEPTS))
         for field in current:
-            self.assertEqual(current[field], historical[field])
+            # The new text limit is a presentation constraint, not a new clinical field.
+            question = copy.deepcopy(current[field])
+            question['questionOptions'].pop('maxLength', None)
+            self.assertEqual(question, historical[field])
 
     def test_rejects_soap_questions_even_when_renamed(self):
         for field, concept in contract.LEGACY_SOAP_FIELDS.items():

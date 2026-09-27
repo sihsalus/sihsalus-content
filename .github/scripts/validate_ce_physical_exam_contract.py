@@ -10,7 +10,7 @@ FORM_PATH = Path(
     "configuration/ampathforms/CE-EXF-001-EXAMEN FISICO.json"
 )
 EXPECTED_NAME = "CE-EXF-001-EXAMEN FISICO"
-EXPECTED_VERSION = "1.0.0"
+EXPECTED_VERSION = "1.0.1"
 REQUIRED_FIELDS = {"estadoGeneral"}
 LEGACY_FORM_PATH = Path("configuration/ampathforms/CE-SOAP-001-NOTA SOAP.json")
 SEGMENTED_FIELD_CONCEPTS = {
@@ -135,7 +135,7 @@ def main():
             print(f"- {error}", file=sys.stderr)
         return 1
 
-    print("Validated CE-EXF 1.0.0 physical examination and retired outpatient SOAP history.")
+    print("Validated CE-EXF 1.0.1 physical examination and retired outpatient SOAP history.")
     return 0
 
 
