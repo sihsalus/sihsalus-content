@@ -31,7 +31,7 @@ Para rollback no se debe volver a publicar el JSON con una versión histórica, 
 
 ## Contrato de examen físico de Consulta Externa
 
-`CE-EXF-001-EXAMEN FISICO` versión `1.0.0` es el formulario propio de examen físico ambulatorio. Conserva los diez conceptos e identificadores de examen general y regional ya existentes; no incluye Subjetivo, Objetivo, Apreciación ni Plan. Estado general sigue siendo obligatorio y los sistemas específicos se registran según pertinencia clínica, sin completar hallazgos normales automáticamente. Anamnesis, diagnóstico y tratamiento mantienen sus formularios y servicios existentes.
+`CE-EXF-001-EXAMEN FISICO` versión `1.0.1` es el formulario propio de examen físico ambulatorio. Conserva los diez conceptos e identificadores de examen general y regional ya existentes; no incluye Subjetivo, Objetivo, Apreciación ni Plan. Estado general sigue siendo obligatorio y los sistemas específicos se registran según pertinencia clínica, sin completar hallazgos normales automáticamente. Anamnesis, diagnóstico y tratamiento mantienen sus formularios y servicios existentes.
 
 El frontend debe resolver `formsList.physicalExamForm` por ese nombre, con la cabecera **Examen físico**. El contenido se incorpora antes o junto con el frontend; no se usa el antiguo formulario como alternativa cuando falta el nuevo.
 
@@ -41,7 +41,7 @@ Validar la identidad nueva y el retiro con Initializer en instalación y actuali
 
 ## Anamnesis breve de Consulta Externa
 
-`CE-ANAM-001-ANAMNESIS` `1.1.0` reduce de once a tres los campos clínicos de texto
+`CE-ANAM-001-ANAMNESIS` `1.1.1` reduce de once a tres los campos clínicos de texto
 libre: motivo de consulta, tiempo de enfermedad y detalle breve opcional.
 Inicio, evolución y las seis funciones biológicas usan selectores; estas últimas
 quedan en una sección inicialmente contraída. Ninguna opción se selecciona ni
@@ -53,8 +53,14 @@ UUID de respuesta ni nuevos diagnósticos codificados; no cambia ningún datatyp
 ni se convierte contenido histórico. El motor debe incluir la corrección de
 lectura/visualización de valores literales del frontend coordinado.
 
-**Coordinación:** content `1.25.28` y el frontend que configura explícitamente
-anamnesis `1.1.0` y el formulario propio de examen físico `1.0.0` deben probarse juntos en QLTY. El frontend
+Las versiones `1.1.1` de anamnesis y `1.0.1` de examen físico limitan cada
+área de texto a 4000 caracteres y muestran el contador en el motor de formularios.
+El profesional responsable se muestra como dato de solo lectura: el motor toma
+el proveedor clínico de la sesión al crear y conserva el proveedor del encuentro
+al editar. La autorización del rol sigue siendo responsabilidad del backend.
+
+**Coordinación:** content `1.25.29` y el frontend que configura explícitamente
+anamnesis `1.1.1` y el formulario propio de examen físico `1.0.1` deben probarse juntos en QLTY. El frontend
 no debe abrir la captura anterior si falta la versión esperada. Si una visita
 abierta ya contiene un formulario anterior, conserva su lectura histórica y
 bloquea una segunda captura; no reasigna ni duplica ese encuentro.

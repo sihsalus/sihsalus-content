@@ -8,7 +8,7 @@
   "referencedForms": [],
   "uuid": "b0446b4e-1f2b-4e22-9a1a-79d797d4ce01",
   "description": "Anamnesis breve de Consulta Externa. Motivo, duración y detalle opcional; inicio, evolución y funciones biológicas mediante selección explícita, sin respuestas clínicas predeterminadas.",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "pages": [
     {
       "label": "Anamnesis",
@@ -42,7 +42,8 @@
               },
               "id": "profesionalResponsable",
               "label": "Profesional responsable",
-              "questionInfo": "Responsable clínico que realiza o firma la atención."
+              "questionInfo": "Responsable clínico que realiza o firma la atención.",
+              "readonly": true
             },
             {
               "type": "encounterLocation",
@@ -68,7 +69,8 @@
                 "rendering": "textarea",
                 "concept": "71b58cff-879b-4358-98d5-2165434d4324",
                 "enablePreviousValue": true,
-                "rows": 2
+                "rows": 2,
+                "maxLength": "4000"
               },
               "id": "motivoConsulta",
               "label": "Motivo de consulta / Síntoma principal",
@@ -153,7 +155,8 @@
                 "rendering": "textarea",
                 "concept": "6d99603e-ae9d-4838-8a09-ba75e27ff1e9",
                 "rows": 3,
-                "enablePreviousValue": true
+                "enablePreviousValue": true,
+                "maxLength": "4000"
               },
               "id": "relatoEnfermedadActual",
               "label": "Detalle breve (opcional)",

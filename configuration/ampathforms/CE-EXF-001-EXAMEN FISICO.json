@@ -8,7 +8,7 @@
   "referencedForms": [],
   "uuid": "dc1c60fa-43e3-408e-987c-0f3165cc2341",
   "description": "Examen físico de consulta externa: examen general y regional por sistemas. No duplica anamnesis, diagnóstico ni plan de tratamiento y no completa hallazgos normales automáticamente.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "pages": [
     {
       "label": "Examen físico",
@@ -40,7 +40,8 @@
                 "isSearchable": true
               },
               "id": "profesionalResponsable",
-              "label": "Profesional responsable"
+              "label": "Profesional responsable",
+              "readonly": true
             },
             {
               "type": "encounterLocation",
@@ -64,7 +65,8 @@
               "questionOptions": {
                 "rendering": "textarea",
                 "concept": "b564fd45-c5e8-4889-ba05-e878b485cdd1",
-                "rows": 2
+                "rows": 2,
+                "maxLength": "4000"
               },
               "id": "estadoGeneral",
               "label": "Estado general",
@@ -75,7 +77,8 @@
               "questionOptions": {
                 "rendering": "textarea",
                 "concept": "2944f99e-bda8-4acc-8a4e-d5709dd82041",
-                "rows": 2
+                "rows": 2,
+                "maxLength": "4000"
               },
               "id": "estadoConciencia",
               "label": "Conciencia y orientación"
@@ -85,7 +88,8 @@
               "questionOptions": {
                 "rendering": "textarea",
                 "concept": "23205e1e-fa88-43e0-a421-452516c04f9e",
-                "rows": 2
+                "rows": 2,
+                "maxLength": "4000"
               },
               "id": "pielAnexos",
               "label": "Piel y faneras"
@@ -101,7 +105,8 @@
               "questionOptions": {
                 "rendering": "textarea",
                 "concept": "d0640842-e04e-4398-ba6c-a63623d580f8",
-                "rows": 2
+                "rows": 2,
+                "maxLength": "4000"
               },
               "id": "cabezaCuello",
               "label": "Cabeza y cuello"
@@ -111,7 +116,8 @@
               "questionOptions": {
                 "rendering": "textarea",
                 "concept": "da3dada5-bde9-48b1-b94c-171355639ab4",
-                "rows": 2
+                "rows": 2,
+                "maxLength": "4000"
               },
               "id": "aparatoRespiratorio",
               "label": "Aparato respiratorio"
@@ -121,7 +127,8 @@
               "questionOptions": {
                 "rendering": "textarea",
                 "concept": "24989612-6bbf-4ef8-8af7-adf2b5b95ba3",
-                "rows": 2
+                "rows": 2,
+                "maxLength": "4000"
               },
               "id": "aparatoCardiovascular",
               "label": "Aparato cardiovascular"
@@ -131,7 +138,8 @@
               "questionOptions": {
                 "rendering": "textarea",
                 "concept": "e7daf833-3c73-4151-b581-90646bd93fc5",
-                "rows": 2
+                "rows": 2,
+                "maxLength": "4000"
               },
               "id": "abdomenDigestivo",
               "label": "Abdomen"
@@ -141,7 +149,8 @@
               "questionOptions": {
                 "rendering": "textarea",
                 "concept": "57746a04-5f9e-4e42-9233-efeeeb3db0d0",
-                "rows": 2
+                "rows": 2,
+                "maxLength": "4000"
               },
               "id": "genitourinario",
               "label": "Genito urinario"
@@ -151,7 +160,8 @@
               "questionOptions": {
                 "rendering": "textarea",
                 "concept": "479e125e-e5be-4538-8c4e-ed6fd9c8d515",
-                "rows": 2
+                "rows": 2,
+                "maxLength": "4000"
               },
               "id": "musculoesqueleticoExtremidades",
               "label": "Aparato locomotor y extremidades"
@@ -161,7 +171,8 @@
               "questionOptions": {
                 "rendering": "textarea",
                 "concept": "d55d40c3-9ba8-4c7f-8728-f28ddb22cbd3",
-                "rows": 2
+                "rows": 2,
+                "maxLength": "4000"
               },
               "id": "neurologico",
               "label": "Neurológico"
