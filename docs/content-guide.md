@@ -102,6 +102,18 @@ aprobado. Tampoco habilita el descuento automático desde dispensación: esa
 integración requiere una transacción clínica/inventario recuperable antes de
 considerarse segura.
 
+## Relación madre-hijo y sala de hospitalización
+
+`configuration/relationshiptypes/relationshiptypes.csv` define la relación
+Madre→Hijo (`e6be4def-dbc8-462a-8714-53da66903cb8`). El mapeo
+`emr.motherChildRelationshipType` de
+`configuration/metadatatermmappings/metadatatermmappings-core-sihsalus.csv`
+permite que EmrApi resuelva ese tipo para
+`GET /emrapi/maternal/mothersAndChildren`; debe apuntar al mismo UUID. Los
+registros guardados llevan a la madre en `personA` y al hijo en `personB`. La
+configuración frontend `motherChildRelationshipTypeUuid` también debe coincidir
+para que el flujo de parto y la sala materna compartan el mismo vínculo.
+
 ## Alcance clínico documentado
 
 El inventario siguiente orienta la revisión de formularios para categoría II-1 /

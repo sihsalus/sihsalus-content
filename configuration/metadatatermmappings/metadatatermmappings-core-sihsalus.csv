@@ -10,3 +10,4 @@ d039435f-233a-4d0b-a35a-75450b2e65b9,,emr.bedAssignmentEncounterType,org.openmrs
 e9ae298d-532c-4f72-93c1-a42495270662,,emr.cancelADTRequestEncounterType,org.openmrs.module.emrapi,org.openmrs.EncounterType,46ee60b6-8212-4464-a592-d7371e8b3a48,
 efe66933-eeb3-4aa3-8cb8-501f82361c48,,emr.visitNoteEncounterType,org.openmrs.module.emrapi,org.openmrs.EncounterType,d7151f82-c1f3-4152-a605-2f9ea7414a79,
 583b79a5-ede2-47f4-a246-f6886f7c0137,,emr.clinicianEncounterRole,org.openmrs.module.emrapi,org.openmrs.EncounterRole,240b26f9-dd88-4172-823d-4a8bfeb7841f,
+58bb64d0-0fb9-4e9c-ae6f-b79ca476b23f,,emr.motherChildRelationshipType,org.openmrs.module.emrapi,org.openmrs.RelationshipType,e6be4def-dbc8-462a-8714-53da66903cb8,
