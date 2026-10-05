@@ -10,6 +10,13 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Relación madre-hijo — candidata `1.25.30`
+
+- Añade el mapeo nativo EmrApi `emr.motherChildRelationshipType` al tipo Madre→Hijo
+  existente. Permite consultar los vínculos desde el flujo de parto y la sala
+  materna sin crear pacientes, modificar relaciones históricas ni ampliar roles.
+  Requiere el frontend coordinado y aceptación con pacientes sintéticos en QLTY.
+
 ### Consulta externa — candidata `1.25.28`
 
 - Consulta externa: `CE-001` `1.0.3` elimina la página SOAP del formulario general; el loader retira la versión anterior y conserva su esquema y encuentros.
