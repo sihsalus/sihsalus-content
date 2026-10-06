@@ -414,22 +414,6 @@ last import in its owned synthetic database. It emits only fixed error categorie
 and counts; messages, concept names, URLs and identifiers are discarded. An
 unavailable diagnostic still leaves the original loader abort as a failure.
 
-### Unreleased OCL qualification
-
-The manual workflow input `qualify_ocl_candidate` builds the pinned module source
-with its native Maven build and runs the same three scenarios. This opt-in is
-not used by the publication gate. The candidate remains version `3.2.0` for this
-unpublished test; its source revision and binary SHA-256 are recorded separately.
-The baseline and its restart retain the original module. Candidate phases mount
-only the candidate OMOD into the distribution, read-only, and verify that native
-startup installed those exact bytes. The clinical configuration, checksums and
-all existing completion and RBAC assertions remain unchanged.
-
-This qualification does not publish an OMOD or image. The normal CI still uses
-the immutable backend digest until a reviewed module release is consumed by the
-distro and a new backend digest is validated. Remove this temporary qualification
-option after that transition; owner: `@Duvet05`, tracked by content PR #255.
-
 ## Canonical admission and Laboratory update
 
 The operational scenario also seeds the recognized admission supplement and

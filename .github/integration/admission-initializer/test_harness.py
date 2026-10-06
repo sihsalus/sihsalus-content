@@ -7,7 +7,6 @@ import subprocess
 import tarfile
 import tempfile
 import unittest
-import zipfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -76,47 +75,6 @@ class HarnessContracts(unittest.TestCase):
         }
         self.runtime = object.__new__(harness.Harness)
         self.runtime.hospital_roles = []
-        self.runtime.ocl_candidate = None
-
-    def test_ocl_qualification_requires_manual_run_and_owned_module_copy(self):
-        candidate = self.root / "ocl-candidate.omod"
-        with zipfile.ZipFile(candidate, "w") as archive:
-            archive.writestr("config.xml", "<module><id>openconceptlab</id><version>3.2.0</version></module>")
-        env = {**self.env, "ADMISSION_INITIALIZER_OCL_CANDIDATE": "1", "OCL_CANDIDATE_REVISION": "b" * 40}
-        with self.assertRaisesRegex(HarnessFailure, "ocl_candidate_requires_explicit_qualification"):
-            harness.Harness(env)
-        with patch.object(harness, "emit") as emit:
-            runtime = harness.Harness({**env, "GITHUB_EVENT_NAME": "workflow_dispatch"})
-        self.assertEqual(runtime.ocl_candidate.parent, runtime.directory)
-        self.assertEqual(runtime.ocl_candidate.read_bytes(), candidate.read_bytes())
-        self.assertEqual(emit.call_args.kwargs["source_sha"], "b" * 40)
-        self.assertIs(emit.call_args.kwargs["published"], False)
-        self.assertNotIn(str(self.root), json.dumps(emit.call_args.kwargs))
-
-    def test_ocl_qualification_does_not_accept_another_module(self):
-        with zipfile.ZipFile(self.root / "ocl-candidate.omod", "w") as archive:
-            archive.writestr("config.xml", "<module><id>other</id><version>3.2.0</version></module>")
-        env = {**self.env, "ADMISSION_INITIALIZER_OCL_CANDIDATE": "1", "OCL_CANDIDATE_REVISION": "b" * 40,
-               "GITHUB_EVENT_NAME": "workflow_dispatch"}
-        with self.assertRaisesRegex(HarnessFailure, "unexpected_ocl_candidate_identity"):
-            harness.Harness(env)
-
-    def test_candidate_module_is_only_mounted_after_baseline(self):
-        runtime = harness.Harness(self.env)
-        runtime.ocl_candidate = self.root / "candidate.omod"
-        runtime.volume = Mock(return_value="owned-volume")
-        runtime.owned = Mock()
-        runtime.container = Mock(side_effect=["baseline-container", "restart-container", "upgrade-container"])
-        runtime.docker = Mock()
-        runtime.network = "owned-network"
-        for suffix in ("baseline", "baseline-restart", "upgrade"):
-            runtime.start_backend(suffix, self.root / "configuration")
-        for call in runtime.container.call_args_list[:2]:
-            self.assertNotIn("openconceptlab-3.2.0.omod", str(call))
-        options = runtime.container.call_args_list[2].args[1]
-        self.assertIn("type=bind,src=" + str(runtime.ocl_candidate)
-                      + ",dst=/openmrs/distribution/openmrs_modules/openconceptlab-3.2.0.omod,readonly", options)
-        self.assertEqual(runtime.ocl_candidate_backends, {"upgrade-container"})
 
     def test_disposable_database_requires_effective_flush_configuration(self):
         self.runtime.network, self.runtime.nonce = "private-network", "synthetic"
