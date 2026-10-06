@@ -211,7 +211,7 @@ class HarnessContracts(unittest.TestCase):
                 runtime.remaining = Mock(return_value=180)
                 runtime.start_database = Mock(return_value="db")
                 runtime.start_backend = Mock(side_effect=[("first", "volume"), ("second", "volume")])
-                runtime.wait_initializer = Mock(side_effect=lambda backend, stage: events.append(stage))
+                runtime.wait_initializer = Mock(side_effect=lambda backend, stage, **kwargs: events.append(stage))
                 runtime.assert_checksums = Mock()
                 runtime.candidate_recorded = Mock(return_value=False)
                 original = ["normalize-admission-role-name-20260722"]
@@ -820,6 +820,33 @@ class HarnessContracts(unittest.TestCase):
         self.assertEqual(emit.call_args.kwargs["initializer_last_loading_domain"], "ampathforms")
         self.assertNotIn("synthetic-private", json.dumps(emit.call_args_list, default=str))
         self.runtime.module_status.assert_not_called()
+
+    def test_ocl_abort_reports_bounded_categories_and_still_fails(self):
+        self.setup_lifecycle("The loading of the 'ocl' configuration file was aborted:")
+        self.runtime.query = Mock(return_value=[
+            "Cannot create mapping to concept with URL synthetic-private, because the concept has not been imported",
+            "Cannot create mapping to concept with URL another-private",
+            "synthetic-private-unknown-error",
+        ])
+        with patch.object(harness, "emit") as emit:
+            with self.assertRaisesRegex(HarnessFailure, "^unexpected_initializer_abort$"):
+                self.runtime.wait_initializer("owned", "upgrade", db="owned-db")
+        self.assertEqual(emit.call_args.args, ("ocl_failure", "FAILED"))
+        self.assertEqual(emit.call_args.kwargs, {
+            "available": True, "sampled_errors": 3,
+            "error_categories": {"missing_mapping_target": 2, "unclassified": 1},
+        })
+        self.assertNotIn("private", json.dumps(emit.call_args_list, default=str))
+        self.runtime.effective_strict.assert_not_called()
+
+    def test_unavailable_ocl_diagnostic_does_not_mask_original_abort(self):
+        self.setup_lifecycle("The loading of the 'ocl' configuration file was aborted:")
+        self.runtime.query = Mock(side_effect=HarnessFailure("synthetic-private"))
+        with patch.object(harness, "emit") as emit:
+            with self.assertRaisesRegex(HarnessFailure, "^unexpected_initializer_abort$"):
+                self.runtime.wait_initializer("owned", "upgrade", db="owned-db")
+        self.assertEqual(emit.call_args.kwargs, {"available": False})
+        self.assertNotIn("private", json.dumps(emit.call_args_list, default=str))
 
     def test_expected_liquibase_rejection_never_masks_another_abort_or_csv_error(self):
         expected = harness.ABORT + "\n" + guards.CHANGESET

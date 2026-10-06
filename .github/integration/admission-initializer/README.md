@@ -409,6 +409,11 @@ above. Even that result is a bounded synthetic role/relationship smoke, not
 general clinical acceptance, deployed-environment evidence, domain-owner
 approval, or authorization to bypass repository merge/release requirements.
 
+When the OCL loader aborts, the harness reads at most 100 failed items from the
+last import in its owned synthetic database. It emits only fixed error categories
+and counts; messages, concept names, URLs and identifiers are discarded. An
+unavailable diagnostic still leaves the original loader abort as a failure.
+
 ## Canonical admission and Laboratory update
 
 The operational scenario also seeds the recognized admission supplement and

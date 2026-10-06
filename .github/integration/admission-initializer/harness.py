@@ -498,7 +498,31 @@ class Harness:
         logs = (output.stdout + output.stderr + (log.stdout if present else b"")).decode("utf-8", "replace")
         return logs, present, len(log.stdout) if present else None
 
-    def wait_initializer(self, backend, stage, reject=False):
+    def ocl_failure_summary(self, db):
+        """Classify the last synthetic import without exposing messages or metadata."""
+        categories = {
+            "missing_mapping_source": "Cannot create mapping from concept with URL",
+            "missing_mapping_target": "Cannot create mapping to concept with URL",
+            "missing_mapping_source_reference": "as no from concept is defined",
+            "missing_mapping_target_reference": "as no to concept is defined",
+            "duplicate_concept_name": "DuplicateConceptNameException",
+            "duplicate_database_key": "Duplicate entry",
+            "concept_validation": "ValidationException",
+            "concept_conversion": "Cannot create concept",
+            "concept_save": "Cannot import concept",
+        }
+        try:
+            rows = self.query(db, "SELECT error_message FROM openconceptlab_item "
+                "WHERE import_id=(SELECT MAX(import_id) FROM openconceptlab_import) "
+                "AND state=4 ORDER BY item_id LIMIT 100")
+            counts = Counter()
+            for message in rows:
+                counts.update([next((name for name, marker in categories.items() if marker in message), "unclassified")])
+            emit("ocl_failure", "FAILED", available=True, sampled_errors=len(rows), error_categories=dict(counts))
+        except HarnessFailure:
+            emit("ocl_failure", "FAILED", available=False)
+
+    def wait_initializer(self, backend, stage, reject=False, db=None):
         started_at = time.monotonic()
         # The historical baseline can still be loading at the normal startup limit.
         startup_budget = self.remaining(45 * 60) if stage == "baseline" else self.remaining()
@@ -533,6 +557,8 @@ class Harness:
             # A separate failure cannot be masked by the expected Liquibase
             # rejection. Diagnostics allow only known domains, never filenames or raw logs.
             if unexpected_abort:
+                if db is not None and "ocl" in loader_progress(logs)["initializer_aborted_domains"]:
+                    self.ocl_failure_summary(db)
                 raise HarnessFailure("unexpected_initializer_abort")
             if expected_rejection:
                 require(COMPLETION not in logs, "initializer_continued_after_rejection")
@@ -919,7 +945,7 @@ class Harness:
         emit("baseline", "RUNNING")
         db = self.start_database("baseline")
         backend, volume = self.start_backend("baseline", self.baseline_config)
-        self.wait_initializer(backend, "baseline")
+        self.wait_initializer(backend, "baseline", db=db)
         self.assert_checksums(backend)
         require(not self.candidate_recorded(db), "candidate_present_in_baseline")
         history = self.history(db)
@@ -928,7 +954,7 @@ class Harness:
         # The historical CSV overwrote EMRAPI's roles on installation. Restart
         # that same baseline before seeding the migration, retaining all checksums.
         backend, _ = self.start_backend("baseline-restart", self.baseline_config, data_volume=volume)
-        self.wait_initializer(backend, "baseline_restart")
+        self.wait_initializer(backend, "baseline_restart", db=db)
         self.assert_checksums(backend)
         require(self.history(db) == history, "baseline_restart_changed_history")
         self.check_emrapi_roles(db)
@@ -953,7 +979,7 @@ class Harness:
         emit("fresh_candidate", "RUNNING")
         db = self.start_database("fresh")
         backend, _ = self.start_backend("fresh", self.candidate_config)
-        self.wait_initializer(backend, "fresh_candidate")
+        self.wait_initializer(backend, "fresh_candidate", db=db)
         self.assert_checksums(backend, self.candidate_role_md5)
         require(self.candidate_recorded(db), "fresh_candidate_history_missing")
         require(self.candidate_recorded(db, OPERATIONAL_CHANGESET), "fresh_operational_history_missing")
@@ -1060,7 +1086,7 @@ class Harness:
             self.seed(db)
         expected = self.expected_upgrade_state(db, self.state(db))
         backend, volume = self.start_backend("upgrade", self.historical_config, restore=True)
-        self.wait_initializer(backend, "upgrade")
+        self.wait_initializer(backend, "upgrade", db=db)
         self.assert_checksums(backend)
         require(self.candidate_recorded(db), "candidate_history_missing")
         require(self.candidate_recorded(db, OPERATIONAL_CHANGESET), "operational_history_missing")
@@ -1078,7 +1104,7 @@ class Harness:
         self.docker("stop", "--time", "30", backend, timeout=45)
         self.remove_container(backend)
         backend, _ = self.start_backend("idempotence", self.historical_config, data_volume=volume)
-        self.wait_initializer(backend, "idempotence")
+        self.wait_initializer(backend, "idempotence", db=db)
         self.assert_checksums(backend)
         state = self.expected_emrapi_refresh(state)
         self.assert_state(db, state, "second_start_changed_unapproved_rbac")
@@ -1090,7 +1116,7 @@ class Harness:
         self.docker("stop", "--time", "30", backend, timeout=45)
         self.remove_container(backend)
         backend, _ = self.start_backend("current-policy", self.candidate_config, data_volume=volume)
-        self.wait_initializer(backend, "current_policy")
+        self.wait_initializer(backend, "current_policy", db=db)
         self.assert_checksums(backend, self.candidate_role_md5)
         self.check_admission(db, self.candidate_privileges)
         state["role_privilege"].extend(CANONICAL_ROLE + "\t" + privilege for privilege in CURRENT_ADMISSION_ADDITIONS)
@@ -1123,7 +1149,7 @@ class Harness:
         self.seed(db, bad=True)
         before, history = self.state(db), self.history(db)
         backend, volume = self.start_backend("rejection", configuration, restore=True)
-        self.wait_initializer(backend, "reject", reject=True)
+        self.wait_initializer(backend, "reject", reject=True, db=db)
         self.assert_checksums(backend)
         self.assert_state(db, before, "rejected_migration_changed_rbac")
         self.assert_rejected_history(db, history)
@@ -1136,7 +1162,7 @@ class Harness:
         # Correct only the owned extra fixture. No checksum/history/XML resets.
         self.query(db, "DELETE FROM role_privilege WHERE role='SIHSALUS Admision' AND privilege='Manage Roles'")
         backend, _ = self.start_backend("retry", configuration, data_volume=volume)
-        self.wait_initializer(backend, "retry")
+        self.wait_initializer(backend, "retry", db=db)
         self.assert_checksums(backend)
         self.check_admission(db)
         require(self.candidate_recorded(db), "retry_history_missing")
