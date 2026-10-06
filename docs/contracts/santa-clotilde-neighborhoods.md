@@ -67,9 +67,20 @@ Para agregar o corregir un barrio:
 5. Ejecutar todos los validadores del content package y una importación desde una base limpia antes de
    desplegar.
 
-El global property `openconceptlab.subscriptionUrl` permanece en `2026-07-16-02`, porque el
-importador remoto no aplica las exclusiones del paquete. Esa versión no contiene los UUID de barrios
-ni elimina conceptos ausentes: es compatible con los dos conceptos activos adicionales del export
-principal `2026-09-09-1`. Los barrios se cargan exclusivamente desde sus ZIPs estáticos.
-Si una futura release principal modifica registros existentes, se debe revisar también la suscripción
-para evitar que vuelva a sobrescribirlos con metadata anterior.
+El global property `openconceptlab.subscriptionUrl` apunta a la release institucional curada
+`sihsalus/2026-09-09-1`. Su export no contiene los once conceptos ni los diez mappings de barrios
+retirados que el paquete excluye del export de OCL Cloud. El importador remoto no aplica las
+exclusiones del paquete: antes de cambiar la suscripción se debe comprobar el export servido.
+Los barrios se cargan exclusivamente desde sus ZIPs estáticos.
+
+La revisión del 2026-10-05 descargó el export autenticado de la release institucional:
+contiene 4474 conceptos y 5679 mappings, sin las 21 identidades excluidas. Al comparar
+por ID con los dos ZIPs del paquete, coinciden los UUIDs externos, nombres,
+descripciones, clases, datatypes, estado de retiro, respuestas, miembros de sets y
+códigos de mappings. La migración regeneró IDs internos de versiones y nombres;
+413 mappings a fuentes externas ya no incluyen `to_concept_url`. Ninguno de esos
+413 es `Q-AND-A` ni `CONCEPT-SET`; el importador de OpenMRS utiliza fuente y código
+para sus términos de referencia. Esta comparación estática no acredita que una
+sincronización completa termine correctamente en OpenMRS. La primera ejecución
+debe ensayarse con una base sintética aislada y comprobar catálogo, errores y
+reinicio antes de activar la suscripción en DEV o QLTY.
