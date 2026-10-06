@@ -4,6 +4,7 @@
 import base64
 import csv
 import hashlib
+import io
 import json
 import os
 import re
@@ -15,6 +16,7 @@ import tempfile
 import time
 import uuid
 import xml.etree.ElementTree as ET
+import zipfile
 from collections import Counter
 from pathlib import Path, PurePosixPath
 
@@ -141,6 +143,28 @@ class Harness:
         self.deadline = time.monotonic() + 80 * 60
         self.cleanup_deadline = None
         self.candidate_sha = env["GITHUB_SHA"]
+        self.ocl_candidate = None
+        self.ocl_candidate_backends = set()
+        if env.get("ADMISSION_INITIALIZER_OCL_CANDIDATE"):
+            require(env["ADMISSION_INITIALIZER_OCL_CANDIDATE"] == "1"
+                    and env.get("GITHUB_EVENT_NAME") == "workflow_dispatch",
+                    "ocl_candidate_requires_explicit_qualification")
+            source_sha = env.get("OCL_CANDIDATE_REVISION", "")
+            require(re.fullmatch(r"[0-9a-f]{40}", source_sha), "invalid_ocl_candidate_revision")
+            candidate = runner_temp / "ocl-candidate.omod"
+            require(candidate.is_file() and not candidate.is_symlink(), "ocl_candidate_file_required")
+            data = candidate.read_bytes()
+            try:
+                with zipfile.ZipFile(io.BytesIO(data)) as archive:
+                    config = ET.fromstring(archive.read("config.xml"))
+                require(config.findtext("id") == "openconceptlab" and config.findtext("version") == "3.2.0",
+                        "unexpected_ocl_candidate_identity")
+            except (zipfile.BadZipFile, KeyError, ET.ParseError):
+                raise HarnessFailure("invalid_ocl_candidate_archive") from None
+            self.ocl_candidate = self.directory / "ocl-candidate.omod"
+            self.ocl_candidate.write_bytes(data)
+            emit("ocl_candidate", "PREPARED", source_sha=source_sha,
+                 sha256=hashlib.sha256(data).hexdigest(), published=False)
         self.password = secrets.token_urlsafe(36) + "Aa1!"
         self.admin_password = secrets.token_urlsafe(36) + "Aa1!"
         self.user_password = secrets.token_urlsafe(36) + "Aa1!"
@@ -281,6 +305,9 @@ class Harness:
         require("source /openmrs/startup-init.sh" in startup and "/usr/local/tomcat/bin/catalina.sh run" in startup, "unverified_image_entrypoint")
         distro = properties(self.copy_file(probe, "/openmrs/distribution/openmrs-distro.properties"))
         require(distro.get("content.sihsalus-content") == IMAGE_CONTENT_VERSION, "image_content_version_mismatch")
+        if self.ocl_candidate:
+            require(distro.get("omod.openconceptlab") == "3.2.0", "unexpected_image_ocl_version")
+            self.copy_file(probe, "/openmrs/distribution/openmrs_modules/openconceptlab-3.2.0.omod")
         self.remove_container(probe)
         original, baseline, candidate = [self.directory / name for name in ("source-image", "source-15", "source-candidate")]
         for sha, version, path in ((IMAGE_CONTENT_SHA, IMAGE_CONTENT_VERSION, original), (BASELINE_SHA, "1.25.15", baseline), (self.candidate_sha, None, candidate)):
@@ -377,12 +404,18 @@ class Harness:
                 BACKEND, ["-ceu", "test -d /seed/configuration_checksums; cp -a /seed/. /openmrs/data/; chown -R " + self.backend_owner + " /openmrs/data"])
             self.docker("start", "--attach", helper, timeout=self.remaining(180))
             self.remove_container(helper)
+        candidate_mount = []
+        if self.ocl_candidate and suffix not in ("baseline", "baseline-restart"):
+            candidate_mount = ["--mount", "type=bind,src=" + str(self.ocl_candidate)
+                + ",dst=/openmrs/distribution/openmrs_modules/openconceptlab-3.2.0.omod,readonly"]
         name = self.container(suffix,
             ["--network", self.network, "--memory", "4g", "--cpus", "2", "--env-file", str(self.backend_env),
              "--env", "OMRS_EXTRA_INITIALIZER_LOGGING_LOCATION=" + lifecycle_file,
              "--mount", "type=bind,src=" + str(configuration) + ",dst=/openmrs/distribution/openmrs_config,readonly",
-             "--mount", "type=volume,src=" + volume + ",dst=/openmrs/data"], BACKEND)
+             "--mount", "type=volume,src=" + volume + ",dst=/openmrs/data", *candidate_mount], BACKEND)
         self.lifecycle_files[name] = lifecycle_file
+        if candidate_mount:
+            self.ocl_candidate_backends.add(name)
         self.docker("start", name)
         return name, volume
 
@@ -483,6 +516,10 @@ class Harness:
         actual = self.owned("container", backend)
         env = dict(item.split("=", 1) for item in actual["Config"]["Env"] if "=" in item)
         require(env.get("OMRS_JAVA_SERVER_OPTS") == STRICT_JAVA, "strict_system_flags_changed")
+        if self.ocl_candidate and backend in self.ocl_candidate_backends:
+            installed = self.copy_file(backend, "/openmrs/data/modules/openconceptlab-3.2.0.omod")
+            require(hashlib.sha256(installed).digest() == hashlib.sha256(self.ocl_candidate.read_bytes()).digest(),
+                    "ocl_candidate_not_installed")
 
     def lifecycle_logs(self, backend):
         """Read this attempt's dedicated file and container output, never a restored log."""
@@ -1236,6 +1273,7 @@ def main(scenario="upgrade"):
                 cleanup_ok = False
     emit("harness", "PASSED" if success and cleanup_ok else "FAILED",
          scope="ephemeral synthetic Initializer and native relationship RBAC",
+         candidate_ocl_qualification=bool(harness is not None and harness.ocl_candidate),
          deployed_environment_validation=False)
     return 0 if success and cleanup_ok else 1
 

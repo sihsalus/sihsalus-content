@@ -3,6 +3,14 @@ name: Admission Initializer upgrade integration
 on:
   workflow_call:
   workflow_dispatch:
+    inputs:
+      qualify_ocl_candidate:
+        description: Qualify the unreleased OCL fix without publishing it
+        type: boolean
+        default: false
+
+env:
+  OCL_CANDIDATE_REVISION: ba032f5dc2d8d0265a9546c4864716dd4ed62938
 
 permissions:
   contents: read
@@ -27,6 +35,27 @@ jobs:
             762920145a806f989fd8876ab2938ef217f57aab
       - name: Test the harness isolation and assertions without Docker
         run: python3 -B .github/integration/admission-initializer/test_harness.py
+      - name: Check out the OCL candidate source
+        if: inputs.qualify_ocl_candidate
+        uses: actions/checkout@v4
+        with:
+          repository: Duvet05/openmrs-module-openconceptlab
+          ref: ${{ env.OCL_CANDIDATE_REVISION }}
+          path: ocl-candidate
+          persist-credentials: false
+      - name: Set up Java for OCL qualification
+        if: inputs.qualify_ocl_candidate
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Build the candidate with its native Maven packaging
+        if: inputs.qualify_ocl_candidate
+        run: |
+          test "$(git -C ocl-candidate rev-parse HEAD)" = "$OCL_CANDIDATE_REVISION"
+          mvn -B -ntp --file ocl-candidate/pom.xml -pl api,omod -am package
+          cp ocl-candidate/omod/target/openconceptlab-3.2.0.omod "$RUNNER_TEMP/ocl-candidate.omod"
+          echo 'ADMISSION_INITIALIZER_OCL_CANDIDATE=1' >> "$GITHUB_ENV"
       - name: Exercise the pinned backend with exclusively synthetic data
         env:
           ADMISSION_INITIALIZER_DISPOSABLE: github-runner-only
@@ -43,6 +72,7 @@ jobs:
             echo '## Admission Initializer ${{ matrix.scenario }} integration'
             echo "Source: ${GITHUB_SHA}"
             echo 'Pinned backend digest; owned ephemeral MariaDB/backend only.'
+            echo 'Candidate OCL qualification: ${{ inputs.qualify_ocl_candidate || false }}; source: ${{ env.OCL_CANDIDATE_REVISION }}.'
             echo 'See sanitized phase results for actual completion and assertions.'
             echo 'No DEV/QLTY/PROD access, existing accounts, live patients, or deployments.'
             echo 'A narrow synthetic role/relationship smoke is not general clinical acceptance.'
