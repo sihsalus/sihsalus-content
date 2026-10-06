@@ -10,7 +10,7 @@ on:
         default: false
 
 env:
-  OCL_CANDIDATE_REVISION: 23184566827b41bab994e91cbcd2b4618dd3d3c5
+  OCL_CANDIDATE_REVISION: ba032f5dc2d8d0265a9546c4864716dd4ed62938
 
 permissions:
   contents: read
@@ -39,7 +39,7 @@ jobs:
         if: inputs.qualify_ocl_candidate
         uses: actions/checkout@v4
         with:
-          repository: sihsalus/openmrs-module-openconceptlab
+          repository: Duvet05/openmrs-module-openconceptlab
           ref: ${{ env.OCL_CANDIDATE_REVISION }}
           path: ocl-candidate
           persist-credentials: false
@@ -54,7 +54,7 @@ jobs:
         run: |
           test "$(git -C ocl-candidate rev-parse HEAD)" = "$OCL_CANDIDATE_REVISION"
           mvn -B -ntp --file ocl-candidate/pom.xml -pl api,omod -am package
-          cp ocl-candidate/omod/target/openconceptlab-3.2.0-sihsalus.1.omod "$RUNNER_TEMP/ocl-candidate.omod"
+          cp ocl-candidate/omod/target/openconceptlab-3.2.0.omod "$RUNNER_TEMP/ocl-candidate.omod"
           echo 'ADMISSION_INITIALIZER_OCL_CANDIDATE=1' >> "$GITHUB_ENV"
       - name: Exercise the pinned backend with exclusively synthetic data
         env:

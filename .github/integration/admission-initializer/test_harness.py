@@ -81,7 +81,7 @@ class HarnessContracts(unittest.TestCase):
     def test_ocl_qualification_requires_manual_run_and_owned_module_copy(self):
         candidate = self.root / "ocl-candidate.omod"
         with zipfile.ZipFile(candidate, "w") as archive:
-            archive.writestr("config.xml", "<module><id>openconceptlab</id><version>3.2.0-sihsalus.1</version></module>")
+            archive.writestr("config.xml", "<module><id>openconceptlab</id><version>3.2.0</version></module>")
         env = {**self.env, "ADMISSION_INITIALIZER_OCL_CANDIDATE": "1", "OCL_CANDIDATE_REVISION": "b" * 40}
         with self.assertRaisesRegex(HarnessFailure, "ocl_candidate_requires_explicit_qualification"):
             harness.Harness(env)
@@ -95,7 +95,7 @@ class HarnessContracts(unittest.TestCase):
 
     def test_ocl_qualification_does_not_accept_another_module(self):
         with zipfile.ZipFile(self.root / "ocl-candidate.omod", "w") as archive:
-            archive.writestr("config.xml", "<module><id>other</id><version>3.2.0-sihsalus.1</version></module>")
+            archive.writestr("config.xml", "<module><id>other</id><version>3.2.0</version></module>")
         env = {**self.env, "ADMISSION_INITIALIZER_OCL_CANDIDATE": "1", "OCL_CANDIDATE_REVISION": "b" * 40,
                "GITHUB_EVENT_NAME": "workflow_dispatch"}
         with self.assertRaisesRegex(HarnessFailure, "unexpected_ocl_candidate_identity"):
