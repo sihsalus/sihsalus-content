@@ -10,6 +10,14 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Suscripción OCL institucional
+
+- Prepara `openconceptlab.subscriptionUrl` para la release curada
+  `SIHSALUS/sihsalus/2026-09-09-1` del servidor institucional. El export
+  autenticado conserva el catálogo clínico del paquete y excluye las identidades
+  retiradas de barrios. La activación en DEV y QLTY requiere una importación
+  sintética aislada y verificación operativa; este cambio no configura credenciales.
+
 ### Relación madre-hijo — candidata `1.25.30`
 
 - Añade el mapeo nativo EmrApi `emr.motherChildRelationshipType` al tipo Madre→Hijo
