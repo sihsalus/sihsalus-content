@@ -157,7 +157,7 @@ class Harness:
             try:
                 with zipfile.ZipFile(io.BytesIO(data)) as archive:
                     config = ET.fromstring(archive.read("config.xml"))
-                require(config.findtext("id") == "openconceptlab" and config.findtext("version") == "3.2.0",
+                require(config.findtext("id") == "openconceptlab" and config.findtext("version") == "3.2.0-sihsalus.1",
                         "unexpected_ocl_candidate_identity")
             except (zipfile.BadZipFile, KeyError, ET.ParseError):
                 raise HarnessFailure("invalid_ocl_candidate_archive") from None

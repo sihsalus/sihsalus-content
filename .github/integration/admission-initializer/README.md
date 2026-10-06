@@ -418,8 +418,8 @@ unavailable diagnostic still leaves the original loader abort as a failure.
 
 The manual workflow input `qualify_ocl_candidate` builds the pinned module source
 with its native Maven build and runs the same three scenarios. This opt-in is
-not used by the publication gate. The candidate remains version `3.2.0` for this
-unpublished test; its source revision and binary SHA-256 are recorded separately.
+not used by the publication gate. The candidate version is `3.2.0-sihsalus.1`; its source revision and binary
+SHA-256 are recorded, and it remains unpublished during this test.
 The baseline and its restart retain the original module. Candidate phases mount
 only the candidate OMOD into the distribution, read-only, and verify that native
 startup installed those exact bytes. The clinical configuration, checksums and
