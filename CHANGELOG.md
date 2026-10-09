@@ -10,6 +10,13 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Tamizaje prenatal
+
+- OBST-013 retira los puntos de corte universales de las etiquetas de anemia.
+  La clasificación confirmada requiere el trimestre y el contexto de altitud.
+  Conserva identidad del formulario, conceptos, respuestas, mediciones y datos
+  históricos; no calcula una clasificación ni modifica las reglas de laboratorio.
+
 ### Suscripción OCL institucional
 
 - Prepara `openconceptlab.subscriptionUrl` para la release curada
