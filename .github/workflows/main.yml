@@ -40,7 +40,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: 8
+          java-version: 21
       - name: Validate AMPATH forms
         run: python3 .github/scripts/validate_ampath_forms.py
       - name: Test AMPATH form identity validation
@@ -134,7 +134,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: 8
+          java-version: 21
       - name: Check Maven Central version
         id: central-version
         run: |
@@ -158,7 +158,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: 8
+          java-version: 21
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg-passphrase: GPG_PASSPHRASE
 

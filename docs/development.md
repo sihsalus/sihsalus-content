@@ -12,8 +12,9 @@ leer [AGENTS.md](../AGENTS.md) y el [contrato correspondiente](README.md#contrat
   los validadores Python no ejecutan JavaScript.
 - Maven Wrapper fija Maven 3.10.0 para el paquete y su publicación; descarga la
   distribución oficial y comprueba su SHA-256.
-- Java: CI usa Java 8 para el paquete y publicación, Java 17 para autorización de rangos y
-  Java 21 para MariaDB/Liquibase.
+- Java: CI usa Java 21 LTS para el paquete, publicación y MariaDB/Liquibase,
+  alineado con el backend. El ensayo independiente de autorización de rangos
+  mantiene Java 17.
 - MariaDB y el backend de OpenMRS solo se necesitan en sus ensayos de integración;
   cada ensayo documenta su infraestructura y aislamiento.
 
@@ -117,9 +118,10 @@ errores de carga aun cuando el endpoint HTTP responda correctamente.
 
 ### Compatibilidad de la herramienta de publicación
 
-Usar `./mvnw` para construir y publicar con Maven 3.10.0. El Wrapper comprueba el
-SHA-256 de la distribución oficial; CI utiliza el mismo ejecutable que el desarrollo
-local. El perfil `release` requiere Maven 3.10 y mantiene la firma de Maven GPG.
+Usar Java 21 LTS y `./mvnw` para construir y publicar con Maven 3.10.0. El Wrapper
+comprueba el SHA-256 de la distribución oficial; CI utiliza el mismo ejecutable
+que el desarrollo local. El perfil `release` requiere Maven 3.10 y mantiene la
+firma de Maven GPG.
 
 La publicación utiliza los mecanismos nativos de Maven y JReleaser 1.26.0:
 
