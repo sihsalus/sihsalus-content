@@ -21,6 +21,7 @@ ADDRESS_CONFIGURATION_PATH = Path(
 PERSON_ATTRIBUTE_TYPES_PATH = Path(
     "configuration/personattributetypes/personattributetypes.csv"
 )
+FHIR_CONCEPT_SOURCES_PATH = Path("configuration/fhirconceptsources/fhirconceptsources.csv")
 EXPECTED_SIHSALUS_SUBSCRIPTION_URL = (
     "https://api.openconceptlab.org/orgs/SIHSALUS/sources/sihsalus/2026-07-16-02"
 )
@@ -84,6 +85,8 @@ PROCEDURE_ANATOMY_VERSION = "2026-10-11-01"
 PROCEDURE_ANATOMY_SET_CODE = "PROCEDURE-BODY-SITES"
 PROCEDURE_ANATOMY_SET_UUID = "25b4e8e6-0781-5c04-bc76-888402f3f505"
 PROCEDURE_ANATOMY_HL7_URL = "http://terminology.hl7.org/CodeSystem/v2-0550"
+PROCEDURE_ANATOMY_CONCEPT_SOURCE_UUID = "30c3cf28-091d-5ec9-ace5-5edfc9e1543b"
+PROCEDURE_ANATOMY_FHIR_SOURCE_UUID = "ab151b90-06d7-5734-928d-5907c65226b5"
 PROCEDURE_ANATOMY_CONCEPTS_EXPORT = OCL_DIR / (
     f"17_SIHSALUS_{PROCEDURE_ANATOMY_SOURCE}_concepts_{PROCEDURE_ANATOMY_VERSION}.zip"
 )
@@ -987,6 +990,26 @@ def validate_procedure_anatomy_terminology(exports_by_path, concept_records, err
                 errors.append(f"{prefix}: membership HL7 code does not match SAME-AS mapping")
     if len(set(hl7_codes)) != len(hl7_codes):
         errors.append(f"{prefix}: HL7 codes must identify unique anatomical sites")
+
+    if not FHIR_CONCEPT_SOURCES_PATH.is_file():
+        errors.append(f"{prefix}: required FHIR concept sources CSV is missing")
+        return
+    with FHIR_CONCEPT_SOURCES_PATH.open(newline="", encoding="utf-8") as stream:
+        associations = [row for row in csv.DictReader(stream) if (
+            row.get("Uuid") == PROCEDURE_ANATOMY_FHIR_SOURCE_UUID
+            or row.get("Concept source") in (PROCEDURE_ANATOMY_CONCEPT_SOURCE_UUID, "v2-0550")
+            or row.get("Url") == PROCEDURE_ANATOMY_HL7_URL
+        )]
+    if len(associations) != 1:
+        errors.append(f"{prefix}: must declare exactly one FHIR concept source association")
+        return
+    for field, expected in {
+        "Uuid": PROCEDURE_ANATOMY_FHIR_SOURCE_UUID,
+        "Void/Retire": "", "Concept source": PROCEDURE_ANATOMY_CONCEPT_SOURCE_UUID,
+        "Url": PROCEDURE_ANATOMY_HL7_URL,
+    }.items():
+        if associations[0].get(field) != expected:
+            errors.append(f"{prefix}: FHIR concept source {field} must be {expected!r}")
 
 
 def validate_neighborhood_export_identity(path, export, concept_count, mapping_count, errors):

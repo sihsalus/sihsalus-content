@@ -22,7 +22,9 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   nativa `q` + `memberOf`. La incorporación al servidor terminológico no activa
   el selector en QLTY. La aceptación clínica continúa pendiente.
 - El ensayo existente de Initializer comprueba pertenencia, nombres españoles,
-  equivalencias HL7, búsqueda y estabilidad al reiniciar en fresh y upgrade.
+  equivalencias HL7, asociación FHIR, búsqueda y estabilidad al reiniciar en
+  fresh y upgrade. La fuente se asocia al URI HL7 mediante el dominio nativo
+  `fhirconceptsources`; no acredita intercambio integral de procedimientos.
 
 ### Captura CRED y materna — candidata `1.25.31`
 

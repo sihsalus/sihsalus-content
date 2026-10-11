@@ -65,7 +65,8 @@ su JSON canónico recombinado tiene SHA-256
 `beca354daa202a249fb1b08140cfd2d0fe1b2e6bb18f3fdb780080e8f646962a`.
 El validador fija el hash JSON recombinado y verifica español, códigos,
 pertenencia, equivalencias, UUIDs únicos e identidades históricas. Estos exports
-son la única definición operativa; no hay CSV paralelo ni migración SQL.
+son la única definición operativa del catálogo; no hay otra lista de sitios
+en CSV ni migración SQL.
 La propiedad histórica `openconceptlab.subscriptionUrl` permanece intacta:
 su namespace es necesario para resolver los conceptos importados existentes.
 
@@ -75,8 +76,23 @@ metadata OCL. En OCL `2.3.209-28fabfa2`, el importador masivo omite
 ese campo opcional puede estar vacío, pero nunca contradecir `4.0.0` en esta
 release; `extras.upstream_version` es obligatorio en todas las equivalencias.
 OpenMRS OCL `3.2.0-sihsalus.1` importa el código y la fuente `v2-0550`, pero
-no traslada esa versión al `ConceptReferenceTerm`. No se afirma haber validado
-la exportación FHIR del procedimiento.
+no traslada esa versión al `ConceptReferenceTerm`.
+
+La fila de `configuration/fhirconceptsources/fhirconceptsources.csv` asocia
+la fuente OpenMRS `30c3cf28-091d-5ec9-ace5-5edfc9e1543b` con el canonical
+HL7, mediante la identidad `ab151b90-06d7-5734-928d-5907c65226b5`. Es metadata
+nativa de FHIR2, no una segunda definición del catálogo. El UUID de la fuente
+lo genera OCL 3.2 mediante su namespace UUIDv5 y `source/v2-0550`.
+Initializer `2.13.0-sihsalus.2` carga OCL (orden 23) antes de estas asociaciones
+(orden 53); su parser resuelve la fuente por UUID y preserva la asociación.
+Véanse el [orden de dominios](https://github.com/sihsalus/openmrs-module-initializer/blob/806aec0a11fbb6b582629ecb2c89992e2e46107e/api/src/main/java/org/openmrs/module/initializer/Domain.java)
+y el [parser nativo](https://github.com/sihsalus/openmrs-module-initializer/blob/806aec0a11fbb6b582629ecb2c89992e2e46107e/api/src/main/java/org/openmrs/module/initializer/api/fhir/cs/FhirConceptSourceCsvParser.java).
+
+El [traductor de conceptos de FHIR2](https://github.com/openmrs/openmrs-module-fhir2/blob/069deb714818428540719182472ea13711628526/api/src/main/java/org/openmrs/module/fhir2/api/translators/impl/ConceptTranslatorImpl.java)
+necesita esta asociación para emitir el sistema externo junto al código.
+Esta configuración habilita el mecanismo genérico de conceptos codificados;
+no acredita intercambio integral de procedimientos. La versión de FHIR2
+`4.3.0-sihsalus.1` inspeccionada no contiene un proveedor `Procedure` R4.
 
 Para actualizar el catálogo, editar su fuente OCL, conservar las identidades,
 publicar otra release y sustituir juntos los dos ZIP mediante el splitter.
@@ -93,8 +109,9 @@ instalación nueva, actualización y reinicio:
 
 - Los 133 miembros exactos, sus nombres preferidos españoles, clases y datatypes.
 - Los 133 códigos HL7 y sus mappings persistidos.
+- La asociación FHIR activa con la fuente y URI correctas, sin duplicados.
 - Búsqueda nativa por abdomen, deltoides y esófago; ceftriaxona debe devolver cero.
-- Estabilidad de identidades de base de datos y mappings al reiniciar.
+- Estabilidad de identidades de base de datos, mappings y asociación FHIR al reiniciar.
 
 Estas pruebas verifican carga y consulta de terminología. No acreditan
 aceptación clínica, guardado integral de procedimientos ni despliegue.

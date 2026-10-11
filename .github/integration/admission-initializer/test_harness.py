@@ -76,10 +76,13 @@ def procedure_anatomy_result():
         members.append(f"{100 + index}\t30000000-0000-4000-8000-{index:012d}\t{500 + index}\t"
                        + identifier + "\t0\t" + "\t".join(expected[identifier]))
         mappings.append(f"{identifier}\t{code}\t{mapping_uuid}\t{900 + index}\t{1200 + index}")
-    rows = [["50\t" + root_uuid + "\t0\t1"], members, mappings]
+    association = ("40000000-0000-4000-8000-000000000000", "50000000-0000-4000-8000-000000000000",
+                   "http://terminology.hl7.org/CodeSystem/v2-0550")
+    rows = [["50\t" + root_uuid + "\t0\t1"], members, mappings,
+            ["60\t" + association[0] + "\t0\t70\t" + association[1] + "\tv2-0550\t0\t" + association[2]]]
     responses = [(200, {"results": [{"uuid": by_code[code], "display": "Sitio sintético"}]})
                  for code in ("ADB", "DELT", "ESO")] + [(200, {"results": []})]
-    return (root_uuid, expected, terms), rows, responses
+    return (root_uuid, expected, terms, association), rows, responses
 
 
 class HarnessContracts(unittest.TestCase):
@@ -146,6 +149,40 @@ class HarnessContracts(unittest.TestCase):
         self.runtime.request = Mock(side_effect=responses)
         with self.assertRaisesRegex(HarnessFailure, "procedure_anatomy_search_membership_invalid"):
             self.runtime.check_procedure_anatomy("owned", "db", "fresh")
+
+    def test_procedure_anatomy_rejects_missing_duplicate_or_incorrect_fhir_association(self):
+        for defect in ("missing", "duplicate", "retired", "source", "url"):
+            with self.subTest(defect=defect):
+                contract, rows, responses = procedure_anatomy_result()
+                if defect == "missing":
+                    rows[3] = []
+                elif defect == "duplicate":
+                    rows[3] *= 2
+                else:
+                    fields = rows[3][0].split("\t")
+                    field, value = {"retired": (2, "1"), "source": (4, "wrong-source"),
+                                    "url": (7, "https://example.org/wrong-system")}[defect]
+                    fields[field] = value
+                    rows[3][0] = "\t".join(fields)
+                self.runtime.procedure_anatomy_contract = Mock(return_value=contract)
+                self.runtime.query = Mock(side_effect=rows)
+                self.runtime.request = Mock(side_effect=responses)
+                with self.assertRaisesRegex(HarnessFailure, "procedure_anatomy_fhir_source_invalid"):
+                    self.runtime.check_procedure_anatomy("owned", "db", "fresh")
+                self.runtime.request.assert_not_called()
+
+    def test_procedure_anatomy_preserves_fhir_association_identity_on_restart(self):
+        contract, rows, responses = procedure_anatomy_result()
+        self.runtime.procedure_anatomy_contract = Mock(return_value=contract)
+        self.runtime.query = Mock(side_effect=rows)
+        self.runtime.request = Mock(side_effect=responses)
+        with patch.object(harness, "emit"):
+            previous = self.runtime.check_procedure_anatomy("owned", "db", "upgrade")
+        rows[3][0] = "99" + rows[3][0][rows[3][0].index("\t"):]
+        self.runtime.query = Mock(side_effect=rows)
+        self.runtime.request = Mock(side_effect=responses)
+        with self.assertRaisesRegex(HarnessFailure, "procedure_anatomy_changed_on_restart"):
+            self.runtime.check_procedure_anatomy("owned", "db", "restart", previous)
 
     def test_disposable_database_requires_effective_flush_configuration(self):
         self.runtime.network, self.runtime.nonce = "private-network", "synthetic"

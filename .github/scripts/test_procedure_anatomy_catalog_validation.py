@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 import copy
+import csv
 import importlib.util
 import json
 import sys
+import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest import mock
 
 
 sys.dont_write_bytecode = True
@@ -27,6 +30,27 @@ class ProcedureAnatomyCatalogValidationTest(unittest.TestCase):
         self.exports = copy.deepcopy(self.shipped_exports)
         self.concepts = self.exports[VALIDATOR.PROCEDURE_ANATOMY_CONCEPTS_EXPORT]["concepts"]
         self.mappings = self.exports[VALIDATOR.PROCEDURE_ANATOMY_MAPPINGS_EXPORT]["mappings"]
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.fhir_sources_path = Path(temporary.name) / "fhirconceptsources.csv"
+        self.fhir_sources_path.write_bytes(
+            Path("configuration/fhirconceptsources/fhirconceptsources.csv").read_bytes()
+        )
+        patcher = mock.patch.object(
+            VALIDATOR, "FHIR_CONCEPT_SOURCES_PATH", self.fhir_sources_path
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def fhir_source_rows(self):
+        with self.fhir_sources_path.open(newline="", encoding="utf-8") as stream:
+            return list(csv.DictReader(stream))
+
+    def write_fhir_source_rows(self, rows):
+        with self.fhir_sources_path.open("w", newline="", encoding="utf-8") as stream:
+            writer = csv.DictWriter(stream, fieldnames=rows[0].keys(), lineterminator="\n")
+            writer.writeheader()
+            writer.writerows(rows)
 
     def errors(self):
         records = [(path, export.get("short_code"), concept)
@@ -144,6 +168,39 @@ class ProcedureAnatomyCatalogValidationTest(unittest.TestCase):
     def test_rejects_absent_export(self):
         del self.exports[VALIDATOR.PROCEDURE_ANATOMY_MAPPINGS_EXPORT]
         self.assert_rejected("required official OCL export is missing")
+
+    def test_rejects_missing_fhir_source_association(self):
+        rows = [row for row in self.fhir_source_rows()
+                if row["Url"] != VALIDATOR.PROCEDURE_ANATOMY_HL7_URL]
+        self.write_fhir_source_rows(rows)
+        self.assert_rejected("must declare exactly one FHIR concept source association")
+
+    def test_rejects_incorrect_fhir_system_uri(self):
+        rows = self.fhir_source_rows()
+        row = next(row for row in rows if row["Url"] == VALIDATOR.PROCEDURE_ANATOMY_HL7_URL)
+        row["Url"] = "https://example.org/not-hl7"
+        self.write_fhir_source_rows(rows)
+        self.assert_rejected("FHIR concept source Url must be")
+
+    def test_rejects_fhir_association_with_wrong_openmrs_source(self):
+        rows = self.fhir_source_rows()
+        row = next(row for row in rows if row["Url"] == VALIDATOR.PROCEDURE_ANATOMY_HL7_URL)
+        row["Concept source"] = "CIEL"
+        self.write_fhir_source_rows(rows)
+        self.assert_rejected("FHIR concept source Concept source must be")
+
+    def test_rejects_duplicate_fhir_source_association(self):
+        rows = self.fhir_source_rows()
+        rows.append(dict(next(row for row in rows if row["Url"] == VALIDATOR.PROCEDURE_ANATOMY_HL7_URL)))
+        self.write_fhir_source_rows(rows)
+        self.assert_rejected("must declare exactly one FHIR concept source association")
+
+    def test_preserves_fhir_source_association_identity(self):
+        rows = self.fhir_source_rows()
+        row = next(row for row in rows if row["Url"] == VALIDATOR.PROCEDURE_ANATOMY_HL7_URL)
+        row["Uuid"] = "a-different-association"
+        self.write_fhir_source_rows(rows)
+        self.assert_rejected("FHIR concept source Uuid must be")
 
 
 if __name__ == "__main__":

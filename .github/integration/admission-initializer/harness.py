@@ -931,11 +931,16 @@ class Harness:
                            term["external_id"]) for term in terms}
         require(len(members) == len(expected) == len(expected_terms) == 133,
                 "procedure_anatomy_contract_invalid")
-        return root["external_id"], expected, expected_terms
+        system_url = "http://terminology.hl7.org/CodeSystem/v2-0550"
+        with (self.candidate_config / "fhirconceptsources/fhirconceptsources.csv").open(newline="", encoding="utf-8") as stream:
+            associations = [row for row in csv.DictReader(stream) if row["Url"] == system_url]
+        require(len(associations) == 1, "procedure_anatomy_fhir_contract_invalid")
+        association = associations[0]
+        return root["external_id"], expected, expected_terms, (association["Uuid"], association["Concept source"], system_url)
 
     def check_procedure_anatomy(self, backend, db, phase, previous=None):
         """Check actual set membership, Spanish names, HL7 mappings and native searches."""
-        root_uuid, expected, expected_terms = self.procedure_anatomy_contract()
+        root_uuid, expected, expected_terms, (fhir_uuid, source_uuid, system_url) = self.procedure_anatomy_contract()
         root = self.query(db, "SELECT concept_id,uuid,retired,is_set FROM concept WHERE uuid=" + sql_string(root_uuid))
         require(len(root) == 1, "procedure_anatomy_set_missing_or_duplicated")
         fields = root[0].split("\t")
@@ -966,6 +971,16 @@ class Harness:
         require(len(mapped) == 133 and all(len(row) == 5 for row in mapped)
                 and {tuple(row[:3]) for row in mapped} == expected_terms,
                 "procedure_anatomy_hl7_mappings_invalid")
+        fhir_rows = self.query(db, "SELECT f.fhir_concept_source_id,f.uuid,f.retired,src.concept_source_id,"
+            "src.uuid,src.name,src.retired,f.url FROM fhir_concept_source f "
+            "LEFT JOIN concept_reference_source src ON src.concept_source_id=f.concept_source_id WHERE f.uuid="
+            + sql_string(fhir_uuid) + " OR src.uuid=" + sql_string(source_uuid) + " OR f.url=" + sql_string(system_url))
+        require(len(fhir_rows) == 1, "procedure_anatomy_fhir_source_invalid")
+        fhir_fields = fhir_rows[0].split("\t")
+        require(len(fhir_fields) == 8 and re.fullmatch(r"[1-9][0-9]*", fhir_fields[0])
+                and fhir_fields[1:3] == [fhir_uuid, "0"] and re.fullmatch(r"[1-9][0-9]*", fhir_fields[3])
+                and fhir_fields[4:] == [source_uuid, "v2-0550", "0", system_url],
+                "procedure_anatomy_fhir_source_invalid")
         by_code = {code: identifier for identifier, code, _ in expected_terms}
         for text, matches in (("abdomen", {by_code["ADB"]}), ("deltoides", {by_code["DELT"]}),
                               ("esófago", {by_code["ESO"]}), ("ceftriaxona", set())):
@@ -976,10 +991,10 @@ class Harness:
             results = response["results"]
             require(len(results) == len(matches) and {result.get("uuid") for result in results} == matches,
                     "procedure_anatomy_search_membership_invalid")
-        snapshot = (tuple(root), tuple(rows), tuple(mapping_rows))
+        snapshot = (tuple(root), tuple(rows), tuple(mapping_rows), tuple(fhir_rows))
         require(previous is None or snapshot == previous, "procedure_anatomy_changed_on_restart")
         emit("procedure_anatomy", "PASSED", phase=phase, members=133, hl7_mappings=133,
-             native_searches=4, restart_checked=previous is not None)
+             fhir_source_associations=1, native_searches=4, restart_checked=previous is not None)
         return snapshot
 
     def create_fixtures(self, backend):
