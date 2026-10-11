@@ -177,3 +177,4 @@ b6e42dc3-66cf-4c01-8aae-0a30803d505a,app:gestionInventario.articulos.editar,Perm
 f94e9293-589a-4b0a-93a8-836b9801a910,app:gestionInventario.configuracion.editar,Permite modificar la configuracion operativa de inventario.,
 2f8c1d64-3a97-4e52-9b61-7c4d8e05a913,app:appointments.startDate.edit,Permite cambiar la fecha de una cita; sin este privilegio la cita solo puede programarse para el dia en curso.,
 6b3e0a57-94d2-4f18-8c25-1de7b3a64f90,app:appointments.issueDate.edit,"Permite corregir la fecha de emision de una cita, por ejemplo al registrar una cita emitida en papel un dia anterior.",
+142126af-7931-4d42-908d-cb8b4afed3a1,app:indicadores.editar,"Permite crear, versionar, editar y recalcular indicadores y metas.",
