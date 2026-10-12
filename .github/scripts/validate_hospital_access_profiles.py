@@ -134,6 +134,10 @@ def validate(root=ROOT):
             raise ValueError("Broad administrative role in preserved test profile: " + name)
         if set(profile["expectedPrivileges"]) & ADMIN_PRIVILEGES:
             raise ValueError("Administrative grants in preserved test profile: " + name)
+        expected = set(profile["expectedPrivileges"])
+        if expected & {"app:hoja.clinica.cred.neonatal", "app:hoja.clinica.partoPuerperio"}:
+            if "View Metadata Via Mapping" not in expected:
+                raise ValueError("Metadata mapping read required for " + name)
     extensions = contract["environmentExtensions"]
     if set(extensions) != {"dev", "qlty"} or extensions["qlty"]:
         raise ValueError("Audit experiment extensions must remain explicit and DEV-only")

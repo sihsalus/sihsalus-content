@@ -102,6 +102,38 @@ class HospitalAccessProfilesTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "DEV-only"):
             validate(self.root)
 
+    def test_maternal_child_readers_include_native_metadata_read_access(self):
+        contract = json.loads((self.root / CONTRACT).read_text())
+        for name in ("cred", "obstetricia", "auditor"):
+            with self.subTest(profile=name):
+                self.assertIn("View Metadata Via Mapping",
+                              contract["preservedTestProfiles"][name]["expectedPrivileges"])
+        for name in ("admision", "consulta.externa", "enfermeria.triaje", "farmacia", "laboratorio"):
+            with self.subTest(profile=name):
+                self.assertNotIn("View Metadata Via Mapping", contract["profiles"][name]["expectedPrivileges"])
+        self.assertNotIn("View Metadata Via Mapping",
+                         contract["preservedTestProfiles"]["gestion"]["expectedPrivileges"])
+
+    def test_each_maternal_child_reader_requires_native_metadata_read_access(self):
+        for reader in ("app:hoja.clinica.cred.neonatal", "app:hoja.clinica.partoPuerperio"):
+            with self.subTest(reader=reader):
+                self.change_contract(lambda c: c["preservedTestProfiles"]["cred"].update(
+                    expectedPrivileges=[reader]))
+                with self.assertRaisesRegex(ValueError, "Metadata mapping read required for cred"):
+                    validate(self.root)
+
+    def test_metadata_administration_cannot_replace_native_read_dependency(self):
+        self.change_contract(lambda c: c["preservedTestProfiles"]["cred"].update(
+            expectedPrivileges=["app:hoja.clinica.cred.neonatal", "Manage Metadata Mapping"]))
+        with self.assertRaisesRegex(ValueError, "Metadata mapping read required for cred"):
+            validate(self.root)
+
+    def test_native_metadata_read_cannot_spread_through_shared_login(self):
+        self.change_role("SIHSALUS Login", lambda r: r.update(
+            Privileges=r["Privileges"] + ";View Metadata Via Mapping"))
+        with self.assertRaisesRegex(ValueError, "differs for admision"):
+            validate(self.root)
+
 
 if __name__ == "__main__":
     unittest.main()
