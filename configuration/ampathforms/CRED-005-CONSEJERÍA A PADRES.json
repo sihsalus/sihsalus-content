@@ -159,7 +159,7 @@
               "type": "encounterRole",
               "questionOptions": {
                 "rendering": "ui-select-extended",
-                "isSearchable": true
+                "isSearchable": false
               },
               "id": "rolDelResponsable",
               "required": true,
