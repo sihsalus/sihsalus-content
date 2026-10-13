@@ -187,6 +187,15 @@ No se introducen filtros en lectores para ocultar observaciones mal atribuidas.
 
 ## Contrato clínico de CRED
 
+Los formularios CRED precargan el profesional vinculado a la sesión mediante el
+adaptador del motor de formularios. El rol se selecciona explícitamente en la
+lista visible: `Enfermería Responsable` para enfermería o `Médico Responsable`
+para medicina. No se infiere la profesión desde permisos, nombres o el orden del
+catálogo. `Enfermera de Triaje` conserva su alcance de triaje y los encuentros
+históricos conservan su rol. El cambio de profesional sigue sujeto a la
+autorización del backend; el rol del encuentro no concede privilegios.
+
+
 `(CRED) Detalles de Nacimiento` incorpora una observación opcional de fecha y
 hora de alta del recién nacido. Reutiliza `Fecha de alta` de OCL, UUID
 `e911fe60-6d45-40c7-8d65-1ab93b3c77f4`, datatype `Datetime`. Su contexto es el

@@ -112,7 +112,7 @@
               "type": "encounterRole",
               "questionOptions": {
                 "rendering": "ui-select-extended",
-                "isSearchable": true
+                "isSearchable": false
               },
               "required": true
             },
