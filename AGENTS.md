@@ -64,6 +64,17 @@ funcional y las pruebas.
 
 ## Validación y revisión
 
+- Preparar cambios pequeños que una persona pueda explicar y cuestionar: problema,
+  elección, alternativa, fallos posibles y evidencia. Señalar las partes generadas
+  o asistidas que requieran especial revisión, sin atribuirles corrección por su origen.
+- Antes de integrar, publicar una versión, desplegar o cambiar permisos, presentar
+  el resultado concreto y obtener aprobación humana de ese PR/SHA, artefacto/destino
+  o política de acceso. «Yolo», un plan aprobado y CI verde no la sustituyen.
+  Cambios sustanciales requieren nueva revisión; integrar y desplegar son decisiones
+  distintas. No aprobar usando las credenciales del mantenedor ni rellenar su decisión.
+- Los cambios clínicos, de catálogos o de permisos requieren al responsable del
+  dominio. Dejar visibles las decisiones pendientes; no inventar aceptación humana.
+
 - Usar los comandos del [workflow existente](.github/workflows/main.yml) y las
   pruebas del dominio afectado. Añadir regresiones para cambios de comportamiento;
   comprobar efectos y contratos, no solo que el código contiene cierto texto.
