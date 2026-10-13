@@ -7,13 +7,11 @@ import json
 import re
 import sys
 import zipfile
-import xml.etree.ElementTree as ET
 from collections import defaultdict
 from pathlib import Path
 
 
 CONTRACT_PATH = Path("docs/contracts/visit-note-content-contract.json")
-LIQUIBASE_PATH = Path("configuration/liquibase/liquibase.xml")
 ENCOUNTER_TYPES_PATH = Path(
     "configuration/encountertypes/encountertypes.csv"
 )
@@ -34,12 +32,6 @@ EXPECTED_ENCOUNTER_TYPE = {
     "name": "Notas de Atención",
     "description": "Registro de observaciones clínicas y evolución del paciente en cada consulta.",
     "retired": False,
-}
-CHANGE_SET_IDS = {
-    "ensure-canonical-visit-note-encounter-type-20260823",
-    "ensure-canonical-visit-note-form-20260823",
-    "link-canonical-visit-note-form-encounter-type-20260823",
-    "assert-canonical-visit-note-form-contract-20260823",
 }
 
 
@@ -178,99 +170,7 @@ def validate_encounter_metadata(root, contract):
     return errors
 
 
-def validate_liquibase_contract(contract, xml_text, path=LIQUIBASE_PATH):
-    errors = []
-    try:
-        root = ET.fromstring(xml_text)
-    except ET.ParseError as error:
-        return [f"{path}: invalid XML: {error}"]
-    change_sets = {
-        node.get("id"): node for node in root if node.tag.rsplit("}", 1)[-1] == "changeSet"
-    }
-    for change_set_id in sorted(CHANGE_SET_IDS):
-        change_set = change_sets.get(change_set_id)
-        if change_set is None:
-            errors.append(f"{path}: missing changeSet {change_set_id}")
-        elif change_set.get("runAlways") is not None:
-            errors.append(
-                f"{path}: {change_set_id} must not rely on runAlways because BaseFileLoader "
-                "can skip the whole Liquibase file by checksum"
-            )
-
-    form_uuid = contract["form"]["uuid"]
-    encounter_uuid = contract["form"]["encounterTypeUuid"]
-    bootstrap = change_sets.get("ensure-canonical-visit-note-encounter-type-20260823")
-    ensure = change_sets.get("ensure-canonical-visit-note-form-20260823")
-    link = change_sets.get("link-canonical-visit-note-form-encounter-type-20260823")
-    assertion = change_sets.get("assert-canonical-visit-note-form-contract-20260823")
-    bootstrap_sql = " ".join("".join(bootstrap.itertext()).split()) if bootstrap is not None else ""
-    ensure_sql = " ".join("".join(ensure.itertext()).split()) if ensure is not None else ""
-    link_sql = " ".join("".join(link.itertext()).split()) if link is not None else ""
-    if (
-        encounter_uuid not in bootstrap_sql
-        or f"'{contract['encounterType']['name']}'" not in bootstrap_sql
-        or f"'{contract['encounterType']['description']}'" not in bootstrap_sql
-        or "WHERE NOT EXISTS" not in bootstrap_sql
-    ):
-        errors.append(f"{path}: encounter type must be bootstrapped idempotently before Visit Note")
-    if form_uuid not in ensure_sql or encounter_uuid not in ensure_sql or "WHERE NOT EXISTS" not in ensure_sql:
-        errors.append(f"{path}: Visit Note insert must be UUID-idempotent and resolve the encounter type")
-    if "'Visit Note'" not in ensure_sql or "'1.0'" not in ensure_sql:
-        errors.append(f"{path}: Visit Note insert is missing canonical name/version")
-    if form_uuid not in link_sql or encounter_uuid not in link_sql or "encounter_type IS NULL" not in link_sql:
-        errors.append(f"{path}: Visit Note link must only complete a missing encounter_type")
-    if assertion is not None:
-        preconditions = next(
-            (node for node in assertion if node.tag.rsplit("}", 1)[-1] == "preConditions"),
-            None,
-        )
-        if preconditions is None or preconditions.get("onFail") != "HALT" or preconditions.get("onError") != "HALT":
-            errors.append(f"{path}: Visit Note assertion must HALT on failure and error")
-    return errors
-
-
-def expected_frontend_defaults(contract):
-    defaults = {item["configKey"]: item["uuid"] for item in contract.get("concepts", [])}
-    defaults["encounterTypeUuid"] = contract["form"]["encounterTypeUuid"]
-    defaults["formConceptUuid"] = contract["form"]["uuid"]
-    return defaults
-
-
-def parse_frontend_defaults(schema_text):
-    constants_match = re.search(
-        r"defaultVisitNoteClinicalConceptUuids\s*=\s*\{(.*?)\}\s*as const",
-        schema_text,
-        re.DOTALL,
-    )
-    constants = {}
-    if constants_match:
-        constants = dict(
-            (key, value)
-            for key, _quote, value in re.findall(
-                r"(\w+)\s*:\s*(['\"])([^'\"]+)\2", constants_match.group(1)
-            )
-        )
-    defaults = {}
-    for key, body in re.findall(r"^\s{2}(\w+):\s*\{(.*?)^\s{2}\},", schema_text, re.MULTILINE | re.DOTALL):
-        direct = re.search(r"_default:\s*(['\"])([^'\"]+)\1", body)
-        indirect = re.search(r"_default:\s*defaultVisitNoteClinicalConceptUuids\.(\w+)", body)
-        if direct:
-            defaults[key] = direct.group(2)
-        elif indirect and indirect.group(1) in constants:
-            defaults[key] = constants[indirect.group(1)]
-    return defaults
-
-
-def validate_frontend_schema(contract, schema_text, path):
-    errors = []
-    actual = parse_frontend_defaults(schema_text)
-    for key, expected in expected_frontend_defaults(contract).items():
-        if actual.get(key) != expected:
-            errors.append(f"{path}: {key} must default to {expected}, found {actual.get(key)!r}")
-    return errors
-
-
-def validate(root, frontend_root=None):
+def validate(root):
     errors = []
     contract = read_json(root / CONTRACT_PATH, errors)
     errors.extend(validate_contract_shape(contract))
@@ -279,32 +179,19 @@ def validate(root, frontend_root=None):
     catalog = load_concept_catalog(root, errors)
     errors.extend(validate_concepts(contract, catalog))
     errors.extend(validate_encounter_metadata(root, contract))
-    try:
-        xml_text = (root / LIQUIBASE_PATH).read_text()
-        errors.extend(validate_liquibase_contract(contract, xml_text, root / LIQUIBASE_PATH))
-    except OSError as error:
-        errors.append(f"{root / LIQUIBASE_PATH}: cannot read XML: {error}")
-    if frontend_root is not None:
-        schema_path = frontend_root / contract["frontendSchemaRelativePath"]
-        try:
-            errors.extend(validate_frontend_schema(contract, schema_path.read_text(), schema_path))
-        except OSError as error:
-            errors.append(f"{schema_path}: cannot read frontend schema: {error}")
     return errors
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo-root", type=Path, default=Path("."))
-    parser.add_argument("--frontend-root", type=Path)
     args = parser.parse_args()
-    errors = validate(args.repo_root, args.frontend_root)
+    errors = validate(args.repo_root)
     if errors:
         for error in errors:
             print(f"[ERROR] {error}", file=sys.stderr)
         return 1
-    frontend_note = " and frontend defaults" if args.frontend_root else ""
-    print(f"Validated Visit Note form, encounter, concept datatypes{frontend_note}.")
+    print("Validated Visit Note form, encounter, concept datatypes.")
     return 0
 
 

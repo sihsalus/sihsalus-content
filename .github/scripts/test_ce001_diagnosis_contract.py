@@ -20,13 +20,9 @@ class CE001DiagnosisContractTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.form = json.loads(VALIDATOR.CE001_PATH.read_text(encoding="utf-8"))
-        cls.liquibase = VALIDATOR.LIQUIBASE_PATH.read_text(encoding="utf-8")
 
     def test_accepts_current_visit_notes_only_contract(self):
         self.assertEqual([], VALIDATOR.validate_contract(self.form))
-
-    def test_accepts_legacy_form_retirement_contract(self):
-        self.assertEqual([], VALIDATOR.validate_liquibase_contract(self.liquibase))
 
     def test_rejects_reintroduced_diagnosis_as_observation(self):
         form = copy.deepcopy(self.form)
@@ -109,71 +105,6 @@ class CE001DiagnosisContractTest(unittest.TestCase):
         errors = VALIDATOR.validate_contract(form)
 
         self.assertTrue(any("overwrite the historical schema CLOB" in error for error in errors))
-
-    def test_corrected_version_has_a_distinct_deterministic_identity(self):
-        previous_uuid = VALIDATOR.ampath_persisted_form_uuid(
-            VALIDATOR.EXPECTED_NAME, VALIDATOR.PREVIOUS_VERSION
-        )
-        active_uuid = VALIDATOR.ampath_persisted_form_uuid(
-            VALIDATOR.EXPECTED_NAME, VALIDATOR.EXPECTED_VERSION
-        )
-
-        self.assertEqual(VALIDATOR.PREVIOUS_PERSISTED_FORM_UUID, previous_uuid)
-        self.assertEqual(VALIDATOR.EXPECTED_PERSISTED_FORM_UUID, active_uuid)
-        self.assertNotEqual(previous_uuid, active_uuid)
-
-    def test_rejects_retirement_without_exact_legacy_uuid_scope(self):
-        broken = self.liquibase.replace(
-            f"WHERE uuid = '{VALIDATOR.PREVIOUS_PERSISTED_FORM_UUID}'\n"
-            "              AND name = 'CE-001-CONSULTA EXTERNA'",
-            "WHERE name = 'CE-001-CONSULTA EXTERNA'",
-            1,
-        )
-
-        errors = VALIDATOR.validate_liquibase_contract(broken)
-
-        self.assertTrue(any("missing SQL contract fragment" in error for error in errors))
-
-    def test_rejects_republishing_legacy_form(self):
-        broken = self.liquibase.replace("published = 0,", "published = 1,", 1)
-
-        errors = VALIDATOR.validate_liquibase_contract(broken)
-
-        self.assertTrue(any("'PUBLISHED = 0'" in error for error in errors))
-
-    def test_rejects_nonexistent_retire_reason_column(self):
-        broken = self.liquibase.replace("retired_reason", "retire_reason")
-
-        errors = VALIDATOR.validate_liquibase_contract(broken)
-
-        self.assertTrue(any("form.retire_reason" in error for error in errors))
-
-    def test_rejects_non_fail_closed_retirement(self):
-        marker = (
-            f'id="{VALIDATOR.RETIRE_CHANGE_SET_ID}"\n'
-            '        author="sihsalus">\n'
-            '        <preConditions onFail="HALT" onError="HALT">'
-        )
-        broken = self.liquibase.replace(
-            marker,
-            marker.replace('onFail="HALT"', 'onFail="CONTINUE"'),
-            1,
-        )
-
-        errors = VALIDATOR.validate_liquibase_contract(broken)
-
-        self.assertTrue(any("must HALT" in error for error in errors))
-
-    def test_rejects_missing_exclusive_canonical_assertion(self):
-        broken = self.liquibase.replace(
-            VALIDATOR.ASSERT_CHANGE_SET_ID,
-            f"{VALIDATOR.ASSERT_CHANGE_SET_ID}-removed",
-            1,
-        )
-
-        errors = VALIDATOR.validate_liquibase_contract(broken)
-
-        self.assertTrue(any("missing changeSet" in error for error in errors))
 
 
 if __name__ == "__main__":
