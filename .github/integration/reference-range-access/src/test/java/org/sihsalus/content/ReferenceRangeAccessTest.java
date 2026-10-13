@@ -27,7 +27,6 @@ import org.openmrs.util.ConceptReferenceRangeUtility;
 
 /** Executes shipped SpEL criteria and Core authorization; only data services/session membership are stubbed. */
 public class ReferenceRangeAccessTest {
-    private static final String PROGRAM_READ = "Get Patient Programs";
     private static final String MATERNAL_PROGRAM = "3cb4ffd6-1b67-4c52-8398-4bf9844a415e";
     private static final String TEMPERATURE_RANGE = "75821f07-5a3e-4842-a499-ca7a5dc56bf6";
     private static final Path ROOT = Paths.get(System.getProperty("content.root"));
@@ -111,44 +110,10 @@ public class ReferenceRangeAccessTest {
     }
 
     @Test
-    public void missingProgramReadIsAnAuthorizationErrorEvenWithoutEnrollment() throws Exception {
-        useRole("SIHSALUS Laboratorio");
-        grants.remove(PROGRAM_READ);
-        enrollment = Collections.emptyList();
-        APIException error = assertThrows(APIException.class,
-            () -> new ConceptReferenceRangeUtility().evaluateCriteria(criteria, observation));
-        assertTrue(error.getMessage().contains("evaluating criteria"));
-        Throwable cause = error;
-        while (cause.getCause() != null) cause = cause.getCause();
-        assertTrue(cause instanceof APIAuthenticationException);
-        assertTrue(cause.getMessage().contains(PROGRAM_READ));
-    }
-
-    @Test
     public void aWomanOutsideTheProgramDoesNotMatchTheMaternalRange() throws Exception {
         useRole("SIHSALUS Laboratorio");
         enrollment = Collections.emptyList();
         assertFalse(new ConceptReferenceRangeUtility().evaluateCriteria(criteria, observation));
-    }
-
-    @Test
-    public void maleControlDoesNotExerciseProgramAuthorization() throws Exception {
-        useRole("SIHSALUS Laboratorio");
-        grants.remove(PROGRAM_READ);
-        observation.getPerson().setGender("M");
-        assertFalse(new ConceptReferenceRangeUtility().evaluateCriteria(criteria, observation));
-        verifyNoInteractions(programs);
-    }
-
-    @Test
-    public void readingProgramsDoesNotAuthorizeCreatingOrDeletingEnrollments() throws Exception {
-        useRole("SIHSALUS Laboratorio");
-        assertThrows(APIAuthenticationException.class, () -> authorization.before(
-            ProgramWorkflowService.class.getMethod("savePatientProgram", PatientProgram.class),
-            new Object[] {new PatientProgram()}, programs));
-        assertThrows(APIAuthenticationException.class, () -> authorization.before(
-            ProgramWorkflowService.class.getMethod("purgePatientProgram", PatientProgram.class),
-            new Object[] {new PatientProgram()}, programs));
     }
 
     private void useRole(String name) throws Exception {

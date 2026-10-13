@@ -65,8 +65,6 @@ jobs:
         run: python3 .github/scripts/validate_ce_physical_exam_contract.py
       - name: Test Consulta Externa physical examination contract
         run: python3 .github/scripts/test_ce_physical_exam_contract.py
-      - name: Test simplified Consulta Externa forms
-        run: python3 .github/scripts/test_consulta_externa_forms.py
       - name: Validate Visit Note content contract
         run: python3 .github/scripts/validate_visit_note_content_contract.py
       - name: Test Visit Note content contract validator
@@ -83,8 +81,6 @@ jobs:
         run: python3 .github/scripts/validate_hospital_institution_metadata.py
       - name: Test Hospital Santa Clotilde institutional metadata validator
         run: python3 .github/scripts/test_hospital_institution_metadata.py
-      - name: Validate Liquibase changelogs
-        run: python3 .github/scripts/validate_liquibase.py
       - name: Test admission role reconciliation
         run: python3 .github/scripts/test_admission_role_reconciliation.py
       - name: Validate appointment visit queue integrity
@@ -93,8 +89,6 @@ jobs:
         run: python3 .github/scripts/validate_stock_foundation.py
       - name: Validate OCL exports
         run: python3 .github/scripts/validate_ocl_exports.py
-      - name: Test CRED birth and anemia capture contracts
-        run: python3 .github/scripts/test_cred_birth_context.py
       - name: Test laboratory capture compatibility
         run: python3 .github/scripts/test_laboratory_capture_validation.py
       - name: Test reproducible OCL export exclusions

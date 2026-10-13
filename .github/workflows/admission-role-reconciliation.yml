@@ -41,17 +41,6 @@ jobs:
         run: >-
           mvn --batch-mode --no-transfer-progress
           --file .github/integration/admission-role-reconciliation/pom.xml test
-      - name: Record validation scope
-        if: always()
-        run: |
-          {
-            echo '## Admission migration integration'
-            echo "Source: ${GITHUB_SHA}"
-            echo 'MariaDB 10.11.7; Liquibase 4.32.0; MariaDB JDBC 3.5.4; Java 21.'
-            echo 'Synthetic minimal schema, complete candidate Liquibase XML; see JUnit results.'
-            echo 'NOT RUN: Initializer 2.13.0-sihsalus.1 CSV loading/checksums and OpenMRS authorization.'
-            echo 'This job does not validate a deployed backend, authorize deployment, or publish content.'
-          } >> "$GITHUB_STEP_SUMMARY"
       - name: Preserve synthetic test reports
         if: always()
         uses: actions/upload-artifact@v4

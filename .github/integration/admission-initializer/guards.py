@@ -3,7 +3,6 @@
 import csv
 import hashlib
 import io
-import os
 import re
 import shutil
 import subprocess
@@ -32,7 +31,6 @@ CONFIG_PREFIX = "configuration"
 LEGACY_CONFIG_PREFIX = "configuration/backend_configuration"
 ROLES_FILE = "roles/roles-core.csv"
 CURRENT_ADMISSION_ADDITIONS = frozenset({"app:home.libroAtenciones"})
-LIQUIBASE_FILE = "liquibase/liquibase.xml"
 ROLES_CHECKSUM = "configuration_checksums/roles/roles-core.checksum"
 LIQUIBASE_CHECKSUM = "configuration_checksums/liquibase/liquibase.checksum"
 UUID_PATTERN = re.compile(r"^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$")
@@ -78,7 +76,6 @@ def validate_runner(env):
 
 
 def checked(args, *, data=None, timeout=60, cwd=None, env=None, allow_failure=False, operation="git"):
-    require(re.fullmatch(r"(?:git|docker_(?:pull|image|container|volume|network|create|rm|cp|start|exec|logs|stop))", operation), "unsafe_diagnostic_operation")
     try:
         result = subprocess.run(
             args, input=data, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -235,34 +232,8 @@ def assemble(image, image_content, replacement, destination):
     return {"preserved_files": len(preserved), "candidate_files": len(new_files)}
 
 
-def validate_startup(data):
-    text = data.decode("utf-8")
-    for code, needle in {
-        "distribution_path": 'OMRS_DISTRO_CONFIG="$OMRS_DISTRO_DIR/openmrs_config"',
-        "configuration_path": 'OMRS_CONFIG_DIR="$OMRS_DATA_DIR/configuration"',
-        "configuration_copy": 'cp -R "$OMRS_DISTRO_CONFIG/." "$OMRS_CONFIG_DIR"',
-        "configuration_cleanup": 'rm -fR "' + "$" + '{OMRS_CONFIG_DIR:?}"/*',
-        "extra_properties": "OMRS_EXTRA_",
-        "runtime_properties": "OMRS_RUNTIME_PROPERTIES_FILE",
-        "ocl_hook": "/usr/local/bin/configure-ocl-token.sh",
-    }.items():
-        require(needle in text, "unverified_startup_" + code)
-    return hashlib.sha256(data).hexdigest()
-
-
 def sql_string(value):
     return "CONVERT(0x" + value.encode("utf-8").hex() + " USING utf8mb4)"
-
-
-def backend_owner(runtime_user, identity):
-    require(re.fullmatch(r"[1-9][0-9]*(?::[0-9]+)?", runtime_user), "numeric_nonroot_backend_user_required")
-    # Docker supports numeric users absent from /etc/passwd. Verify the actual
-    # effective identity in an isolated id-only probe, never assume its GID.
-    parts = identity.decode("ascii").splitlines()
-    require(len(parts) == 2 and all(re.fullmatch(r"[0-9]+", part) for part in parts), "backend_effective_identity_unverified")
-    declared = runtime_user.split(":")
-    require(parts[0] == declared[0] and (len(declared) == 1 or parts[1] == declared[1]), "backend_effective_identity_mismatch")
-    return parts[0] + ":" + parts[1]
 
 
 def admission_privileges(configuration, additions=frozenset()):

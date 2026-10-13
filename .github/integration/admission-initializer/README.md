@@ -1,49 +1,27 @@
 # Admission Initializer integration
 
-This is a real Initializer and narrow native-RBAC test for an exclusively owned,
-ephemeral GitHub-hosted Linux runner. It does not build Maven modules, publish
-images, deploy, contact DEV/QLTY/PROD, or use existing accounts or patients.
-The local unit tests are not evidence that the containers or migration passed.
+`harness.py` starts the pinned SIHSalus backend image and a disposable MariaDB
+on a GitHub-hosted runner, loads the candidate content with Initializer in
+`fail_on_error` mode and asserts in the database and through REST that the
+content loaded. It never contacts DEV/QLTY/PROD, reads no existing credential,
+uses no existing account or patient and publishes nothing.
 
-Fresh installation and both upgrade scenarios also check the reviewed clinical
-form schemas (CRED, maternal care, anamnesis, the general outpatient form,
-the dedicated examination, retired outpatient SOAP, obstetric history, immediate puerperium and obstetric discharge) and eighteen laboratory range criteria against the candidate
-files. Publication and retirement flags must match the declarations. Upgrades preserve the UUID, database identity, version and schema hash of
-previous forms; a restart must leave the resulting forms unchanged. These are
-loader checks, not clinical encounter save/edit tests.
+Related: [admission contract](../../../docs/contracts/admission-role-reconciliation.md),
+[content guide](../../../docs/content-guide.md#presentaciones-adicionales-de-medicamentos) (clinical drug catalog) and
+[development guide](../../../docs/development.md).
 
-The same scenarios check the procedure anatomy set: 133 exact members with
-preferred Spanish names, unchanged historical classes/datatypes, 133 HL7
-reference mappings, the native FHIR source/URI association and four
-`q`/`memberOf` searches. Both upgrades also compare persisted set/mapping and
-FHIR association identities after restart. Expectations come from the shipped
-OCL exports and the native FHIR association CSV, not a second operational catalog. These
-checks do not establish clinical approval or procedure CRUD acceptance.
+## Invocation
 
-The expected schema hash applies Core's `OpenmrsObjectSaveHandler` outer-whitespace
-trimming when saving `ClobDatatypeStorage`; internal JSON bytes must still match.
-Historical hashes are compared as stored, without modifying previous schemas.
-
-See the [admission contract](../../../docs/contracts/admission-role-reconciliation.md)
-for supported migration inputs and the [development guide](../../../docs/development.md)
-for the other validation layers. Here, “candidate” means the checked-out content
-under test; it does not imply that its package version is unpublished.
-
-## Invocation and isolation
-
-The caller must check out the exact candidate `GITHUB_SHA` with a clean tracked
-worktree and fetch only these immutable source commits:
+`admission-initializer.yml` (called from `main.yml`) runs the three scenarios
+as a matrix with `fail-fast: false`; all must pass on the same candidate SHA.
+The checkout must be the exact `GITHUB_SHA` with a clean tracked worktree, plus
+the two pinned source commits:
 
 ```sh
 git fetch --no-tags --depth=1 origin \
   8000b27f48bf124fe9a553d4ba41c678e9acc231 \
   762920145a806f989fd8876ab2938ef217f57aab
-python3 -B .github/integration/admission-initializer/test_harness.py
-```
-
-Only inside that disposable GitHub-hosted runner, run:
-
-```sh
+python3 -B .github/integration/admission-initializer/test_harness.py   # no Docker
 ADMISSION_INITIALIZER_DISPOSABLE=github-runner-only \
   ADMISSION_INITIALIZER_SCENARIO=upgrade \
   python3 -B .github/integration/admission-initializer/harness.py

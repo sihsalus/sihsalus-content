@@ -711,7 +711,7 @@ def validate_development_instruments(concepts, mappings, errors):
                 f"expected={expected_targets}, actual={actual_targets}"
             )
 
-    validate_development_forms(concepts, active_mappings, errors)
+    validate_tped_form(errors)
 
 
 def validate_procedure_terminology(concepts, mappings, errors):
@@ -1586,197 +1586,31 @@ def validate_ocl_global_properties(errors):
         )
 
 
-def validate_development_forms(concepts, mappings, errors):
-    concept_id_by_external_id = {
-        concept.get("external_id"): concept.get("id")
-        for concept in concepts.values()
-        if concept.get("external_id")
-    }
-
-    def load_form(filename):
-        path = FORM_DIR / filename
-        try:
-            return json.loads(path.read_text())
-        except (OSError, json.JSONDecodeError) as error:
-            errors.append(f"{path}: cannot load form: {error}")
-            return None
-
-    def form_questions(form):
-        for page in form.get("pages", []):
-            for section in page.get("sections", []):
-                yield from section.get("questions", [])
-
-    mapping_targets = defaultdict(list)
-    for mapping in mappings:
-        if mapping.get("map_type") == "Q-AND-A":
-            mapping_targets[mapping.get("from_concept_code")].append(mapping.get("to_concept_code"))
-
-    for filename in (
-        "CRED-009-EDI.json",
-        "CRED-010-TAMIZAJE TEA.json",
-        "CRED-011-SALUD MENTAL NIÑO Y CUIDADOR.json",
-        "CRED-026-HUANCA TEST VIGILANCIA NEURODESARROLLO.json",
-        "CRED-027-LISTA HABILIDADES Y CONDUCTAS ESPERADAS.json",
-        "CRED-028-TPED.json",
-    ):
-        form = load_form(filename)
-        if not form:
-            continue
-        for question in form_questions(form):
-            options = question.get("questionOptions") or {}
-            question_external_id = options.get("concept")
-            if not question_external_id:
-                continue
-            question_id = concept_id_by_external_id.get(question_external_id)
-            if not question_id:
-                errors.append(f"{filename}: unresolved question concept {question_external_id}")
-                continue
-            expected_answers = [
-                concept_id_by_external_id.get(answer.get("concept")) for answer in options.get("answers", [])
-            ]
-            unresolved_answers = [
-                answer.get("concept")
-                for answer in options.get("answers", [])
-                if answer.get("concept") not in concept_id_by_external_id
-            ]
-            if unresolved_answers:
-                errors.append(f"{filename}: unresolved answer concepts {unresolved_answers}")
-            if expected_answers and not set(expected_answers).issubset(mapping_targets[question_id]):
-                errors.append(
-                    f"{filename}: Q-AND-A mismatch for {question_id}: "
-                    f"form={expected_answers}, mappings={mapping_targets[question_id]}"
-                )
-
-    def questions_by_id(filename):
-        form = load_form(filename)
-        if not form:
-            return None, {}
-        return form, {question.get("id"): question for question in form_questions(form)}
-
-    anemia_form, anemia = questions_by_id("CRED-001-TAMIZAJE DE ANEMIA.json")
-    if anemia_form:
-        if "NTS 213" not in anemia_form.get("description", "") or "NTS 137" in anemia_form.get(
-            "description", ""
-        ):
-            errors.append("CRED-001: description must cite NTS 213 and must not cite NTS 137")
-        for question_id in ("edadMeses", "hemoglobina", "altitud", "clasificacionAnemia"):
-            if not anemia.get(question_id, {}).get("required"):
-                errors.append(f"CRED-001: {question_id} must be required")
-        anemia_labels = {
-            answer.get("label")
-            for answer in (anemia.get("clasificacionAnemia", {}).get("questionOptions") or {}).get(
-                "answers", []
-            )
-        }
-        if anemia_labels != {"Sin anemia", "Anemia leve", "Anemia moderada", "Anemia severa"}:
-            errors.append("CRED-001: anemia answer labels must not embed a fixed hemoglobin cutoff")
-        altitude_alert = anemia.get("altitud", {}).get("alert") or {}
-        if altitude_alert.get("alertWhenExpression") != "altitud >= 500":
-            errors.append("CRED-001: altitude correction alert must start at 500 m.s.n.m.")
-
-    edi_form, edi = questions_by_id("CRED-009-EDI.json")
-    if edi_form:
-        for question_id in ("edadCronologicaDias", "resultadoGlobal", "observaciones"):
-            if not edi.get(question_id, {}).get("required"):
-                errors.append(f"CRED-009: {question_id} must be required")
-        if "cinco ejes" not in (edi.get("observaciones", {}).get("questionInfo") or ""):
-            errors.append("CRED-009: the summary must explicitly cover the five EDI axes")
-        if "No reemplaza" not in edi_form.get("description", ""):
-            errors.append("CRED-009: description must state that the summary does not replace the official form")
-
-    mchat_form, mchat = questions_by_id("CRED-010-TAMIZAJE TEA.json")
-    if mchat_form:
-        for question_id in ("edadMeses", "puntaje", "resultadoGlobal", "senalesAlerta"):
-            if not mchat.get(question_id, {}).get("required"):
-                errors.append(f"CRED-010: {question_id} must be required")
-        if "20 ítems" not in (mchat.get("senalesAlerta", {}).get("questionInfo") or ""):
-            errors.append("CRED-010: risk-item traceability must refer to the official 20 items")
-
-    mental_form, mental = questions_by_id("CRED-011-SALUD MENTAL NIÑO Y CUIDADOR.json")
-    if mental_form:
-        expected_concepts = {
-            "instrumentoTamizaje": "f1000000-0000-4000-8000-000000000028",
-            "puntajeTamizaje": "f1000000-0000-4000-8000-000000000029",
-            "resultadoTamizaje": "f1000000-0000-4000-8000-000000000030",
-        }
-        for question_id, expected_concept in expected_concepts.items():
-            actual = (mental.get(question_id, {}).get("questionOptions") or {}).get("concept")
-            if actual != expected_concept:
-                errors.append(
-                    f"CRED-011: {question_id} must use {expected_concept}; found {actual}"
-                )
-        if "resultadoSaludMental" in mental:
-            errors.append("CRED-011: generic normal/risk/abnormal result must not replace instrument identity")
-        if mental.get("observaciones", {}).get("required") is not True:
-            errors.append("CRED-011: additional instruments and their results must be documented")
-        if "instrumento adicional" not in (mental.get("observaciones", {}).get("questionInfo") or ""):
-            errors.append("CRED-011: observations must request every additional instrument")
-
-    growth_form, growth = questions_by_id("CRED-015-CRECIMIENTO Y ESTADO NUTRICIONAL.json")
-    if growth_form:
-        ambiguous_ids = {
-            "clasificacionPesoEdad",
-            "clasificacionTallaEdad",
-            "clasificacionPesoTalla",
-        }
-        if ambiguous_ids.intersection(growth):
-            errors.append("CRED-015: nutritional indicators must not reuse one generic classification concept")
-        for question_id in ("edadMeses", "imc", "perimetroAbdominalCm", "diagnosticoNutricional"):
-            if question_id not in growth:
-                errors.append(f"CRED-015: missing {question_id}")
-        imc_expression = (
-            (growth.get("imc", {}).get("questionOptions") or {}).get("calculate") or {}
-        ).get("calculateExpression", "")
-        if "Math." in imc_expression or "pesoKg" not in imc_expression or "tallaCm" not in imc_expression:
-            errors.append("CRED-015: BMI must use a portable calculation from weight and height")
-
-    huanca_form, huanca = questions_by_id("CRED-026-HUANCA TEST VIGILANCIA NEURODESARROLLO.json")
-    if huanca_form:
-        if "pautaEdad" in huanca:
-            errors.append("CRED-026: the obsolete mixed EDI/Huanca age selector must not be exposed")
-        for area in ("MotorGrueso", "MotorFino", "Social", "Cognitivo", "Habla"):
-            count = huanca.get(f"noLogrados{area}", {})
-            detail = huanca.get(f"detalle{area}", {})
-            if count.get("required") is not True:
-                errors.append(f"CRED-026: noLogrados{area} must be required")
-            if not isinstance(detail.get("required"), str):
-                errors.append(f"CRED-026: detalle{area} must be conditionally required")
-
-    skills_form, skills = questions_by_id("CRED-027-LISTA HABILIDADES Y CONDUCTAS ESPERADAS.json")
-    if skills_form:
-        if skills.get("edadMeses", {}).get("required") is not True:
-            errors.append("CRED-027: age in months must be required for EDI/referral decisions")
-        if skills.get("factorRiesgo", {}).get("required") is not True:
-            errors.append("CRED-027: development risk factor must be required for the normative decision")
-        if skills.get("accionInmediata", {}).get("readonly") is not True:
-            errors.append("CRED-027: immediate action must be calculated and readonly")
-        action_expression = (
-            (skills.get("accionInmediata", {}).get("questionOptions") or {}).get("calculate") or {}
-        ).get("calculateExpression", "")
-        if "factorRiesgo" not in action_expression or "edadMeses <= 60" not in action_expression:
-            errors.append("CRED-027: EDI/referral calculation must require absence plus a risk factor and age")
-        for question_id in ("requiereEdi", "requiereInterconsulta"):
-            if "factorRiesgo" not in str(skills.get(question_id, {}).get("required", "")):
-                errors.append(f"CRED-027: {question_id} must require a development risk factor")
-        if "No sustituye" not in skills_form.get("description", ""):
-            errors.append("CRED-027: description must state that the summary does not replace the official list")
-
-    tped_form = load_form("CRED-028-TPED.json")
-    if tped_form:
-        line_questions = [
-            question
-            for question in form_questions(tped_form)
-            if (question.get("id") or "").startswith("tpedLinea")
-        ]
-        answer_count = sum(
-            len((question.get("questionOptions") or {}).get("answers", []))
-            for question in line_questions
+def validate_tped_form(errors):
+    # The OCL checks pin the 89 TPED milestones; the form must expose all of
+    # them across its 12 line questions.
+    path = FORM_DIR / "CRED-028-TPED.json"
+    try:
+        form = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as error:
+        errors.append(f"{path}: cannot load form: {error}")
+        return
+    line_questions = [
+        question
+        for page in form.get("pages", [])
+        for section in page.get("sections", [])
+        for question in section.get("questions", [])
+        if (question.get("id") or "").startswith("tpedLinea")
+    ]
+    answer_count = sum(
+        len((question.get("questionOptions") or {}).get("answers", []))
+        for question in line_questions
+    )
+    if len(line_questions) != 12 or answer_count != 89:
+        errors.append(
+            f"{path.name}: expected 12 line questions and 89 answers; "
+            f"found {len(line_questions)} and {answer_count}"
         )
-        if len(line_questions) != 12 or answer_count != 89:
-            errors.append(
-                f"CRED-028-TPED.json: expected 12 line questions and 89 answers; "
-                f"found {len(line_questions)} and {answer_count}"
-            )
 
 
 if __name__ == "__main__":

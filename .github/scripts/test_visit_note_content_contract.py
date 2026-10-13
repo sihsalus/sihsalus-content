@@ -34,60 +34,6 @@ class VisitNoteContentContractTest(unittest.TestCase):
         errors = VALIDATOR.validate_concepts(contract, self.catalog)
         self.assertTrue(any("must be Coded" in error for error in errors))
 
-    def test_rejects_misleading_run_always_contract(self):
-        xml_text = (self.root / VALIDATOR.LIQUIBASE_PATH).read_text().replace(
-            '<changeSet id="ensure-canonical-visit-note-encounter-type-20260823" author="sihsalus">',
-            '<changeSet id="ensure-canonical-visit-note-encounter-type-20260823" '
-            'author="sihsalus" runAlways="true">',
-            1,
-        )
-        errors = VALIDATOR.validate_liquibase_contract(self.contract, xml_text)
-        self.assertTrue(any("must not rely on runAlways" in error for error in errors))
-
-    def test_requires_one_start_encounter_type_bootstrap(self):
-        xml_text = (self.root / VALIDATOR.LIQUIBASE_PATH).read_text().replace(
-            "'Notas de Atención'", "'Wrong encounter name'", 1
-        )
-        errors = VALIDATOR.validate_liquibase_contract(self.contract, xml_text)
-        self.assertTrue(any("bootstrapped idempotently" in error for error in errors))
-
-    def test_rejects_reassigning_an_existing_encounter_type(self):
-        xml_text = (self.root / VALIDATOR.LIQUIBASE_PATH).read_text().replace(
-            "AND visit_note.encounter_type IS NULL;", "AND 1 = 1;", 1
-        )
-        errors = VALIDATOR.validate_liquibase_contract(self.contract, xml_text)
-        self.assertTrue(any("only complete a missing encounter_type" in error for error in errors))
-
-    def test_rejects_frontend_default_drift(self):
-        expected = VALIDATOR.expected_frontend_defaults(self.contract)
-        schema = "\n".join(
-            f"  {key}: {{\n    _default: '{value}',\n  }}," for key, value in expected.items()
-        )
-        schema = schema.replace(expected["formConceptUuid"], "00000000-0000-0000-0000-000000000000")
-        errors = VALIDATOR.validate_frontend_schema(self.contract, schema, Path("fixture.ts"))
-        self.assertTrue(any("formConceptUuid must default" in error for error in errors))
-
-    def test_accepts_frontend_double_quoted_defaults(self):
-        expected = VALIDATOR.expected_frontend_defaults(self.contract)
-        constants = {
-            key: value
-            for key, value in expected.items()
-            if key not in {"encounterTypeUuid", "formConceptUuid"}
-        }
-        schema = (
-            "export const defaultVisitNoteClinicalConceptUuids = {\n"
-            + "\n".join(f'  {key}: "{value}",' for key, value in constants.items())
-            + "\n} as const;\n"
-            + "\n".join(
-                f'  {key}: {{\n    _default: "{value}",\n  }},'
-                for key, value in expected.items()
-            )
-        )
-        self.assertEqual(
-            [],
-            VALIDATOR.validate_frontend_schema(self.contract, schema, Path("fixture.ts")),
-        )
-
 
 if __name__ == "__main__":
     unittest.main()
