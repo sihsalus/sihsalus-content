@@ -27,24 +27,16 @@ Este paquete solo distribuye la metadata backend y los exports OCL. La configura
 registro, búsqueda y banner pertenece a `sihsalus-frontend/config/frontend.json`; no se mantiene ni se
 empaqueta una copia de configuración frontend en este repositorio.
 
-## Historial retirado en `sihsalus`
+## Identidades retiradas en `sihsalus`
 
-La release errónea del source principal fue eliminada, pero OCL no permite a un administrador de la
-organización purgar definitivamente los mappings. Por ello, los once conceptos y diez mappings quedaron
-retirados en el HEAD de `SIHSALUS/sihsalus`. No forman parte de los exports principales bundleados por
-este paquete y la nueva fuente es la única fuente activa del catálogo.
-
-No se debe publicar ni incorporar una release futura de `sihsalus` que contenga esos UUIDs retirados
-hasta que el personal de la plataforma OCL los purgue o el proceso de export los excluya explícitamente.
-El validador bloquea cualquier duplicación bundleada, incluso retirada, para evitar que una importación
-posterior reintroduzca o altere el catálogo.
-
-Desde `1.25.19`, el paquete incluye el export principal `2026-09-09-1` con
-exclusiones explícitas verificadas antes de dividir el ZIP. Solo se excluyen las once identidades
-de conceptos y diez de mappings retirados que pertenecen a este catálogo. El manifiesto,
-la reproducción y los hashes constan en [la auditoría OCL](../audits/2026-09-12-ocl-refresh.md).
-El filtro rechaza registros activos o distintos de los revisados; no es una eliminación general
-de registros retirados.
+El HEAD de `SIHSALUS/sihsalus` conserva retirados once conceptos y diez mappings de un intento
+anterior de este catálogo. No forman parte de los exports principales bundleados por este paquete:
+el export principal `2026-09-09-1` (desde `1.25.19`) los excluye explícitamente mediante
+[las exclusiones reproducibles](ocl-sihsalus-2026-09-09-1-exclusions.json), y el validador bloquea
+cualquier duplicación bundleada, incluso retirada. El filtro rechaza registros activos o distintos de
+los revisados; no es una eliminación general de registros retirados. No se debe incorporar una release
+futura de `sihsalus` que contenga esos UUIDs hasta que se purguen en OCL o el export los excluya.
+El manifiesto y la reproducción constan en [la auditoría OCL](../audits/2026-09-12-ocl-refresh.md).
 
 ## Corte desde `ADDRESS_3`
 
@@ -71,35 +63,8 @@ El global property `openconceptlab.subscriptionUrl` conserva la release
 `2026-07-16-02` de OCL Cloud. Esa versión no contiene los UUID de barrios ni
 elimina conceptos ausentes: es compatible con los dos conceptos activos
 adicionales del export principal `2026-09-09-1`. Los barrios se cargan
-exclusivamente desde sus ZIPs estáticos.
-
-La preparación institucional de #254 cambió el host de esa propiedad; se
-restaura el namespace anterior porque la instalación nueva pasó, pero los
-escenarios nativos de upgrade y alias operativo abortaron en OCL (CI de main
-`64fdf16`, run `37420274108`, y candidato `cc50fab`, run `38102454311`).
-OCL 3.2.0 usa el host de la suscripción para resolver también las URLs relativas
-de los ZIPs locales. Los imports previos conservan sus URLs y los ZIPs sin cambios
-conservan sus checksums: cambiar sólo la propiedad no demuestra una transición
-compatible. Se mantiene `fail_on_error`; no se borran checksums ni registros de
-imports y no se fuerza una recarga. La excepción inferior no está preservada en
-los artefactos sanitizados, por lo que el mecanismo identificado en la fuente
-no se presenta como una excepción observada.
-
-La activación de la release institucional curada `sihsalus/2026-09-09-1` queda
-pendiente de una transición soportada por el componente OCL y probada con
-instalación nueva, upgrade, referencias cruzadas y reinicio. El importador remoto
-no aplica las exclusiones del paquete: también debe comprobarse el export
-servido. Una futura release principal que modifique registros existentes debe
-revisar la suscripción para evitar sobrescribirlos con metadata anterior.
-
-La revisión del 2026-10-05 descargó el export autenticado de la release institucional:
-contiene 4474 conceptos y 5679 mappings, sin las 21 identidades excluidas. Al comparar
-por ID con los dos ZIPs del paquete, coinciden los UUIDs externos, nombres,
-descripciones, clases, datatypes, estado de retiro, respuestas, miembros de sets y
-códigos de mappings. La migración regeneró IDs internos de versiones y nombres;
-413 mappings a fuentes externas ya no incluyen `to_concept_url`. Ninguno de esos
-413 es `Q-AND-A` ni `CONCEPT-SET`; el importador de OpenMRS utiliza fuente y código
-para sus términos de referencia. Esta comparación estática no acredita que una
-sincronización completa termine correctamente en OpenMRS. La primera ejecución
-debe ensayarse con una base sintética aislada y comprobar catálogo, errores y
-reinicio antes de activar la suscripción en DEV o QLTY.
+exclusivamente desde sus ZIPs estáticos. OCL 3.2.0 usa el host de la suscripción
+para resolver también las URLs relativas de los ZIPs locales, por lo que la
+transición de la suscripción al servidor institucional sigue pendiente de una
+validación nativa de upgrade. El importador remoto no aplica las exclusiones del
+paquete: también debe comprobarse el export servido.

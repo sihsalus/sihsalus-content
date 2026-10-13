@@ -1,79 +1,17 @@
-# Revisión de formularios y reglas clínicas — 2026-09-23
+# Revisión de formularios y reglas clínicas
 
 El paquete pasa sus validadores técnicos, pero conserva defectos de rangos,
-semántica y captura. **No hay evidencia suficiente para afirmar conformidad
-normativa completa ni ausencia de regresiones clínicas.** Esta revisión distingue
-defectos reproducibles, brechas de cobertura y alertas que requieren interpretación.
-
-## Correcciones preparadas después de esta revisión
-
-La evidencia diagnóstica que sigue corresponde al commit auditado. La versión
-`1.25.25` corrige el aviso desde 500 m (`CRED-001 1.2.1`) y el cálculo/validación de
-fechas (`OBST-002 1.0.2`). Usa la prematuridad registrada y los estados maternos
-existentes para seleccionar rangos; desactiva las dos reglas de creatinina con
-magnitud incompatible conservando sus UUIDs. Los detalles y límites están en el
-[contrato de laboratorio](../contracts/laboratory-reporting.md).
-
-El candidato `1.25.26` amplía la edad a la fecha de la muestra a todas las bandas
-de hemoglobina. Una regresión nativa reproduce el solapamiento de una muestra
-neonatal histórica con el rango de edad actual y verifica su corrección.
-
-La corrección del permiso de decimales está preparada en el componente responsable,
-`sihsalus-frontend`, con pruebas de restricciones del formulario y del concepto.
-No se modificó el helper histórico `calcTimeDifference`: el formulario nuevo
-reutiliza Day.js, ya expuesto por el motor, con la fecha explícita de atención.
-Initializer crea las nuevas versiones y conserva los esquemas anteriores; la
-corrección no reescribe encuentros ni elimina sus referencias históricas.
-
-La guarda nueva de Initializer comprueba instalación nueva, actualización y
-reinicio: contenido de los dos esquemas, dieciocho criterios y conservación de UUID,
-ID, versión y hash de esquemas históricos. Los tests locales del arnés no
-acreditan la ejecución de esos escenarios con el backend real.
-
-Siguen pendientes la semántica histórica de paridad, los intervalos y método
-institucionales de laboratorio, el catálogo de inmunizaciones y las decisiones
-clínicas de cobertura CRED. Se conserva OCL publicado y el baseline de alertas.
-La aceptación de captura/guardado/edición en DEV/QLTY y la aprobación clínica
-siguen pendientes; ninguno de estos cambios constituye una certificación normativa.
-
-## Alcance y evidencia
-
-- Content: `c34601e804f5217e1a15f33a33bf05d1f19a0010`, cuyo árbol coincide con
-  `main` en `a54fde1c29aeec14b34d4c423ed890f9dd58d5dc`; paquete `1.25.24`.
-- Inventario de los 112 JSON: 2.176 preguntas/grupos/controles, 1.682 campos
-  `obs` y 33 expresiones `calculate`. El recorrido incluye grupos anidados.
-- Contraste de UUID, datatypes y mappings con los ZIP OCL distribuidos. Lectura
-  detallada de anemia, instrumentos CRED, inmunizaciones, obstetricia y rangos
-  de laboratorio; no una aprobación clínica individual de los 112 formularios.
-- Frontend local, sin modificaciones, en
-  `9b434cf8350e5a20db21fb61db66ba8d7ba2f112`: revisión de las funciones que ejecutan
-  las expresiones y adaptan las observaciones. No se verificó que ese commit esté
-  desplegado en el hospital.
-- Consulta de fuentes oficiales MINSA el 23 de septiembre de 2026. Se leyeron
-  tablas y anexos, además de las páginas de publicación. La búsqueda no constituye
-  una certificación exhaustiva de vigencia o de aplicabilidad institucional.
-
-Se ejecutaron los 14 validadores Python de
-[CI](../../.github/workflows/main.yml) y
-[`validate_reference_ranges.sh`](../../.github/scripts/validate_reference_ranges.sh):
-**15 aprobados**. Sus resultados incluyen 3.672 referencias de conceptos en
-formularios, 32.430 conceptos OCL, 20.286 extremos de mappings y 187 filas de rangos.
-El validador de integridad devuelve cero infracciones bloqueantes y 128 entradas
-conocidas en su baseline; eso no mide conformidad clínica.
-
-También se ejecutaron expresiones extraídas de los JSON con datos sintéticos en
-Node, usando `isEmpty` del frontend inspeccionado. Para las funciones TypeScript
-se transpilaron los cuerpos existentes; se fijó el reloj al
-`2026-09-23T12:00:00Z`. No son pruebas de navegador, persistencia ni del backend
-desplegado. No se modificaron formularios, OCL, Liquibase, baseline ni versión.
+semántica y captura. Se revisaron los 112 JSON (2.176 preguntas/grupos/controles,
+1.682 campos `obs` y 33 expresiones `calculate`), contrastados con los ZIP OCL
+distribuidos y con las fuentes oficiales MINSA. Las expresiones se ejecutaron con
+datos sintéticos en Node, con el reloj fijado al `2026-09-23T12:00:00Z`.
 
 ## Defectos que requieren corrección
 
 P1 identifica problemas que pueden alterar interpretación o impedir captura;
 P2 identifica inconsistencias acotadas que también requieren resolución.
-La prioridad expresa el riesgo del caso descrito, no acredita un incidente real.
 
-### P1 — Creatinina urinaria: magnitudes incompatibles
+### P1: Creatinina urinaria, magnitudes incompatibles
 
 Las filas 52–53 de
 [`conceptreferencerange_laboratory.csv`](../../configuration/conceptreferencerange/conceptreferencerange_laboratory.csv)
@@ -84,9 +22,9 @@ con límites normales de 1.000–1.500. No son magnitudes intercambiables.
 
 Un resultado sintético de 1.200 mg/24h supera el máximo absoluto CSV de 40 si se
 compara directamente con esa fila. Normalizarlo exigiría un peso y una conversión
-explícita; cambiar el nombre de la fila no convierte el resultado.
-La clave histórica `Units` del export tampoco demuestra que el importador
-incorpore la unidad: el contrato ya documenta la diferencia con `units`.
+explícita; cambiar el nombre de la fila no convierte el resultado. El contrato
+documenta la diferencia entre la clave `Units` del export y `units`, la que lee
+el importador.
 
 **Responsabilidad:** terminología y rangos de laboratorio, según el
 [contrato existente](../contracts/laboratory-reporting.md#urobilinógeno-y-creatinina-urinaria).
@@ -94,7 +32,7 @@ Resolver la medición y sus intervalos con el procedimiento institucional,
 conservando la identidad y magnitud de resultados históricos. No editar el ZIP
 publicado ni inventar una conversión.
 
-### P1 — Los criterios de hemoglobina no identifican la población declarada
+### P1: Los criterios de hemoglobina no identifican la población declarada
 
 En el mismo CSV, las filas 7–9 de prematuridad solo comprueban edad cronológica.
 Un recién nacido a término de siete días satisface el criterio de la primera
@@ -110,22 +48,21 @@ cumple ese predicado; no se consulta parto ni estado puerperal. Una puérpera cu
 **Responsabilidad:** selección de rangos y datos clínicos del backend. Reutilizar
 el registro canónico de prematuridad y estado obstétrico antes de sustituir
 criterios. Son pendientes ya descritos en el
-[contrato de laboratorio](../contracts/laboratory-reporting.md#pendientes-de-la-actualización-completa),
-confirmados en el contenido actual. Los ensayos de permisos de rangos no validan
-la definición de estas poblaciones.
+[contrato de laboratorio](../contracts/laboratory-reporting.md#pendientes),
+confirmados en el contenido actual.
 
-### P1 — OBST-002 calcula contra hoy y rechaza fechas de parto ya pasadas
+### P1: OBST-002 calcula contra hoy y rechaza fechas de parto ya pasadas
 
 [`OBST-002`](../../configuration/ampathforms/OBST-002-EMBARAZO%20ACTUAL.json)
 usa `calcTimeDifference(fum, 'w')` en `edadGestacionalFUM` (línea 196).
-El [helper del frontend inspeccionado](https://github.com/sihsalus/sihsalus-frontend/blob/9b434cf8350e5a20db21fb61db66ba8d7ba2f112/packages/libs/esm-form-engine-lib/src/utils/common-expression-helpers.ts#L588)
-usa el reloj actual, redondea semanas y devuelve cero sin FUM.
+El helper `calcTimeDifference` del frontend (`esm-form-engine-lib`,
+`common-expression-helpers.ts`) usa el reloj actual, redondea semanas y devuelve
+cero sin FUM.
 
 Caso reproducido: FUM `2026-01-01`, atención `2026-03-12`, captura el
 `2026-09-23`. La expresión devuelve **38**, aunque entre FUM y atención hay
 **10 semanas**. Sin FUM devuelve **0**, que representa un valor numérico en vez
-de ausencia. Esto demuestra el resultado de la expresión; no se probó si una
-edición real recalcula y sobrescribe una observación previamente guardada.
+de ausencia.
 
 Además, `fechaProbableDeParto` (línea 220) falla cuando
 `isDateBefore(myValue, today())` es verdadero. FUM `2025-12-01` calcula FPP
@@ -138,18 +75,17 @@ y definir la precisión requerida; la validación debe admitir el registro clín
 legítimo. Verificar alta, edición e historial con fechas sintéticas antes de
 publicar el cambio. No convertir estas reglas en SQL del content.
 
-### P1 — Dependencia frontend: se invierte el permiso de decimales
+### P1: Dependencia frontend, se invierte el permiso de decimales
 
-En el [validador numérico inspeccionado](https://github.com/sihsalus/sihsalus-frontend/blob/9b434cf8350e5a20db21fb61db66ba8d7ba2f112/packages/libs/esm-form-engine-lib/src/validators/form-validator.ts#L34),
-`disallowDecimals` combina con OR la restricción del formulario y
-`Boolean(field.meta.concept.allowDecimal)`. Por tanto, un concepto que permite
-decimales activa su prohibición.
+En el validador numérico del frontend (`esm-form-engine-lib`,
+`validators/form-validator.ts`), `disallowDecimals` combina con OR la
+restricción del formulario y `Boolean(field.meta.concept.allowDecimal)`. Por
+tanto, un concepto que permite decimales activa su prohibición.
 
 Se ejecutó `FieldValidator.validate` con la pregunta real `hemoglobina` de
 [`CRED-001`](../../configuration/ampathforms/CRED-001-TAMIZAJE%20DE%20ANEMIA.json),
 `meta.concept.allowDecimal: true` y valor **11.5**. Devuelve
 `field.outOfBound`, «Decimal values are not allowed for this field».
-Solo se sustituyó la traducción del mensaje; se ejecutó la lógica original.
 
 **Responsabilidad:** `esm-form-engine-lib` del frontend, fuera de este repositorio.
 La combinación de las restricciones del formulario y del concepto necesita una
@@ -157,7 +93,7 @@ corrección reutilizable y pruebas con permiso/prohibición en ambas capas.
 Confirmar el commit desplegado y la metadata REST recibida antes de atribuir este
 fallo al entorno del hospital. Cambiar todos los formularios no resuelve la causa.
 
-### P2 — El aviso de ajuste de hemoglobina omite exactamente 500 m
+### P2: El aviso de ajuste de hemoglobina omite exactamente 500 m
 
 En [`CRED-001`](../../configuration/ampathforms/CRED-001-TAMIZAJE%20DE%20ANEMIA.json)
 (línea 81), `altitud > 500` produce:
@@ -172,15 +108,15 @@ La [RM 429-2024, anexo, tabla 1, PDF p. 4](https://cdn.www.gob.pe/uploads/docume
 sitúa el primer ajuste no nulo en 500–999 m. El
 [validador OCL](../../.github/scripts/validate_ocl_exports.py) (líneas 1432–1434)
 exige precisamente `altitud > 500`, por lo que CI protege el límite equivocado
-para esa tabla. No se ha demostrado una clasificación incorrecta guardada:
-el profesional selecciona el resultado manualmente y tiene instrucciones de ajuste.
+para esa tabla. El profesional selecciona el resultado manualmente y tiene
+instrucciones de ajuste; no se encontró una clasificación incorrecta guardada.
 
 **Responsabilidad:** aviso del formulario y su guarda. Alinear ambos con la tabla
 específica de ajuste, cubrir 499/500/501 y actualizar la versión del formulario
 cuando se publique la corrección. El máximo de captura de 5.000 m también limita
 la cobertura frente al último tramo de la tabla; su relevancia local debe definirse.
 
-### P2 — Paridad tiene definiciones incompatibles dentro de OCL
+### P2: Paridad tiene definiciones incompatibles dentro de OCL
 
 El concepto `sihsalus:915`, UUID `8795c05b-f286-4d70-a1e6-69172e676f05`, tiene
 nombre y descripción preferidos en español para partos a término, mientras sus
@@ -210,7 +146,7 @@ proporcionan **22 respuestas**; no incluyen hexavalente, meningococo ni Nirsevim
 También hay conceptos de procedimientos relacionados con meningococo. No es
 correcto afirmar que todos esos términos están ausentes del bundle ni crear
 identidades nuevas antes de evaluar los existentes. Su existencia no los hace
-seleccionables en la pregunta actual, ni acredita un catálogo de productos completo.
+seleccionables en la pregunta actual.
 
 La [NTS 246, parte 1, anexos 1–2, pp. 79–80](https://cdn.www.gob.pe/uploads/document/file/10154198/8265031-nts-n-246-minsa-digiesp-2026-parte-1.pdf#page=79)
 incluye las nuevas intervenciones y contempla transiciones: pentavalente/IPV
@@ -218,17 +154,17 @@ mientras estén disponibles y sustitución del primer refuerzo DPT por hexavalen
 en 2027. La brecha del selector está confirmada; su efecto operativo requiere
 conocer productos y cronograma aplicables en el establecimiento.
 
-El formulario registra observaciones. El texto descriptivo de un concepto no
-prueba que guardar ese formulario genere un recurso FHIR `Immunization`.
-Persistencia, lote, estado, dosis y edición deben ensayarse en el flujo nativo
-responsable antes de dar por completo el registro de inmunizaciones.
+El formulario registra observaciones. Que guardar el formulario genere un recurso
+FHIR `Immunization` no está verificado; persistencia, lote, estado, dosis y
+edición deben ensayarse en el flujo nativo responsable antes de dar por completo
+el registro de inmunizaciones.
 
 ### CRED: transcripción, rango de edad y decisiones clínicas
 
 Los formularios EDI, M-CHAT y Huanca se describen como resúmenes/transcripciones;
-no digitalizan todos los ítems. Esto **no prueba por sí mismo incumplimiento** si
-el instrumento oficial se aplica y su evidencia queda trazable. Tampoco acredita
-que dicha trazabilidad exista en el despliegue.
+no digitalizan todos los ítems. Si el instrumento oficial se aplica y su evidencia
+queda trazable, esto no es por sí mismo un incumplimiento; esa trazabilidad en el
+despliegue no se ha verificado.
 
 [`CRED-010`](../../configuration/ampathforms/CRED-010-TAMIZAJE%20TEA.json) restringe
 edad a 18–30 meses. La [NTS 238, anexo 11](https://cdn.www.gob.pe/uploads/document/file/9598727/7857089-norma-cred-12-03-26.pdf#page=122)
@@ -242,18 +178,7 @@ habilidades **y** factor de riesgo. El §6.8.3 y el anexo 10 de la misma norma
 presentan sus criterios con distinto detalle. Se mantiene como punto de
 interpretación clínica pendiente, no como un incumplimiento demostrado.
 
-## Qué está comprobado y qué significan las 128 alertas
-
-Las evaluaciones sintéticas de las expresiones dieron:
-
-| Expresión | Casos ejecutados | Resultado |
-| --- | --- | --- |
-| Glasgow | 120 combinaciones puntuables y 90 con componente no evaluable | Suma correcta; sin total numérico cuando un componente no es evaluable. |
-| M-CHAT | Puntajes enteros 0–20 y vacío | Niveles 0–2 / 3–7 / 8–20; vacío sin puntuación. |
-| Huanca | Cinco áreas completas con 0, 1 o 2 hitos no logrados; un área vacía | Total y nivel correspondientes; incompleto sin total numérico. |
-
-Estas pruebas comprueban los casos indicados, no sustituyen la aplicación del
-instrumento, la aceptación clínica o el guardado y reapertura del encuentro.
+## Las 128 alertas del baseline
 
 El baseline contiene 66 `duplicate-label`, 32 `answer-set`, 22 `collision` y
 8 `code-as-text`. Son **128 alertas heurísticas, no 128 defectos clínicos
@@ -261,25 +186,10 @@ confirmados**. Por ejemplo, el código de afiliación SIS puede ser legítimamen
 texto; dos subconjuntos de respuestas pueden corresponder a distintos contextos;
 y reutilizar un concepto en grupos diferentes no necesariamente duplica datos.
 
-El [adaptador del frontend](https://github.com/sihsalus/sihsalus-frontend/blob/9b434cf8350e5a20db21fb61db66ba8d7ba2f112/packages/libs/esm-form-engine-lib/src/adapters/obs-adapter.ts#L307)
-guarda `formFieldPath` y busca por campo y concepto, con fallback por concepto.
-Por eso tampoco se sostiene afirmar que todo concepto reutilizado pierde la
-distinción al reabrir un formulario. Persisten riesgos para consumidores que solo
-usan el concepto y para observaciones antiguas sin esa ruta; requieren pruebas
-de ida y vuelta y una clasificación de cada alerta antes de retirar deuda.
-
-## Cierre y condiciones para aceptación
-
-Esta revisión deja documentados los casos reproducibles y sus componentes
-responsables. Para cerrar los hallazgos se necesitan cambios acotados con
-regresiones de comportamiento, conservación de identidades/historia y pruebas
-de captura, guardado, lectura y edición con datos sintéticos en el stack objetivo.
-Los intervalos analíticos y decisiones de instrumentos requieren además revisión
-del responsable clínico y de los procedimientos institucionales aplicables.
-
-No se evaluaron historias reales, firma, integridad legal del expediente,
-privacidad, operación hospitalaria ni el cumplimiento completo de todas las normas
-por servicio. El estado de CI y esta auditoría no acreditan esos ámbitos.
-Los 12 changesets publicados siguen sujetos a la
-[revisión de compatibilidad de Liquibase](2026-09-22-liquibase-initializer.md);
-retirarlos no corrige ninguno de estos problemas.
+El adaptador de observaciones del frontend (`esm-form-engine-lib`,
+`adapters/obs-adapter.ts`) guarda `formFieldPath` y busca por campo y concepto,
+con fallback por concepto. Por eso tampoco se sostiene afirmar que todo concepto
+reutilizado pierde la distinción al reabrir un formulario. Persisten riesgos para
+consumidores que solo usan el concepto y para observaciones antiguas sin esa
+ruta; requieren pruebas de ida y vuelta y una clasificación de cada alerta antes
+de retirar deuda.

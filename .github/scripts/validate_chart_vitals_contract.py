@@ -28,7 +28,7 @@ LIQUIBASE_PATH = CONFIG_ROOT / "liquibase"
 FORMS_PATH = CONFIG_ROOT / "ampathforms"
 OCL_PATH = CONFIG_ROOT / "ocl"
 HANDOFF_PATH = (
-    REPO_ROOT / "docs" / "audits" / "2026-07-16-chart-vitals-encounter-contract.md"
+    REPO_ROOT / "docs" / "contracts" / "chart-vitals-encounter-contract.md"
 )
 
 LEGACY_ENCOUNTER_TYPE_UUID = "67a71486-1a54-468f-ac3e-7091a9a79584"

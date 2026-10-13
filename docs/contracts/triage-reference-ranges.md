@@ -1,11 +1,6 @@
-# Auditoría de rangos de referencia de triaje
+# Rangos de referencia de triaje
 
-> [Registro histórico](README.md): evidencia y estados correspondientes a la fecha de la revisión.
-
-Fecha: 2026-06-17
-Actualización de operadores y límites técnicos: 2026-07-16
-
-## Fuente normativa peruana
+## Fuente normativa
 
 La **NT 042-MINSA/DGSP-V.01, Norma Técnica de Salud de los Servicios de Emergencia**,
 aprobada por **R.M. N. 386-2006/MINSA**, sustenta únicamente los umbrales `Critical`
@@ -19,7 +14,7 @@ Referencias consultadas:
 - `https://www.sis.gob.pe/Portal/20140516_Prioridades.pdf`
 - `http://bvs.minsa.gob.pe/local/dgsp/NT042emerg.pdf`
 
-## Umbrales normativos de referencia
+## Umbrales normativos
 
 Adulto:
 
@@ -43,12 +38,13 @@ Pediátrico preescolar:
 - Frecuencia respiratoria `> 40/min` sin fiebre.
 - Saturación de oxígeno `<= 85%`.
 
-## Decisión de implementación
+## Codificación en `conceptreferencerange`
 
-`conceptreferencerange` no calcula prioridad de triaje completa. Solo marca rangos para conceptos numéricos. Por eso:
+`conceptreferencerange` no calcula la prioridad de triaje completa; solo marca rangos para
+conceptos numéricos. Por eso:
 
-- Los umbrales numéricos de Prioridad I se modelan como alertas `Critical low` / `Critical high`;
-  no se afirma equivalencia con la clasificación completa.
+- Los umbrales numéricos de Prioridad I se modelan como alertas `Critical low` / `Critical high`.
+  La clasificación completa queda fuera de los rangos.
 - Los consumidores SIHSALUS comparan estos campos de forma inclusiva (`<=` y `>=`). Como los
   conceptos de frecuencia, presión y saturación se capturan como enteros, los operadores estrictos
   de la norma se codifican desplazando una unidad la frontera almacenada:
@@ -71,33 +67,28 @@ Pediátrico preescolar:
 - La frecuencia respiratoria infantil se alinea a la norma separando `0 - <2 meses` y `2 meses - <1 año`.
 - Las 26 filas rotuladas como `gestante` requieren sexo femenino, una inscripción activa en el
   programa `Madre Gestante` evaluada en `$date` y una observación previa de
-  `Edad gestacional (semanas actuales)` (`1e35f0dd-...`). Este concepto sí es producido por siete
+  `Edad gestacional (semanas actuales)` (`1e35f0dd-...`), concepto producido por siete
   formularios obstétricos. La selección inline de SpEL comprueba null/datatype y ejecuta
   `getLatestObs` una sola vez por criterio.
-- `Actualmente embarazada` (`abaf7d91-...`) permanece correctamente como respuesta `N/A` de una
-  pregunta coded; ya no se invoca como una pregunta Boolean. Tampoco se usa en estos rangos el
-  duplicado `Edad gestacional` (`0f053bc0-...`), que no tiene productores bundleados.
+- `Actualmente embarazada` (`abaf7d91-...`) es una respuesta `N/A` de una pregunta coded; no se
+  invoca como pregunta Boolean. Tampoco se usa en estos rangos el duplicado `Edad gestacional`
+  (`0f053bc0-...`), que no tiene productores bundleados.
 - El rango no representa la alternativa de PAD `30 mmHg` sobre el basal ni la condición
-  “sin fiebre” de la FR preescolar; el módulo de emergencia debe evaluar esos contextos y el resto
+  "sin fiebre" de la FR preescolar; el módulo de emergencia evalúa esos contextos y el resto
   de criterios de Prioridad I de forma explícita.
-- OpenMRS Core 2.8.7 combina campo por campo los límites más estrictos cuando coinciden el rango por
-  edad y uno obstétrico. En las tres bandas de PAS gestante se almacena `Critical low=89` y
-  `Normal low=90`: así `90` es normal y `<90` es crítico para conceptos enteros, sin divergencia por
-  el orden de evaluación de Core.
+- OpenMRS Core 2.8.7 combina campo por campo los límites más estrictos cuando coinciden el rango
+  por edad y uno obstétrico. En las tres bandas de PAS gestante se almacena `Critical low=89` y
+  `Normal low=90`: así `90` es normal y `<90` es crítico para conceptos enteros, sin divergencia
+  por el orden de evaluación de Core.
 
-## Pendiente
+## Fuera de los rangos
 
-Implementar en el módulo embebido de emergencia un flujo que calcule Prioridad I/II/III/IV usando
-la clasificación completa de la NT 042-MINSA/DGSP-V.01. No se agregará un formulario JSON al
-content package para este flujo. Los rangos de referencia no deben reemplazar esa regla de negocio.
+La clasificación completa Prioridad I/II/III/IV de la NT 042 corresponde al módulo embebido de
+emergencia. No se agrega un formulario JSON al content package para ese flujo, y los rangos de
+referencia no implementan esa regla de negocio.
 
 La edad gestacional debe existir antes de guardar el vital y la inscripción `Madre Gestante` debe
-cerrarse al parto o aborto. El motor `getLatestObs` ordena por `dateCreated`, no resuelve la última
-observación dentro del episodio ni “as of” `$date`; por ello los registros retrospectivos y los
-embarazos múltiples requieren un helper backend consciente del episodio antes de considerar
-definitivo el catálogo. Las bandas etarias también deben hacerse conscientes de fecha.
-
-Este candidato estrecha `Absolute high` en 60 filas para alinearlo con los `ConceptNumeric` actuales
-(PAS `250`, PAD `150`, FR `99`, FC `230`, temperatura `47`). Antes de desplegar sobre una base con
-datos se debe contar observaciones históricas por encima de esos límites. No se borran al importar
-metadata, pero una edición o revalidación posterior podría rechazarlas.
+cerrarse al parto o aborto. `getLatestObs` ordena por `dateCreated`; no resuelve la última
+observación dentro del episodio ni "as of" `$date`. Los registros retrospectivos y los embarazos
+múltiples requieren un helper backend consciente del episodio. Las bandas etarias también deben
+hacerse conscientes de fecha.

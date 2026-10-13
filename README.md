@@ -19,10 +19,6 @@ La metadata que carga Initializer está en [configuration/](configuration).
 | [.github/workflows/](.github/workflows) | Validación, construcción y publicación. |
 | [CHANGELOG.md](CHANGELOG.md) | Cambios por versión y estado de publicación. |
 
-Los dominios se mantienen directamente bajo `configuration/`. Dentro del ZIP
-conservan el prefijo `configuration/backend_configuration/` que consume el
-distro; este detalle del artefacto no requiere otra carpeta en el árbol de fuentes.
-
 ## Desarrollo y validación
 
 Antes de editar, leer [AGENTS.md](AGENTS.md) y el
@@ -45,9 +41,8 @@ y las condiciones de publicación.
 - [Índice de contratos y guías](docs/README.md).
 - [Guía por dominio y alcance clínico documentado](docs/content-guide.md).
 - [Identidad y versiones de formularios AMPATH](configuration/ampathforms/Readme).
-- [Catálogo clínico de medicamentos](docs/clinical-drug-catalog.md).
+- [Presentaciones adicionales de medicamentos](docs/content-guide.md#presentaciones-adicionales-de-medicamentos).
 - [Roles y acceso clínico](docs/clinical-rbac.md).
 
 La configuración visual se mantiene en `sihsalus-frontend`; la lógica clínica y
-la autorización efectiva corresponden a los módulos backend. Las comprobaciones
-del paquete no sustituyen la aceptación clínica ni la validación de un despliegue.
+la autorización efectiva corresponden a los módulos backend.

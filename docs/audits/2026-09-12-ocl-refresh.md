@@ -1,9 +1,6 @@
 # Actualización de exports OCL
 
-> [Registro histórico](README.md): evidencia y estados correspondientes a la fecha de la revisión.
-
-Revisión del 2026-09-12 desde `0c16cae2088b2dad2e135cfae4c50943836bcd3e`.
-Candidata del paquete: **1.25.19**. La organización OCL tiene 17 fuentes.
+Paquete candidato: **1.25.19**. La organización OCL tiene 17 fuentes.
 Se consultaron sus releases publicadas y se descargaron los exports oficiales
 de `sihsalus/2026-09-09-1` y `laboratorio/2026-09-10-3`.
 
@@ -18,12 +15,10 @@ y añade dos conceptos activos:
 | 4474 | 1:512 | `3fb84698-488a-447d-acbc-72e8665cffdc` |
 | 4489 | Cuatro cruces | `d14f251d-82a1-4ecf-aa45-f17f57a193db` |
 
-Ambos declaran `datatype: "None"` en OCL. El método
-`convertConceptDatatypes` de
-[Saver 3.2.0](https://github.com/openmrs/openmrs-module-openconceptlab/blob/6aecd4b8025f1a5467841a84fd603eb149fcfcb2/api/src/main/java/org/openmrs/module/openconceptlab/importer/Saver.java)
-lo convierte explícitamente a `N/A`. El arnés de integración verifica
-los valores persistidos, clases, nombres, identidad y estado activo de ambos
-conceptos, además del catálogo de diez barrios, en instalación nueva,
+Ambos declaran `datatype: "None"` en OCL. El método `convertConceptDatatypes`
+de Saver 3.2.0 lo convierte explícitamente a `N/A`. El arnés de integración
+verifica los valores persistidos, clases, nombres, identidad y estado activo de
+ambos conceptos, además del catálogo de diez barrios, en instalación nueva,
 actualización y reinicio.
 
 El export oficial también añade once conceptos de barrios y diez mappings
@@ -45,7 +40,7 @@ formularios y catálogos existentes.
 | ZIP de mappings del paquete | `3d2d25d21324f9d4b496acbce0a61e364f3b24c9002988c4e2ad161463c5ba9e` |
 | JSON filtrado canónico recombinado, sin salto final | `cae14cffdce3d5ed882e97cc3ca6030d798788526b3baded304f472f7779e195` |
 
-Reproducción con rutas adaptadas al árbol actual, desde el ZIP descargado del
+Reproducción desde el ZIP descargado del
 [export oficial](https://api.openconceptlab.org/orgs/SIHSALUS/sources/sihsalus/2026-09-09-1/export/):
 
 ```sh
@@ -65,13 +60,9 @@ exclusiones locales. Apuntarlo a la nueva release oficial reintroduciría los
 UUID retirados de barrios. Su importador procesa los registros presentes;
 no elimina conceptos ausentes. Por ello, la suscripción anterior es compatible
 con este cambio puramente aditivo de dos conceptos.
-[Importer 3.2.0](https://github.com/openmrs/openmrs-module-openconceptlab/blob/6aecd4b8025f1a5467841a84fd603eb149fcfcb2/api/src/main/java/org/openmrs/module/openconceptlab/importer/Importer.java),
-[Saver 3.2.0](https://github.com/openmrs/openmrs-module-openconceptlab/blob/6aecd4b8025f1a5467841a84fd603eb149fcfcb2/api/src/main/java/org/openmrs/module/openconceptlab/importer/Saver.java).
 
 Una futura modificación de registros existentes exige revisar ambos pins:
 la suscripción anterior podría sobrescribirlos con su metadata antigua.
-Esta separación es específica del delta verificado, no una autorización para
-mezclar arbitrariamente versiones.
 
 ## Inventario conservado
 
@@ -89,43 +80,11 @@ Las otras quince fuentes ya coinciden con su última release publicada.
 Los 41 conceptos locales definidos por CSV mantienen su mecanismo de carga;
 esta actualización no cambia su propiedad ni crea copias en OCL. La presentación
 de ácido ursodesoxicólico conserva el concepto y el `Drug` de la versión 1.25.18.
-No se realizaron escrituras en OCL ni cambios en entornos clínicos.
 
 ## Laboratorio pendiente
 
 La release `laboratorio/2026-09-10-3` se comparó y ensayó estáticamente, pero
-no se incorpora: cambia tres datatypes con UUID existentes, contradice el
-renderer numérico de Urobilinógeno y modifica la unidad de creatinina urinaria
-sin una identidad nueva. También existen incompatibilidades entre límites OCL
-y los rangos CSV. El detalle y las correcciones necesarias están en
+no se incorpora; el detalle y las correcciones necesarias están en
 [la auditoría de laboratorio](2026-09-12-ocl-laboratory-refresh.md).
-
 Los validadores actuales de formularios y rangos pasan incluso con esa release;
-por sí solos no detectan estas incompatibilidades. La comparación semántica
-y el comportamiento del importador son evidencia necesaria.
-
-## Validación
-
-Evidencia inicial del commit `07758fa`, anterior a las correcciones normativas
-descritas en [el contrato de laboratorio](../contracts/laboratory-reporting.md).
-La validación de la revisión posterior y su CI se registran en el PR.
-
-- **PASSED:** los 24 comandos estáticos y suites de pruebas del job `build`
-  de `.github/workflows/main.yml`, anteriores a Maven. Incluyen las seis pruebas
-  nuevas de `python3 .github/scripts/test_split_ocl_export.py`.
-- **PASSED:** `python3 .github/integration/admission-initializer/test_harness.py`,
-  53 pruebas del arnés; no son una ejecución de backend.
-- **PASSED:** `mvn --batch-mode clean verify`, Maven 3.9.16 y Java 21 en macOS
-  ARM64; genera `sihsalus-content-1.25.19.zip`. El CI usa Java 8.
-- **PASSED:** `actionlint .github/workflows/main.yml`, `git diff --check`,
-  reproducción del filtro sobre el export oficial y rechazo de tres alteraciones
-  sintéticas del bundle fijado (concepto nuevo ausente, metadata divergente,
-  partición incorrecta).
-- **NOT RUN localmente:** integración MariaDB e Initializer nuevo/actualizado.
-  El resultado del CI sobre el commit final se registra en el PR.
-- **NOT RUN:** aceptación clínica, publicación y despliegue.
-
-El CI utiliza datos sintéticos; no acredita aceptación clínica ni despliegue.
-La versión candidata no se considera publicada hasta verificar POM y ZIP en
-Maven Central. La publicación posterior de `1.25.19` consta en el
-[changelog](../../CHANGELOG.md#12519---2026-09-12); no acredita despliegue.
+por sí solos no detectan esas incompatibilidades.

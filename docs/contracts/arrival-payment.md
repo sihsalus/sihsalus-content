@@ -27,9 +27,3 @@ La metadata es aditiva: no modifica visitas históricas, permisos, financiación
 FUA. Su ausencia en una visita histórica no significa que el paciente no pagó.
 El máximo de un valor activo describe la confirmación vigente de la visita, no un
 libro de pagos por cada cita. Una corrección debe conservar la auditoría de OpenMRS.
-
-Antes de habilitar el flujo, verificar en DEV/QLTY con datos sintéticos que el
-atributo se carga, que Admisión puede guardarlo y leerlo en una visita nueva y una
-existente, que sin marcar el checkbox no continúa y que SIS conserva su flujo.
-Las pruebas del paquete no sustituyen esta comprobación del frontend/backend.
-Para rollback del frontend, conservar el atributo y sus valores históricos.

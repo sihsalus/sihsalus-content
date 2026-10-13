@@ -52,25 +52,19 @@ Maven no ejecuta las pruebas Python, Bash ni las integraciones de esta guía.
 Tampoco formatea ni reescribe fuentes. Los proyectos Java de integración tienen
 sus propios POM y no forman parte del artefacto distribuido.
 
-Para cambios solo de documentación, revisar el diff, los enlaces y la coherencia
-con los archivos referenciados. No se necesitan pruebas nuevas ni subir la
-versión del paquete; véase [AGENTS.md](../AGENTS.md#validación-y-revisión).
-
 ## Contrato de empaquetado
 
 [assembly.xml](../assembly.xml) toma los archivos directamente de `configuration/`
-y los ubica bajo `configuration/backend_configuration/` dentro del ZIP.
-`content.properties` queda en la raíz con nombre y versión filtrados desde el POM.
+y los ubica bajo `configuration/backend_configuration/` dentro del ZIP, el prefijo
+que consume el distro. `content.properties` queda en la raíz con nombre y versión
+filtrados desde el POM. Este detalle del artefacto no requiere otra carpeta en el
+árbol de fuentes.
 
 Se excluyen `.DS_Store`, `.gitkeep`, la guía `ampathforms/Readme` y los formularios
 de `ampathforms/_deprecated/`. Las guías, pruebas y workflows quedan fuera del ZIP.
 No renombrar dominios, formularios ni archivos de migración por criterios de estilo.
-
-Los dos commits históricos fijados por el ensayo de Initializer conservan su
-estructura antigua. El arnés reconoce explícitamente esas fuentes y la estructura
-actual; ambos producen las mismas rutas de ejecución. Una reorganización debe
-conservar los bytes de la metadata distribuida y las identidades/checksums de
-Liquibase.
+Una reorganización debe conservar los bytes de la metadata distribuida y las
+identidades/checksums de Liquibase.
 
 ## Ensayos de integración
 
@@ -93,8 +87,7 @@ mvn --batch-mode --no-transfer-progress \
 
 El ensayo completo de MariaDB requiere una base sintética exclusivamente suya;
 el de Initializer exige el runner efímero descrito en su README. Ejecutarlos
-mediante sus workflows existentes. Las pruebas locales del arnés no demuestran
-que el backend arrancó ni que la migración pasó contra MariaDB.
+mediante sus workflows existentes.
 
 ## Validación y publicación
 
@@ -105,73 +98,47 @@ integración no oculta los resultados del build ni cancela los otros escenarios.
 La publicación en Maven Central exige que todas estas comprobaciones pasen en
 el mismo commit de `main` o `pre-release`; los PR solo validan.
 
-Después de publicar, `Validate with SIHSALUS` construye el backend con el paquete
-publicado y arranca `db` y `backend` mediante el `docker-compose.yml` normal del
-distro. Sus dependencias incluyen el generador nativo de `oauth2.properties`,
-incluso con autenticación local, y la política `initializer.startup.load=fail_on_error`.
-No usar el fixture histórico `docker-compose-no-volumes.yml`: omite esa
-configuración y puede producir fallos de módulos y permisos ajenos al paquete.
-La sonda de arranque se ejecuta dentro del backend, sin publicar un puerto del
-host. El proyecto exclusivo del runner se elimina con sus volúmenes al terminar;
-no usa datos ni servidores del hospital. El clasificador conserva el rechazo de
-errores de carga aun cuando el endpoint HTTP responda correctamente.
+Después de que `publish` confirme el POM y ZIP en Maven Central, el mismo
+workflow llama a `Validate with SIHSALUS` con el mismo commit del paquete:
+construye el backend con el paquete publicado y arranca `db` y `backend`
+mediante el `docker-compose.yml` normal del distro. Sus dependencias incluyen el
+generador nativo de `oauth2.properties`, incluso con autenticación local, y la
+política `initializer.startup.load=fail_on_error`. No usar el fixture histórico
+`docker-compose-no-volumes.yml`: omite esa configuración y puede producir fallos
+de módulos y permisos ajenos al paquete. La sonda de arranque se ejecuta dentro
+del backend, sin publicar un puerto del host, y el proyecto exclusivo del runner
+se elimina con sus volúmenes al terminar. El clasificador conserva el rechazo de
+errores de carga aun cuando el endpoint HTTP responda correctamente. El workflow
+admite ejecución manual con la entrada `sihsalus_ref` (`main` por defecto); se
+omite si `publish` falla o se omite, y un fallo no revierte el artefacto publicado.
 
-### Compatibilidad de la herramienta de publicación
+### Publicación en Maven Central
 
-Usar Java 21 LTS y `./mvnw` para construir y publicar con Maven 3.10.0. El Wrapper
-comprueba el SHA-256 de la distribución oficial; CI utiliza el mismo ejecutable
-que el desarrollo local. El perfil `release` requiere Maven 3.10 y mantiene la
-firma de Maven GPG.
+El perfil `release` exige Maven 3.10.x mediante Enforcer y firma con Maven GPG;
+usar `./mvnw` con Java 21. La publicación usa `maven-deploy-plugin` y JReleaser 1.26.0:
 
-La publicación utiliza los mecanismos nativos de Maven y JReleaser 1.26.0:
+1. `maven-deploy-plugin` deja POM, ZIP y firmas en el repositorio `file:` de
+   `target/staging-deploy`, separado del repositorio local de dependencias.
+2. `jreleaser:deploy`, enlazado a la fase `deploy`, valida el POM con PomChecker
+   (`failOnError=true`, `verifyPom=true`; `strict=false` y `failOnWarning=false`
+   admiten los repositorios OpenMRS, que el checker señala como avisos), calcula
+   los checksums, crea el bundle y lo publica mediante el Portal.
+3. CI espera después que el POM y ZIP sean descargables con `wait_for_maven_central.sh`.
 
-1. `maven-deploy-plugin` coloca el POM, ZIP y sus firmas en un repositorio remoto
-   de tipo `file:` bajo `target/staging-deploy`.
-2. El goal `jreleaser:deploy`, enlazado a la fase `deploy`, valida el POM, calcula
-   los checksums y crea el bundle de Maven Central. Reutiliza las firmas existentes.
-3. JReleaser publica mediante el Portal y comprueba su resultado. CI además espera
-   que el POM y ZIP sean descargables mediante `wait_for_maven_central.sh`.
-
-El repositorio de staging está separado del repositorio local de dependencias.
-Se sustituye Central Publishing 0.10.0 porque su instalador heredado incorpora
-metadata local con Maven 3.10; la versión 0.11.0 conserva ese comportamiento.
-No se limpian ni reempaquetan bundles con scripts. JReleaser administra el bundle
-partiendo de artefactos desplegados mediante la API de Maven.
-PomChecker conserva los errores como fallos. `strict=false` y `failOnWarning=false`
-permiten los repositorios OpenMRS existentes, que el checker señala como avisos;
-son necesarios para el plugin de empaquetado que no está publicado en Central.
-`verifyPom=true` y `failOnError=true` conservan las comprobaciones obligatorias del POM.
-
-Las credenciales existentes `CENTRAL_USERNAME` y `CENTRAL_PASSWORD` se proporcionan
-al publicador mediante las variables `JRELEASER_MAVENCENTRAL_CENTRAL_USERNAME` y
-`JRELEASER_MAVENCENTRAL_CENTRAL_PASSWORD`. `authorization=BASIC` indica al cliente
-que construya el token Bearer del Portal a partir de ese par. La firma sigue usando
-`GPG_PRIVATE_KEY` y `GPG_PASSPHRASE` en CI. El goal empleado es exclusivamente
-`deploy`; no se ejecuta `full-release` ni se crean releases o tags de GitHub.
+Credenciales: `JRELEASER_MAVENCENTRAL_CENTRAL_USERNAME` y
+`JRELEASER_MAVENCENTRAL_CENTRAL_PASSWORD` (en CI, los secretos `CENTRAL_USERNAME`
+y `CENTRAL_PASSWORD`); `authorization=BASIC` construye el token Bearer del Portal
+a partir de ese par. La firma usa `GPG_PRIVATE_KEY` y `GPG_PASSPHRASE`. Solo se
+ejecuta el goal `deploy`; no se crean releases ni tags de GitHub.
 
 ```sh
-bash .github/scripts/test_maven_central_publication.sh --bundle
+./mvnw -P release clean deploy
+bash .github/scripts/wait_for_maven_central.sh <version>
 ```
 
-Esta regresión ejecuta el perfil real con el modo `dryRun` nativo de JReleaser y
-una clave GPG efímera, sin claves de producción ni subidas. Comprueba que el bundle
-contenga exactamente POM, ZIP, sus firmas válidas y los cuatro checksums; rechaza
-archivos de metadata del repositorio. También retira el nombre de una copia del
-POM en staging y exige que PomChecker rechace su publicación, comprobando que los
-errores siguen bloqueando el flujo. Un ensayo local correcto no acredita una
-publicación real: el job `publish` y la comprobación de descarga son obligatorios.
-
-Para publicar fuera de CI, usar `./mvnw -P release clean deploy` con las mismas
-variables de credenciales y el llavero de firma configurado; comprobar después
-`.github/scripts/wait_for_maven_central.sh <version>`.
+`bash .github/scripts/test_maven_central_publication.sh --bundle` ensaya el perfil
+real con el `dryRun` nativo de JReleaser y una clave GPG efímera, sin subidas.
 
 Referencias: [publicación con Maven y JReleaser](https://jreleaser.org/guide/latest/examples/maven/maven-central.html),
 [configuración del Portal](https://jreleaser.org/guide/latest/reference/deploy/maven/maven-central.html)
 y [cambios de Maven 3.10.0](https://maven.apache.org/docs/3.10.0/release-notes.html).
-
-Después de que `publish` confirme el POM y ZIP en Maven Central, el mismo
-workflow llama a `Validate with SIHSALUS` usando el mismo commit del paquete.
-También valida si la versión ya estaba publicada; se omite si `publish` falla
-o se omite. Conserva la ejecución manual y la entrada `sihsalus_ref`, con `main`
-como referencia predeterminada del distro. Esta comprobación es posterior a la
-publicación: un fallo no revierte el artefacto publicado.

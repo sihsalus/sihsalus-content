@@ -14,11 +14,8 @@ CodeSystem `4.0.0`, canonical `http://terminology.hl7.org/CodeSystem/v2-0550`.
 El JSON oficial tiene SHA-256
 `56cdf48e0548a337400ce58fcd11d11152f6594e6dadad143b02c4d56149d68b`.
 HL7 publica este recurso bajo [CC0](https://terminology.hl7.org/license.html).
-La selección y los nombres españoles son una adaptación SIHSALUS; no se
-presentan como traducción oficial HL7 ni homologación de MINSA. La búsqueda
-realizada no identificó un catálogo peruano público de anatomía general
-aplicable a este selector. Los catálogos de procedimientos CPMS y las tablas
-de lesiones ocupacionales tienen otro alcance.
+La selección y los nombres españoles son una adaptación SIHSALUS, no una
+traducción oficial HL7 ni una homologación de MINSA.
 
 La tabla original contiene 442 códigos. Se seleccionan 133 sitios y se
 excluyen líquidos, muestras, células, dispositivos, enfermedades, referencias
@@ -27,7 +24,7 @@ huesos y articulaciones, sitios de cabeza y cuello, órganos toracoabdominales,
 urogenitales y obstétricos, deltoides y vasto lateral. El conjunto no pretende
 ser exhaustivo: no hay código genérico de piel en esta distribución y no se
 inventa uno. No incorpora lateralidad ni reglas sobre dónde efectuar una
-intervención. La idoneidad y cobertura clínica quedan pendientes de revisión.
+intervención.
 
 ## Identidades e historia
 
@@ -60,9 +57,6 @@ El selector configura `bodySiteConceptSourceType: "Concept set"` y
 `q` junto a `memberOf`: en la versión instalada, `name` más `searchType=fuzzy`
 con `memberOf` ignora el término buscado. Las selecciones históricas se
 rehidratan desde el procedimiento guardado; no se migran ni se filtran al leer.
-La configuración frontend coordinada es [PR #1206](https://github.com/sihsalus/sihsalus-frontend/pull/1206).
-Importar y verificar primero el contenido en OpenMRS; crear el catálogo en
-OCL por sí solo no lo instala en QLTY.
 
 ## Distribución y mantenimiento
 
@@ -71,24 +65,18 @@ los slots `17_` (121 conceptos, incluido el conjunto) y `67_` (266 mappings).
 El ZIP oficial tiene SHA-256
 `d5d90e67ef6eb4968c39e74248892ee21073d5a939387565c8db32eeaf19a6e8`;
 su JSON canónico recombinado tiene SHA-256
-`26dd43fb00dc098741742a7cbfe86f247b42aa229390d5ed4f7a687b74d928a7`.
-El validador fija el hash JSON recombinado y verifica español, códigos,
-pertenencia, equivalencias, UUIDs únicos e identidades históricas. Estos exports
-son la única definición operativa del catálogo; no hay otra lista de sitios
-en CSV ni migración SQL.
-El validador rechaza colisiones del nombre preferido español aunque exista
-una alternativa inglesa. El ensayo nativo comprueba también las colisiones
-con `utf8mb4_general_ci`, sin cambiar la collation binaria de su base de CI.
+`26dd43fb00dc098741742a7cbfe86f247b42aa229390d5ed4f7a687b74d928a7`, fijado por
+el validador. Estos exports son la única definición operativa del catálogo; no
+hay otra lista de sitios en CSV ni migración SQL.
 La propiedad histórica `openconceptlab.subscriptionUrl` permanece intacta:
 su namespace es necesario para resolver los conceptos importados existentes.
 
 La versión upstream `4.0.0` y el hash de su distribución se conservan en la
-metadata OCL. En OCL `2.3.209-28fabfa2`, el importador masivo omite
-`to_source_version`; la API de creación individual sí lo conserva. Por eso
-ese campo opcional puede estar vacío, pero nunca contradecir `4.0.0` en esta
-release; `extras.upstream_version` es obligatorio en todas las equivalencias.
-OpenMRS OCL `3.2.0-sihsalus.1` importa el código y la fuente `v2-0550`, pero
-no traslada esa versión al `ConceptReferenceTerm`.
+metadata OCL. El campo opcional `to_source_version` puede estar vacío, pero
+nunca contradecir `4.0.0` en esta release; `extras.upstream_version` es
+obligatorio en todas las equivalencias. OpenMRS OCL `3.2.0-sihsalus.1` importa
+el código y la fuente `v2-0550`, pero no traslada esa versión al
+`ConceptReferenceTerm`.
 
 La fila de `configuration/fhirconceptsources/fhirconceptsources.csv` asocia
 la fuente OpenMRS `30c3cf28-091d-5ec9-ace5-5edfc9e1543b` con el canonical
@@ -102,33 +90,16 @@ y el [parser nativo](https://github.com/sihsalus/openmrs-module-initializer/blob
 
 El [traductor de conceptos de FHIR2](https://github.com/openmrs/openmrs-module-fhir2/blob/069deb714818428540719182472ea13711628526/api/src/main/java/org/openmrs/module/fhir2/api/translators/impl/ConceptTranslatorImpl.java)
 necesita esta asociación para emitir el sistema externo junto al código.
-Esta configuración habilita el mecanismo genérico de conceptos codificados;
-no acredita intercambio integral de procedimientos. La versión de FHIR2
-`4.3.0-sihsalus.1` inspeccionada no contiene un proveedor `Procedure` R4.
+Habilita el mecanismo genérico de conceptos codificados; la versión de FHIR2
+`4.3.0-sihsalus.1` no contiene un proveedor `Procedure` R4.
 
 Para actualizar el catálogo, editar su fuente OCL, conservar las identidades,
 publicar otra release y sustituir juntos los dos ZIP mediante el splitter.
-Contrastar el export oficial contra los cambios de autoría antes de aceptarlo:
-un import masivo con `SUCCESS` no prueba que se hayan conservado todos los
-campos. Usar payloads completos al actualizar mappings; esta versión de OCL
-puede borrar el destino si un PATCH sólo incluye `extras`.
 
 ## Verificación
 
 Ejecutar el validador OCL, sus regresiones y la verificación completa del
 [paquete](../development.md). El ensayo nativo de Initializer comprueba en
-instalación nueva, actualización y reinicio:
-
-- Los 133 miembros exactos, sus nombres preferidos españoles, clases y datatypes.
-- Los 133 códigos HL7 y sus mappings persistidos.
-- La asociación FHIR activa con la fuente y URI correctas, sin duplicados.
-- Búsqueda nativa por abdomen, deltoides y esófago; ceftriaxona debe devolver cero.
-- Estabilidad de identidades de base de datos, mappings y asociación FHIR al reiniciar.
-
-Estas pruebas verifican carga y consulta de terminología. No acreditan
-aceptación clínica, guardado integral de procedimientos ni despliegue.
-El upgrade existente parte de la versión histórica del content fijada en el
-arnés; no sustituye la aceptación específica de un servidor que ya importó
-el catálogo `2026-10-11-01`. Antes de desplegar `1.25.33`, comprobar esa
-actualización, los 133 nombres españoles y la conservación de identidades
-en el entorno de aceptación coordinado.
+instalación nueva, actualización y reinicio los 133 miembros con sus nombres
+españoles, los 133 códigos HL7, la asociación FHIR y la estabilidad de las
+identidades.
