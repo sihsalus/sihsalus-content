@@ -74,15 +74,11 @@ identidades/checksums de Liquibase.
 | [MariaDB/Liquibase](../.github/integration/admission-role-reconciliation/README.md) | Migración completa contra MariaDB efímero; Java 21. |
 | [Initializer](../.github/integration/admission-initializer/README.md) | Backend fijado, instalación nueva y dos escenarios de actualización; runner desechable de GitHub. |
 
-Dos comprobaciones Java se pueden ejecutar sin base de datos ni Docker, con la
-versión de Java indicada por cada proyecto:
+La autorización de rangos se puede ejecutar sin base de datos ni Docker:
 
 ```sh
 mvn --batch-mode --no-transfer-progress \
   --file .github/integration/reference-range-access/pom.xml test
-mvn --batch-mode --no-transfer-progress \
-  --file .github/integration/admission-role-reconciliation/pom.xml \
-  -Dtest=HarnessGuardTest test
 ```
 
 El ensayo completo de MariaDB requiere una base sintética exclusivamente suya;

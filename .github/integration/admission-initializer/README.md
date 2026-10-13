@@ -7,7 +7,7 @@ content loaded. It never contacts DEV/QLTY/PROD, reads no existing credential,
 uses no existing account or patient and publishes nothing.
 
 Related: [admission contract](../../../docs/contracts/admission-role-reconciliation.md),
-[content guide](../../../docs/content-guide.md) (clinical drug catalog) and
+[content guide](../../../docs/content-guide.md#presentaciones-adicionales-de-medicamentos) (clinical drug catalog) and
 [development guide](../../../docs/development.md).
 
 ## Invocation

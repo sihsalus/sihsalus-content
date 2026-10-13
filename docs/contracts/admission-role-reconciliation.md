@@ -164,7 +164,6 @@ no configura esas propiedades ni modifica hosts.
 
 ```sh
 python3 .github/scripts/test_admission_role_reconciliation.py
-python3 .github/scripts/validate_liquibase.py
 ```
 
 Los ensayos de [MariaDB/Liquibase](../../.github/integration/admission-role-reconciliation/README.md)
