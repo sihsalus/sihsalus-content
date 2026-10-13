@@ -66,10 +66,39 @@ acceso clínico es una decisión de política institucional pendiente.
 ## Perfiles de pruebas y diferencias declaradas
 
 `gestion`, `obstetricia`, `cred` y `auditor` conservan sus perfiles de pruebas,
-con conjuntos base de 74, 128, 134 y 112 permisos respectivamente. No se encontró
+con conjuntos base de 74, 129, 135 y 113 permisos respectivamente. No se encontró
 una equivalencia de producción revisada para convertirlos en políticas del
 hospital. Se registran en `preservedTestProfiles` para poder detectar diferencias
 entre DEV y QLTY sin presentar esos perfiles como una política ya aprobada.
+
+La revisión del 12/10 añade únicamente `View Metadata Via Mapping` a los conjuntos
+de `obstetricia`, `cred` y `auditor`. Estos perfiles ya permiten leer neonatal
+(`app:hoja.clinica.cred.neonatal`) o parto/puerperio
+(`app:hoja.clinica.partoPuerperio`), donde el frontend consulta los vínculos
+madre–niño. EMRAPI `3.5.1-sihsalus.1` resuelve el tipo de relación mediante
+`getMetadataItem`; [Metadata Mapping 2.0.0 exige ese permiso de lectura](https://github.com/openmrs/openmrs-module-metadatamapping/blob/2.0.0/api/src/main/java/org/openmrs/module/metadatamapping/api/MetadataMappingService.java#L464).
+El permiso nativo permite resolver metadatos por mapping en general; no tiene
+alcance exclusivo al vínculo madre–niño. No concede `Manage Metadata Mapping`,
+escritura de relaciones ni administración de roles. Los perfiles hospitalarios
+y `gestion` conservan exactamente sus conjuntos anteriores; Soporte ya tenía
+este permiso.
+
+Los roles `SIHSALUS CRED - Pruebas`, `SIHSALUS OBSTETRICIA - Pruebas` y
+`SIHSALUS Auditor - Pruebas` pertenecen al entorno y no tienen filas de provisión
+en los CSV. La dependencia se declara en sus `expectedPrivileges` existentes,
+sin crear otro rol ni extender Login, Triaje o Consulta Externa. La promoción
+del paquete no modifica esos roles locales: el administrador debe comparar sus
+permisos efectivos, respaldar el estado y añadir únicamente la lectura faltante
+mediante la API nativa, conservando asignaciones y demás privilegios. Se verifica
+después con una sesión nueva y el GET de
+`emrapi/maternal/mothersAndChildren`, además de las operaciones denegadas; la
+declaración del contrato no acredita el resultado operativo. La reversión restaura
+el conjunto respaldado, sin tocar vínculos ni otros datos clínicos.
+
+Un HTTP 200 con una excepción serializada no demuestra lectura correcta. El
+frontend debe conservar el estado de error si la respuesta carece de `results`;
+no se modifica para ocultar un fallo de autorización. Los permisos observados en
+la sesión y el resultado del endpoint se verifican por separado.
 
 El contrato de pruebas de DEV conserva `Record Clinical Audit Events` para admisión, consulta, triaje,
 farmacia, laboratorio, obstetricia y CRED, mediante el rol de pruebas existente.
