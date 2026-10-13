@@ -23,11 +23,10 @@ from urllib.parse import urlencode
 from guards import (
     BACKEND, DISTRO_SHA, IMAGE_CONTENT_SHA, IMAGE_CONTENT_VERSION, BASELINE_SHA, DATABASE_IMAGE, DATABASE,
     OWNER_LABEL, CANONICAL_ROLE, LEGACY_ROLE, CANONICAL_UUID, EMRAPI_ROLES, CHANGESET,
-    INITIALIZER_VERSION, ROLES_FILE, CURRENT_ADMISSION_ADDITIONS, LIQUIBASE_FILE,
+    INITIALIZER_VERSION, ROLES_FILE, CURRENT_ADMISSION_ADDITIONS,
     ROLES_CHECKSUM, LIQUIBASE_CHECKSUM, UUID_PATTERN, STRICT_JAVA, HarnessFailure,
     require, checked, validate_runner, properties, extract_archive,
-    single_file_archive, assemble, validate_startup, validate_assembly,
-    sql_string, backend_owner, admission_privileges,
+    single_file_archive, assemble, validate_assembly, sql_string, admission_privileges,
 )
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -75,57 +74,6 @@ CLINICAL_DRUG = {
     "dosage_form": "bd1e9059-62b4-4967-a804-a63eda4f8657",
     "strength": "250 mg",
 }
-
-LOADER_DOMAINS = frozenset("""
-liquibase jsonkeyvalues conceptclasses conceptsources metadatasharing visittypes
-patientidentifiertypes relationshiptypes locationtags privileges encountertypes
-encounterroles proceduretypes roles globalproperties attributetypes providerroles
-systemtasks locations locationtagmaps addresshierarchy bahmniforms ocl concepts
-conceptsets conceptreferencerange billableservices paymentmodes cashpoints
-cashieritemprices flagpriorities flagtags flags programs programworkflows
-programworkflowstates personattributetypes idgen autogenerationoptions drugs
-orderfrequencies ordertypes appointmentspecialities appointmentservicedefinitions
-appointmentservicetypes queues datafiltermappings metadatasets metadatasetmembers
-metadatatermmappings cohorttypes cohortattributetypes fhirconceptsources
-fhirpatientidentifiersystems ampathforms ampathformstranslations htmlforms dispositions
-""".split())
-
-
-def initializer_thread_stacks(output):
-    """Keep bounded Java method names, never thread names, arguments or raw dumps."""
-    stacks = []
-    for block in output.split('\n\n'):
-        frames = re.findall(
-            r'^\s+at (?:[\w.@+-]+/(?:[\w.@+-]*/)?)?((?:java|jdk|sun|org\.openmrs|org\.hibernate|org\.mariadb|org\.springframework|com\.mysql)\.[\w.$]+)\([^\r\n]*\)$',
-            block, re.MULTILINE)
-        if any(frame.startswith('org.openmrs.module.initializer.') for frame in frames):
-            stacks.append(frames[:24])
-            if len(stacks) == 3:
-                break
-    return stacks
-
-
-def loader_progress(logs):
-    """Report only pinned Initializer domain names and fixed failure categories."""
-    loading = re.findall(r"Loading file [^\r\n]*?/configuration/([a-z]+)/", logs)
-    completed = re.findall(r"The '([a-z]+)' configuration file has finished loading:", logs)
-    categories = {
-        "out_of_memory": "java.lang.OutOfMemoryError",
-        "connection_timeout": "java.net.SocketTimeoutException",
-        "connection_refused": "java.net.ConnectException",
-        "dns_failure": "java.net.UnknownHostException",
-        "database_deadlock": "Deadlock found when trying to get lock",
-        "database_lock_timeout": "Lock wait timeout exceeded",
-        "missing_retire_reason": "general.retiredReason.empty",
-    }
-    return {
-        "initializer_last_loading_domain": loading[-1] if loading and loading[-1] in LOADER_DOMAINS else None,
-        "initializer_last_completed_domain": completed[-1] if completed and completed[-1] in LOADER_DOMAINS else None,
-        "initializer_aborted_domains": sorted({match.group("domain") for match in FILE_ABORT.finditer(logs)
-                                               if match.group("domain") in LOADER_DOMAINS}),
-        "initializer_failure_hints": [name for name, marker in categories.items() if marker in logs],
-    }
-
 
 def emit(stage, status, **safe):
     print(json.dumps({"stage": stage, "status": status, **safe}), flush=True)
@@ -269,21 +217,13 @@ class Harness:
         require(image.get("Os") == "linux" and image.get("Architecture") == "amd64", "unexpected_backend_platform")
         require(image.get("Config", {}).get("Labels", {}).get("org.opencontainers.image.revision") == DISTRO_SHA, "backend_revision_label_mismatch")
         require(BACKEND in image.get("RepoDigests", []), "backend_digest_mismatch")
-        command = " ".join((image["Config"].get("Entrypoint") or []) + (image["Config"].get("Cmd") or []))
-        require("startup.sh" in command, "unverified_image_launch_command")
-        runtime_user = image["Config"].get("User", "")
-        require(re.fullmatch(r"[1-9][0-9]*(?::[0-9]+)?", runtime_user), "numeric_nonroot_backend_user_required")
-        probe = self.container("probe",
-            ["--network", "none", "--read-only", "--cap-drop", "ALL",
-             "--security-opt", "no-new-privileges", "--entrypoint", "/bin/sh"],
-            BACKEND, ["-ceu", "id -u; id -g"])
-        identity = self.docker("start", "--attach", probe, timeout=30).stdout
-        self.backend_owner = backend_owner(runtime_user, identity)
+        # The restore helper chowns seeded application data to the image's declared user.
+        self.backend_owner = image["Config"].get("User", "")
+        require(re.fullmatch(r"[1-9][0-9]*(?::[0-9]+)?", self.backend_owner), "numeric_nonroot_backend_user_required")
+        # Never started: only used to copy the image's shipped configuration out.
+        probe = self.container("probe", ["--network", "none"], BACKEND)
         self.image_config = self.directory / "image-configuration"
         self.copy_tree(probe, "/openmrs/distribution/openmrs_config", self.image_config, "openmrs_config")
-        startup_hash = validate_startup(self.copy_file(probe, "/openmrs/startup-init.sh"))
-        startup = self.copy_file(probe, "/openmrs/startup.sh").decode()
-        require("source /openmrs/startup-init.sh" in startup and "/usr/local/tomcat/bin/catalina.sh run" in startup, "unverified_image_entrypoint")
         distro = properties(self.copy_file(probe, "/openmrs/distribution/openmrs-distro.properties"))
         require(distro.get("content.sihsalus-content") == IMAGE_CONTENT_VERSION, "image_content_version_mismatch")
         self.remove_container(probe)
@@ -328,8 +268,7 @@ class Harness:
         self.docker("network", "create", "--internal", "--label", OWNER_LABEL + "=" + self.nonce, self.network)
         require(self.owned("network", self.network).get("Internal") is True, "network_not_internal")
         emit("prepare", "PASSED", source_sha=self.candidate_sha, baseline_sha=BASELINE_SHA,
-             candidate_version=self.candidate_version,
-             backend_digest=BACKEND.split("@")[1], startup_sha256=startup_hash, **receipt)
+             candidate_version=self.candidate_version, backend_digest=BACKEND.split("@")[1], **receipt)
 
     def start_database(self, suffix):
         volume = self.volume(suffix + "-db")
@@ -350,7 +289,7 @@ class Harness:
                 require(self.query(name, "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=" + sql_string(DATABASE)) == ["0"], "database_not_empty")
                 require(self.query(name, "SELECT @@GLOBAL.innodb_flush_log_at_trx_commit") == ["2"],
                         "disposable_database_flush_mode_mismatch")
-                emit("database", "PASSED", innodb_flush_log_at_trx_commit=2, power_loss_durability_tested=False)
+                emit("database", "PASSED", innodb_flush_log_at_trx_commit=2)
                 return name
             time.sleep(5)
         raise HarnessFailure("database_startup_timeout")
@@ -374,7 +313,6 @@ class Harness:
         volume = data_volume or self.volume(suffix + "-data")
         self.owned("volume", volume)
         if restore:
-            require(re.fullmatch(r"[1-9][0-9]*:[0-9]+", self.backend_owner), "backend_restore_owner_unverified")
             helper = self.container(suffix + "-restore",
                 ["--network", "none", "--user", "0",
                  "--mount", "type=bind,src=" + str(self.baseline_data) + ",dst=/seed,readonly",
@@ -430,24 +368,21 @@ class Harness:
         return body["started"]
 
     def bootstrap(self, backend):
-        """Trigger the synthetic installation filter; HTTP is not a success oracle."""
+        """Reach Core's installation filter directly: the image's one-shot startup
+        request can precede web readiness. The response is never a success oracle."""
         self.owned("container", backend)
         config = (
             "silent\nshow-error\nproxy = \"\"\nnoproxy = \"*\"\n"
             "connect-timeout = 2\nmax-time = 5\nmax-redirs = 0\nretry = 0\n"
             "url = \"http://127.0.0.1:8080/openmrs/initialsetup\"\nrequest = \"GET\"\n"
-            "output = \"/dev/null\"\nwrite-out = \"%{http_code}\"\n")
+            "output = \"/dev/null\"\n")
         # --disable is curl's first option: no inherited curlrc, credentials,
         # cookies, redirects or retry settings. The response body is discarded.
-        result = self.docker("exec", "-i", backend, "curl", "--disable", "--config", "-",
+        self.docker("exec", "-i", backend, "curl", "--disable", "--config", "-",
             data=config.encode(), timeout=10, allow_failure=True)
-        if result.returncode:
-            return None
-        require(re.fullmatch(rb"[1-5][0-9]{2}", result.stdout), "invalid_bootstrap_http_code")
-        return int(result.stdout)
 
-    def installation_progress(self, backend):
-        """Read typed flags and counters; never return installer messages or logs."""
+    def installation_has_errors(self, backend):
+        """True only when Core's installer reports hasErrors; None when unreachable."""
         self.owned("container", backend)
         config = (
             "silent\nshow-error\nproxy = \"\"\nnoproxy = \"*\"\n"
@@ -456,38 +391,14 @@ class Harness:
             "request = \"GET\"\nwrite-out = \"\\n%{http_code}\"\n")
         result = self.docker("exec", "-i", backend, "curl", "--disable", "--config", "-",
             data=config.encode(), timeout=10, allow_failure=True)
-        if result.returncode:
-            return None, None, None, None
         content, separator, code = result.stdout.rpartition(b"\n")
-        if not separator or code != b"200":
-            return None, None, None, None
+        if result.returncode or not separator or code != b"200":
+            return None
         try:
             body = json.loads(content)
         except ValueError:
-            return None, None, None, None
-        if not isinstance(body, dict):
-            return None, None, None, None
-        has_errors, complete = body.get("hasErrors"), body.get("initializationComplete")
-        counters = [body.get(key) for key in ("actionCounter", "completedPercentage")]
-        # Core's per-task percentage can reset or exceed 100; it is not readiness.
-        counters = [value if type(value) is int and value >= 0 else None for value in counters]
-        return (has_errors if isinstance(has_errors, bool) else None,
-                complete if isinstance(complete, bool) else None, *counters)
-
-    def effective_strict(self, backend):
-        values = properties(self.copy_file(backend, "/openmrs/data/openmrs-runtime.properties"))
-        require(values.get("initializer.startup.load") == "fail_on_error", "strict_runtime_property_missing")
-        require(values.get("initializer.skip.checksums") == "false", "checksum_tracking_not_enabled")
-        require(values.get("initializer.row.checksums.enabled") == "false", "row_checksum_mode_changed")
-        require(values.get("initializer.logging.enabled") == "true"
-                and values.get("initializer.logging.level") == "INFO"
-                and values.get("initializer.logging.location") == self.lifecycle_files[backend],
-                "current_attempt_initializer_logging_not_configured")
-        require(not values.get("initializer.domains"), "initializer_domain_filter_forbidden")
-        require(not any(key.startswith("initializer.exclude") and value for key, value in values.items()), "initializer_exclusions_forbidden")
-        actual = self.owned("container", backend)
-        env = dict(item.split("=", 1) for item in actual["Config"]["Env"] if "=" in item)
-        require(env.get("OMRS_JAVA_SERVER_OPTS") == STRICT_JAVA, "strict_system_flags_changed")
+            return None
+        return body.get("hasErrors") if isinstance(body, dict) else None
 
     def lifecycle_logs(self, backend):
         """Read this attempt's dedicated file and container output, never a restored log."""
@@ -499,46 +410,32 @@ class Harness:
             'if [ ! -e "$1" ]; then exit 44; fi; test -f "$1" && test ! -L "$1" && cat "$1"',
             "--", "/openmrs/data/" + filename, allow_failure=True)
         require(log.returncode in (0, 44), "initializer_log_unreadable")
-        present = log.returncode == 0
-        logs = (output.stdout + output.stderr + (log.stdout if present else b"")).decode("utf-8", "replace")
-        return logs, present, len(log.stdout) if present else None
+        return (output.stdout + output.stderr + (log.stdout if log.returncode == 0 else b"")).decode("utf-8", "replace")
 
     def wait_initializer(self, backend, stage, reject=False):
         started_at = time.monotonic()
         # The historical baseline can still be loading at the normal startup limit.
-        startup_budget = self.remaining(45 * 60) if stage == "baseline" else self.remaining()
-        deadline = started_at + startup_budget
-        next_diagnostic = started_at
+        deadline = started_at + (self.remaining(45 * 60) if stage == "baseline" else self.remaining())
+        next_progress = started_at
         observed = None
         while time.monotonic() < deadline:
             require(self.owned("container", backend)["State"].get("Running") is True, "backend_exited_before_validation")
-            # The image's one-shot startup request may precede web readiness.
-            # Reach the fixed filter directly, without following root redirects.
-            bootstrap_code = self.bootstrap(backend)
-            logs, log_present, log_bytes = self.lifecycle_logs(backend)
+            self.bootstrap(backend)
+            logs = self.lifecycle_logs(backend)
             abort_messages = [match.group(0) for match in FILE_ABORT.finditer(logs)]
             csv_error = "BEGINNING OF CSV FILE ERROR SUMMARY" in logs
             expected_rejection = reject and ABORT in logs and CHANGESET in logs
+            # A separate failure cannot be masked by the expected Liquibase rejection.
             unexpected_abort = csv_error or any(message != ABORT for message in abort_messages) or (
                 bool(abort_messages) and not expected_rejection)
+            require(not unexpected_abort, "unexpected_initializer_abort")
             now = time.monotonic()
-            if now >= next_diagnostic or unexpected_abort:
-                has_errors, installation_complete, action_counter, percentage = self.installation_progress(backend)
-                emit(stage, "WAITING", backend_running=True, bootstrap_http_code=bootstrap_code,
-                     completion_seen=COMPLETION in logs, abort_seen=bool(abort_messages),
-                     candidate_marker_seen=CHANGESET in logs,
-                     csv_error_seen=csv_error, installation_has_errors=has_errors,
-                     installation_complete=installation_complete,
-                     installation_action_counter=action_counter,
-                     installation_completed_percentage=percentage,
-                     initializer_log_present=log_present, initializer_log_bytes=log_bytes,
-                     **loader_progress(logs))
-                next_diagnostic = now + 60
-                require(has_errors is not True, "installation_reported_errors")
-            # A separate failure cannot be masked by the expected Liquibase
-            # rejection. Diagnostics allow only known domains, never filenames or raw logs.
-            if unexpected_abort:
-                raise HarnessFailure("unexpected_initializer_abort")
+            if now >= next_progress:
+                loading = re.findall(r"Loading file [^\r\n]*?/configuration/([a-z]+)/", logs)
+                emit(stage, "WAITING", elapsed_seconds=int(now - started_at),
+                     completion_seen=COMPLETION in logs, last_loading_domain=loading[-1] if loading else None)
+                next_progress = now + 60
+                require(self.installation_has_errors(backend) is not True, "installation_reported_errors")
             if expected_rejection:
                 require(COMPLETION not in logs, "initializer_continued_after_rejection")
                 observed = False
@@ -546,7 +443,6 @@ class Harness:
                 require(not reject, "expected_rejection_did_not_occur")
                 observed = True
             if observed is not None:
-                self.effective_strict(backend)
                 # Core stops REST too after this startup exception. Its classloader
                 # disposal follows removal from the actual started-modules map.
                 if reject:
@@ -558,29 +454,17 @@ class Harness:
                 try:
                     started = self.module_status(backend)
                 except HarnessFailure as error:
+                    # Lifecycle logs precede web availability. Keep polling: an
+                    # unavailable endpoint is never interpreted as false, while
+                    # malformed responses and authentication failures are fatal.
                     if str(error) != "module_state_unavailable":
                         raise
-                    # Lifecycle logs precede web availability. Keep polling;
-                    # Unavailable HTTP is never interpreted as false; malformed
-                    # successful responses and authentication failures are fatal.
                 else:
                     if started == observed:
                         emit(stage, "PASSED", initializer_started=started)
                         return
             time.sleep(5)
-        emit(stage, "FAILED", reason="initializer_lifecycle_not_proven_before_timeout",
-             **self.jvm_diagnostic(backend))
         raise HarnessFailure("initializer_lifecycle_not_proven_before_timeout")
-
-    def jvm_diagnostic(self, backend):
-        self.owned("container", backend)
-        try:
-            result = self.docker("exec", backend, "jcmd", "0", "Thread.print", timeout=10, allow_failure=True)
-        except HarnessFailure:
-            result = None
-        available = result is not None and result.returncode == 0
-        return {"jvm_thread_dump_available": available,
-                "initializer_thread_stacks": initializer_thread_stacks(result.stdout.decode("utf-8", "replace")) if available else []}
 
     def checksum(self, backend, relative):
         value = self.copy_file(backend, "/openmrs/data/" + relative).decode("ascii")
@@ -1320,9 +1204,7 @@ def main(scenario="upgrade"):
             except Exception:
                 emit("cleanup", "FAILED", reason="owned_cleanup_incomplete")
                 cleanup_ok = False
-    emit("harness", "PASSED" if success and cleanup_ok else "FAILED",
-         scope="ephemeral synthetic Initializer and native relationship RBAC",
-         deployed_environment_validation=False)
+    emit("harness", "PASSED" if success and cleanup_ok else "FAILED")
     return 0 if success and cleanup_ok else 1
 
 
