@@ -209,7 +209,7 @@ Both scenarios also verify the additional ursodeoxycholic acid concept and
 250 mg tablet presentation after loading. SQL checks their active state,
 identities and references; REST checks the medication search representation
 consumed by the frontend. The upgrade restart must preserve those records
-without duplicates. See the [catalog contract](../../../docs/clinical-drug-catalog.md).
+without duplicates. See the [catalog contract](../../../docs/content-guide.md#presentaciones-adicionales-de-medicamentos).
 
 The OCL refresh has a separate read-only SQL check in fresh, upgrade and the
 upgrade restart: both added UUIDs must exist once, stay active, retain their

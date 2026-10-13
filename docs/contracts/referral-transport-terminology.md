@@ -12,9 +12,8 @@ contiene exactamente tres conceptos activos `Misc/N/A`, sin mappings:
 | `REF-TR-02` | `2a228c88-7daf-4f60-9e55-c884c9302bd8` | Transporte aéreo para referencia | Aéreo |
 | `REF-TR-03` | `d5e04df9-d1dc-431e-bd71-c934ec3e18e2` | Transporte fluvial para referencia | Fluvial |
 
-Los UUIDs proceden del contenido introducido en el commit
-`6d888833a4d445ea408c45c133f12c7dbf5ddbb6` y deben permanecer estables. La migración conserva
-también los nombres completos y cortos en inglés y las descripciones en español del CSV original.
+Los UUIDs proceden del CSV original de Initializer y deben permanecer estables. La migración conserva
+también los nombres completos y cortos en inglés y las descripciones en español de ese CSV.
 
 ## Export estático
 
@@ -25,18 +24,13 @@ partición reproducible de conceptos como
 `f96a5afbda6084af5b4a26425e4d5cbef45809c708414d90d2a40bbd81cd51cf`. El JSON canónico del
 export tiene SHA-256 `9a85ebac1f3710be861ddb092fb9806eee0e5d60557e494bcdb742be510aedff`.
 
-El validador fija source, versión, release, inventario, UUIDs, códigos, nombres, descripciones, clase,
-datatype, URLs y unicidad dentro del bundle. También exige que
+El validador fija esta release dentro del bundle y exige que
 `configuration/concepts/referral_transport_concepts.csv` permanezca ausente.
 
-Este catálogo conserva su release independiente del source principal. Su migración no modifica los
-mappings `Q-AND-A` de `sihsalus`; el frontend coordinado utiliza explícitamente los tres UUIDs
-como respuestas permitidas. Desde `1.25.19`, el paquete incorpora el export principal `2026-09-09-1`
-con las exclusiones de barrios documentadas en [la auditoría OCL](../audits/2026-09-12-ocl-refresh.md);
-`openconceptlab.subscriptionUrl` conserva la release `2026-07-16-02` de OCL Cloud
-y el namespace validado de los imports existentes. La transición al servidor
-institucional sigue pendiente de validación nativa de upgrade; los mappings
-`Q-AND-A` de este catálogo conservan sus identidades.
+Este catálogo conserva su release independiente del source principal; su migración no modifica los
+mappings `Q-AND-A` de `sihsalus` y el frontend coordinado utiliza explícitamente los tres UUIDs
+como respuestas permitidas. `openconceptlab.subscriptionUrl` conserva la release `2026-07-16-02`
+de OCL Cloud; la transición al servidor institucional sigue pendiente de validación nativa de upgrade.
 
 ## Actualización
 

@@ -1,10 +1,10 @@
 # Historia social: alcohol y tabaco
 
-El paquete publicado `1.25.24` incluye un formulario AMPATH independiente para
-historia social, preparado inicialmente como `1.25.23` en el PR #235.
-Reutiliza preguntas y respuestas existentes en `SIHSALUS/sihsalus/2026-09-09-1`;
-no añade ni reinterpreta conceptos OCL. El frontend debe usar el mismo componente
-para la entrada desde Consulta Externa y desde Historia Social.
+Desde `1.25.24` el paquete incluye un formulario AMPATH independiente para
+historia social. Reutiliza preguntas y respuestas existentes en
+`SIHSALUS/sihsalus/2026-09-09-1`; no añade ni reinterpreta conceptos OCL. El
+frontend debe usar el mismo componente para la entrada desde Consulta Externa y
+desde Historia Social.
 
 ## Identidades
 
@@ -54,20 +54,13 @@ visibles y conservan su semántica; no se editan con este formulario nuevo.
 Los estados codificados antiguos sin respuestas Q-AND-A no se reutilizan como
 preguntas de Sí/No. Otras sustancias quedan para una iteración clínica posterior.
 
-Referencia revisada el 21/09/2026: [R.M. 214-2018/MINSA y NTS 139](https://www.gob.pe/institucion/minsa/normas-legales/187487-214-),
-que incluye antecedentes personales y hábitos dentro de la historia clínica.
-La [R.M. 265-2018/MINSA](https://www.gob.pe/institucion/minsa/normas-legales/187373-265-2018-minsa)
-modifica la definición de acto de salud. Estas referencias no prescriben este
-formulario de cuatro preguntas ni sustituyen la aceptación clínica institucional.
+Referencias: [R.M. 214-2018/MINSA y NTS 139](https://www.gob.pe/institucion/minsa/normas-legales/187487-214-),
+que incluye antecedentes personales y hábitos dentro de la historia clínica, y
+[R.M. 265-2018/MINSA](https://www.gob.pe/institucion/minsa/normas-legales/187373-265-2018-minsa),
+que modifica la definición de acto de salud.
 
-Se debe cargar una versión que incluya este formulario antes de habilitar el
-frontend dependiente. La publicación del paquete no modifica el pin del distro
-ni acredita un despliegue. La aceptación en DEV/QLTY requiere verificar
-importación con Initializer, UUID REST efectivo,
-permisos por rol, guardar/editar/reabrir con datos sintéticos, ausencia de cambios
-en visitas anteriores y aceptación clínica. Los validadores locales no prueban
-la persistencia en OpenMRS. Para rollback, retirar el frontend dependiente y
-conservar encuentros, observaciones y metadata ya utilizada; no borrar datos.
+El frontend dependiente requiere una versión del paquete que incluya este
+formulario; la publicación del paquete no modifica el pin del distro.
 
 ## Validación local
 

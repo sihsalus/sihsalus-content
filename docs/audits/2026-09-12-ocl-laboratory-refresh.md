@@ -1,6 +1,4 @@
-# Revisión del export OCL de laboratorio — 2026-09-12
-
-> [Registro histórico](README.md): evidencia y estados correspondientes a la fecha de la revisión.
+# Revisión del export OCL de laboratorio
 
 ## Resultado y alcance
 
@@ -9,27 +7,9 @@ La release `SIHSALUS/laboratorio/2026-09-10-3` no puede sustituir todavía a
 existentes, la unidad declarada de creatinina urinaria y el límite absoluto de
 hemoglobina; también modifica paneles y respuestas. El paquete conserva los dos
 ZIPs de laboratorio anteriores mientras se acuerda una actualización coordinada.
-
-Después de esta revisión se aplicaron
-[30 correcciones de conceptos y 12 de mappings en HEAD remoto](2026-09-12-ocl-remote-corrections.md).
-La release `2026-09-10-3` examinada aquí conserva su contenido; sus hallazgos no
-deben confundirse con el estado posterior de HEAD. La actualización completa
-del paquete sigue pendiente de las validaciones descritas.
-
-Esta revisión compara metadata y código. No consultó pacientes ni observaciones
-de ningún entorno y no afirma que existan observaciones para los conceptos
-afectados. La publicación de una release OCL no acredita su compatibilidad con
-OpenMRS, los formularios ni los resultados históricos.
-
-Base de contenido: `0c16cae2088b2dad2e135cfae4c50943836bcd3e` (`1.25.18`).
-Los ZIPs anteriores se verificaron mediante `git show` de esa base, sin depender
-del estado del worktree durante la preparación de la actualización principal.
-
-La revisión normativa posterior de la candidata `1.25.19` está en
-[el contrato de captura](../contracts/laboratory-reporting.md).
-Corrige cuatro límites inferiores de hemoglobina a 11/10.5 g/dL y añade guardas
-de compatibilidad. Los datatypes, unidades, límites altos y selección de población
-descritos como pendientes en esta auditoría no quedan aprobados por esas correcciones.
+Las correcciones aplicadas después en HEAD remoto están en
+[correcciones remotas OCL](2026-09-12-ocl-remote-corrections.md); la release
+`2026-09-10-3` examinada aquí conserva su contenido.
 
 | Archivo examinado | SHA-256 |
 | --- | --- |
@@ -42,7 +22,7 @@ declara `released: true` y fecha de creación `2026-09-10T21:56:58.762423Z`.
 Contiene 248 conceptos frente a 212: 36 nuevos y 33 existentes modificados.
 Entre estos últimos hay tres cambios de datatype y 14 cambios de `extras`.
 Los cambios de nombres también incluyen metadata interna de OCL; el total de
-33 no equivale a 33 cambios clínicos de significado.
+33 incluye esa metadata, no 33 cambios clínicos de significado.
 
 ## Datatypes y formulario incompatible
 
@@ -54,15 +34,11 @@ Los cambios de nombres también incluyen metadata interna de OCL; el total de
 
 En Core `2.8.9`, `ConceptServiceImpl.saveConcept` rechaza un cambio de datatype
 si el concepto tiene alguna observación, incluidas las anuladas. La única
-excepción es `Boolean` → `Coded`, que no aplica aquí. Es un bloqueo condicional
-a los datos del destino, no una afirmación sobre su existencia.
-[Fuente Core, pin `4dda0f50`](https://github.com/openmrs/openmrs-core/blob/4dda0f50a60991a5af9a4b36508e69bb3561c8a6/api/src/main/java/org/openmrs/api/impl/ConceptServiceImpl.java#L1348).
+excepción es `Boolean` → `Coded`, que no aplica aquí.
 
 El importador OCL `3.2.0` usa `ValidationType.FULL` por defecto y llama a
 `saveConcept`; una suscripción puede configurar otro modo. Desactivar la
-validación no constituye una migración de valores y no resuelve la seguridad de
-estos cambios. [Importer](https://github.com/openmrs/openmrs-module-openconceptlab/blob/6aecd4b8025f1a5467841a84fd603eb149fcfcb2/api/src/main/java/org/openmrs/module/openconceptlab/importer/Importer.java#L343),
-[Saver](https://github.com/openmrs/openmrs-module-openconceptlab/blob/6aecd4b8025f1a5467841a84fd603eb149fcfcb2/api/src/main/java/org/openmrs/module/openconceptlab/importer/Saver.java#L114).
+validación no migra los valores ni resuelve la seguridad de estos cambios.
 
 Ninguno de los tres UUIDs tiene filas en `conceptreferencerange_laboratory.csv`.
 Sin embargo, la pregunta `urobilinogeno` de
@@ -75,8 +51,7 @@ revisados; el formulario genérico de laboratorio sí consume el datatype remoto
 
 Resolución necesaria: definir el contrato de captura y lectura histórica para
 cada prueba, coordinar el formulario y comprobar el comportamiento de instalación
-nueva y actualización. No se asignan UUIDs nuevos ni se convierten o eliminan
-observaciones como parte de esta revisión.
+nueva y actualización.
 
 ## Unidad, rangos y límites
 
@@ -84,24 +59,20 @@ observaciones como parte de esta revisión.
 y la unidad declarada de `mg/24h` a `mg/kg/24h`. También pasa de valores normales
 1000–1500 y absoluto alto 5000 a absoluto alto 40, sin rango normal general.
 Esto coincide con las etiquetas y límites de las dos filas de creatinina urinaria
-del CSV de PR #225, pero cambia la magnitud representada bajo el mismo UUID.
-Si existen valores anteriores, requieren un contrato que preserve su
-interpretación; cambiar el nombre o la unidad de la metadata no los convierte.
-El [bloqueo previo de PR #225](2026-09-10-laboratory-reference-ranges-pr-225.md)
-no queda resuelto solamente por alinear las etiquetas.
+del CSV de rangos de laboratorio, pero cambia la magnitud representada bajo el
+mismo UUID. Si existen valores anteriores, requieren un contrato que preserve su
+interpretación; cambiar el nombre o la unidad de la metadata no los convierte, y
+alinear las etiquetas no resuelve el cambio de magnitud.
 
 `laboratorio:655`, UUID `0ffe780c-a3ee-4c9c-b4dd-bf2e0f79dc7f`, añade
 `hi_absolute: 20`. Sus 16 filas del CSV conservan crítico alto 22 y absoluto alto
-30. El frontend consultado (`1fc71e13d8f9fae2409ae60b6c194b336dcc9345`) obtiene
-`hiAbsolute` directamente del concepto y lo aplica tanto a pruebas individuales
-como a miembros de paneles: un resultado mayor de 20 fallaría su validación antes
-de guardar, aunque el CSV permita valores hasta 30. Hay que acordar y probar un
-contrato consistente, sin elegir un nuevo umbral desde esta auditoría.
-[Representación REST](https://github.com/sihsalus/sihsalus-frontend/blob/1fc71e13d8f9fae2409ae60b6c194b336dcc9345/packages/apps/esm-patient-orders-app/src/lab-results/lab-results.resource.ts#L13),
-[validación numérica](https://github.com/sihsalus/sihsalus-frontend/blob/1fc71e13d8f9fae2409ae60b6c194b336dcc9345/packages/apps/esm-patient-orders-app/src/lab-results/useLabResultsFormSchema.tsx#L107).
+30. El frontend obtiene `hiAbsolute` directamente del concepto y lo aplica tanto
+a pruebas individuales como a miembros de paneles: un resultado mayor de 20
+fallaría su validación antes de guardar, aunque el CSV permita valores hasta 30.
+Hay que acordar y probar un contrato consistente.
 
-Detalle de los 14 cambios de `extras`. Los valores son los declarados por OCL,
-no umbrales clínicamente aprobados. `∅` significa que la propiedad se omite.
+Detalle de los 14 cambios de `extras`. Los valores son los declarados por OCL.
+`∅` significa que la propiedad se omite.
 
 | OCL / concepto | Cambio declarado | Filas del CSV relacionadas |
 | --- | --- | --- |
@@ -124,20 +95,16 @@ Los límites generales también sirven a consumidores que no evalúan los criter
 del CSV. Core puede seleccionar un rango por paciente y usa los límites generales
 como respaldo al crear la referencia de una observación sin rango aplicable.
 La omisión de propiedades, por tanto, también es un cambio efectivo.
-[ObsValidator](https://github.com/openmrs/openmrs-core/blob/4dda0f50a60991a5af9a4b36508e69bb3561c8a6/api/src/main/java/org/openmrs/validator/ObsValidator.java#L258).
 
 Hay además un defecto de serialización: `5259`, `5400`, `5258` y `5360` escriben
 `Units` con mayúscula; los nuevos numéricos `5449` (hemoglobina glicosilada),
 `5450` (PSA) y `5451` (factor reumatoide) hacen lo mismo. `OclConcept.Extras`
 declara `units` minúscula e ignora propiedades desconocidas; el importador usa un
 `ObjectMapper` estándar. `Saver` copia `getUnits()` y los límites, incluso cuando
-son nulos. El texto `Units` no garantiza una unidad persistida y no debe usarse
-como evidencia de la unidad real del backend. Los cuatro conceptos existentes ya
+son nulos. Un `Units` en el export no implica una unidad persistida y no debe
+usarse como evidencia de la unidad real del backend. Los cuatro conceptos existentes ya
 tenían esta mayúscula en el export anterior; es un defecto previo que el candidato
 conserva, además de introducirlo en tres conceptos nuevos.
-[Extras](https://github.com/openmrs/openmrs-module-openconceptlab/blob/6aecd4b8025f1a5467841a84fd603eb149fcfcb2/api/src/main/java/org/openmrs/module/openconceptlab/client/OclConcept.java#L328),
-[deserialización](https://github.com/openmrs/openmrs-module-openconceptlab/blob/6aecd4b8025f1a5467841a84fd603eb149fcfcb2/api/src/main/java/org/openmrs/module/openconceptlab/importer/Importer.java#L309),
-[copia de metadata](https://github.com/openmrs/openmrs-module-openconceptlab/blob/6aecd4b8025f1a5467841a84fd603eb149fcfcb2/api/src/main/java/org/openmrs/module/openconceptlab/importer/Saver.java#L226).
 
 ## Relaciones retiradas y paneles
 
@@ -172,14 +139,12 @@ OCL aplica `retired: true` quitando el `ConceptSet` o `ConceptAnswer` identifica
 por el UUID del mapping. No exige ausencia de observaciones para quitar esa
 relación; la operación no elimina las observaciones históricas. Preservar los
 conceptos no preserva por sí solo el panel o las opciones de captura anteriores.
-[Set members](https://github.com/openmrs/openmrs-module-openconceptlab/blob/6aecd4b8025f1a5467841a84fd603eb149fcfcb2/api/src/main/java/org/openmrs/module/openconceptlab/importer/Saver.java#L541),
-[answers](https://github.com/openmrs/openmrs-module-openconceptlab/blob/6aecd4b8025f1a5467841a84fd603eb149fcfcb2/api/src/main/java/org/openmrs/module/openconceptlab/importer/Saver.java#L584).
 
 Resolución necesaria: aprobar la composición final y comprobar solicitud,
 captura y lectura de órdenes previas con los consumidores reales. No basta con
 verificar que todos los UUIDs sigan resolviendo.
 
-## Dependencias, validación y siguiente cambio
+## Dependencias y siguiente cambio
 
 Siete mappings nuevos dependen de dos conceptos ausentes en la fuente principal
 de la base examinada: `SIHSALUS/sihsalus:4489` (seis mappings: `1200`, `1210`,
@@ -188,27 +153,15 @@ posterior de laboratorio debe incluir y verificar esas dependencias en el bundle
 completo. Esta dependencia no implica que la actualización independiente de la
 fuente principal requiera adoptar laboratorio nuevo.
 
-Comprobaciones ejecutadas mediante scripts temporales en memoria, sin editar los
-exports ni conectar un backend:
-
-- **PASSED:** comparación de identidades, datatypes, `extras`, aristas activas y
-  referencias directas en formularios/consumidores; SHA de los tres ZIPs registrado
-  arriba.
-- **PASSED con límite de cobertura:** funciones existentes de
-  `validate_ampath_forms.py` sobre el bundle y sobre la sustitución en memoria de
-  laboratorio: cero errores de formulario en ambos casos. Ese validador comprueba
-  referencias y respuestas, pero no detecta `rendering: number` sobre `Coded`;
-  no acredita la compatibilidad de Urobilinógeno.
-- **FAILED para laboratorio actualizado de forma aislada:** funciones
-  `validate_mapping_integrity` y `validate_default_name_collision_safety` del
-  validador OCL existente: siete errores por los dos conceptos externos faltantes;
-  sin errores de colisión de nombres en esa comprobación.
-- **NOT RUN:** importación funcional de este candidato, actualización con historia
-  sintética para los tres datatypes, flujos clínicos y validación de umbrales.
+El validador de formularios comprueba referencias y respuestas, pero no detecta
+`rendering: number` sobre `Coded`; por eso pasa con el candidato aunque
+Urobilinógeno sea incompatible. El validador OCL sí falla para laboratorio
+actualizado de forma aislada: siete errores por los dos conceptos externos
+faltantes, sin errores de colisión de nombres.
 
 La opción mínima para la actualización actual es conservar laboratorio
 `2026-07-10-02` y preparar por separado la corrección y aceptación de los cambios
 descritos. Si se publica una release compatible con solo incorporaciones, debe
 definir explícitamente sus conceptos y relaciones dependientes, corregir las
-unidades serializadas y mantener los contratos existentes. No se deriva aquí un
-export híbrido mediante eliminación arbitraria de cambios clínicos.
+unidades serializadas y mantener los contratos existentes. No se deriva un
+export híbrido eliminando cambios clínicos de forma arbitraria.
