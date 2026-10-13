@@ -25,3 +25,16 @@ enlaces y consistencia; no se requieren pruebas nuevas ni subir la versión.
 
 No adjuntar secretos ni datos clínicos. La evidencia de CI, aceptación clínica y
 despliegue debe distinguirse explícitamente.
+
+## Decisión humana
+
+El revisor completa esta sección tras revisar el diff final; el agente la deja
+pendiente. Un bot o CI no sustituyen esa revisión.
+
+- Explicación para revisión: elección, alternativa y fallos posibles:
+- Asistencia de IA: herramientas y áreas afectadas, o «ninguna»:
+- Revisor humano y SHA revisado: **Pendiente**
+- Responsable clínico/de permisos cuando aplica: **Pendiente o no aplica con motivo**
+- Decisión humana y alcance aprobado: **Pendiente**
+- Efectos automáticos de publicación del merge y versión prevista: **Pendiente**
+- Despliegue: **requiere una decisión separada**.
