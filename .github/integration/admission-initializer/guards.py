@@ -31,6 +31,12 @@ CONFIG_PREFIX = "configuration"
 LEGACY_CONFIG_PREFIX = "configuration/backend_configuration"
 ROLES_FILE = "roles/roles-core.csv"
 CURRENT_ADMISSION_ADDITIONS = frozenset({"app:home.libroAtenciones"})
+# Privileges introduced by the current content revision. EMRAPI classifies every
+# name that is not "App: " or "Task: " as an API privilege and grants it to its
+# two module-owned privilege levels on the next startup, so each addition is
+# sanctioned here instead of letting the restart change the RBAC snapshot
+# unreviewed. An unsafe name would only reach "Privilege Level: Full".
+CURRENT_EMRAPI_ADDITIONS = frozenset({"app:indicadores.editar"})
 ROLES_CHECKSUM = "configuration_checksums/roles/roles-core.checksum"
 LIQUIBASE_CHECKSUM = "configuration_checksums/liquibase/liquibase.checksum"
 UUID_PATTERN = re.compile(r"^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$")

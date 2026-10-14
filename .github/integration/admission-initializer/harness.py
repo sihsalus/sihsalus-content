@@ -23,7 +23,7 @@ from urllib.parse import urlencode
 from guards import (
     BACKEND, DISTRO_SHA, IMAGE_CONTENT_SHA, IMAGE_CONTENT_VERSION, BASELINE_SHA, DATABASE_IMAGE, DATABASE,
     OWNER_LABEL, CANONICAL_ROLE, LEGACY_ROLE, CANONICAL_UUID, EMRAPI_ROLES, CHANGESET,
-    INITIALIZER_VERSION, ROLES_FILE, CURRENT_ADMISSION_ADDITIONS,
+    INITIALIZER_VERSION, ROLES_FILE, CURRENT_ADMISSION_ADDITIONS, CURRENT_EMRAPI_ADDITIONS,
     ROLES_CHECKSUM, LIQUIBASE_CHECKSUM, UUID_PATTERN, STRICT_JAVA, HarnessFailure,
     require, checked, validate_runner, properties, extract_archive,
     single_file_archive, assemble, validate_assembly, sql_string, admission_privileges,
@@ -619,13 +619,16 @@ class Harness:
 
     def expected_emrapi_refresh(self, before):
         # EMRAPI contextRefreshed precedes Initializer. Its pinned implementation
-        # classifies lowercase app: names as API privileges (only 'App: ' and
-        # 'Task: ' are excluded), and adds these five safe compatibility names
-        # to both module-owned privilege levels on the next startup.
+        # classifies every name that is not 'App: ' or 'Task: ' as an API
+        # privilege and adds it to both module-owned privilege levels on the next
+        # startup, except the unsafe names that only 'Privilege Level: Full'
+        # receives. The historical upgrade fixture can only introduce the declared
+        # hospital-reference names and the current revision's additions, so both
+        # sets are sanctioned here and the restart stays reviewed.
         expected = {table: list(rows) for table, rows in before.items()}
         grants = expected["role_privilege"]
         for role in EMRAPI_ROLES:
-            for privilege in self.hospital_compatibility:
+            for privilege in self.hospital_compatibility | CURRENT_EMRAPI_ADDITIONS:
                 value = role + "\t" + privilege
                 if value not in grants:
                     grants.append(value)

@@ -444,15 +444,28 @@ class HarnessContracts(unittest.TestCase):
 
     def test_emrapi_refresh_adds_only_declared_compatibility_and_then_is_stable(self):
         self.runtime.hospital_compatibility = {"app:home.editar"}
-        before = {"role_privilege": ["Other\tKeep", "Privilege Level: Full\tapp:home.editar"],
-                  "user_role": ["42\tOther"], "patientflags_tag_role": ["1\tOther"] * 2}
+        with patch.object(harness, "CURRENT_EMRAPI_ADDITIONS", frozenset()):
+            before = {"role_privilege": ["Other\tKeep", "Privilege Level: Full\tapp:home.editar"],
+                      "user_role": ["42\tOther"], "patientflags_tag_role": ["1\tOther"] * 2}
+            expected = self.runtime.expected_emrapi_refresh(before)
+            self.assertEqual(expected["role_privilege"], ["Other\tKeep",
+                "Privilege Level: Full\tapp:home.editar", "Privilege Level: High\tapp:home.editar"])
+            self.assertEqual(expected["user_role"], before["user_role"])
+            self.assertEqual(expected["patientflags_tag_role"], before["patientflags_tag_role"])
+            self.assertEqual(self.runtime.expected_emrapi_refresh(expected), expected)
+            self.assertEqual(len(before["role_privilege"]), 2)
+
+    def test_emrapi_refresh_declares_the_current_revision_additions(self):
+        self.runtime.hospital_compatibility = set()
+        before = {"role_privilege": ["Other\tKeep", "Privilege Level: Full\tapp:indicadores.editar"],
+                  "user_role": ["42\tOther"]}
         expected = self.runtime.expected_emrapi_refresh(before)
         self.assertEqual(expected["role_privilege"], ["Other\tKeep",
-            "Privilege Level: Full\tapp:home.editar", "Privilege Level: High\tapp:home.editar"])
+            "Privilege Level: Full\tapp:indicadores.editar",
+            "Privilege Level: High\tapp:indicadores.editar"])
         self.assertEqual(expected["user_role"], before["user_role"])
-        self.assertEqual(expected["patientflags_tag_role"], before["patientflags_tag_role"])
         self.assertEqual(self.runtime.expected_emrapi_refresh(expected), expected)
-        self.assertEqual(len(before["role_privilege"]), 2)
+        self.assertEqual(harness.CURRENT_EMRAPI_ADDITIONS, frozenset({"app:indicadores.editar"}))
 
     def test_state_comparison_distinguishes_missing_tables_and_ignores_row_order(self):
         self.runtime.state = Mock(return_value={"role": ["b", "a"]})
