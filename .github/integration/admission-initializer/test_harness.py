@@ -442,6 +442,28 @@ class HarnessContracts(unittest.TestCase):
             self.assertEqual(current[table], before[table])
         self.assertNotIn("Laboratorio\tGet Patient Programs", before["role_privilege"])
 
+    def test_current_core_role_additions_are_applied_only_when_reviewed(self):
+        self.runtime.hospital_roles = []
+        roles = [{"Role name": name, "Uuid": rule["uuid"], "Description": "Reviewed role",
+                  "Inherited roles": "", "Privileges": ";".join(sorted(rule["privileges"]))}
+                 for name, rule in guards.CURRENT_CORE_ROLE_ADDITIONS.items()]
+        self.runtime.query = Mock(side_effect=[["role", "description", "uuid"], ["role", "privilege"]])
+        before = {"role": ["Other\tKeep\tother"], "role_privilege": ["Other\tKeep"], "role_role": [], "user_role": []}
+        actual = self.runtime.expected_hospital_role_state("owned", before, roles)
+        self.assertEqual(set(actual["role"]), {
+            "Other\tKeep\tother",
+            "SIHSALUS Indicadores\tReviewed role\tda21e37c-246e-4a1f-8ace-ca17b03ff4b5",
+            "SIHSALUS Indicadores editar\tReviewed role\t9437d70d-2195-4b93-84ed-a4e6e17558a9",
+        })
+        self.assertEqual(set(actual["role_privilege"]), {"Other\tKeep"} | {
+            role + "\t" + privilege
+            for role, rule in guards.CURRENT_CORE_ROLE_ADDITIONS.items()
+            for privilege in rule["privileges"]
+        })
+        self.assertEqual(actual["role_role"], [])
+        self.assertEqual(actual["user_role"], [])
+        self.assertEqual(before["role"], ["Other\tKeep\tother"])
+
     def test_emrapi_refresh_adds_only_declared_compatibility_and_then_is_stable(self):
         self.runtime.hospital_compatibility = {"app:home.editar"}
         with patch.object(harness, "CURRENT_EMRAPI_ADDITIONS", frozenset()):

@@ -37,6 +37,16 @@ CURRENT_ADMISSION_ADDITIONS = frozenset({"app:home.libroAtenciones"})
 # sanctioned here instead of letting the restart change the RBAC snapshot
 # unreviewed. An unsafe name would only reach "Privilege Level: Full".
 CURRENT_EMRAPI_ADDITIONS = frozenset({"app:indicadores.editar"})
+CURRENT_CORE_ROLE_ADDITIONS = {
+    "SIHSALUS Indicadores": {
+        "uuid": "da21e37c-246e-4a1f-8ace-ca17b03ff4b5",
+        "privileges": frozenset({"app:indicadores", "Get Concepts", "Get Locations", "Get Encounter Types"}),
+    },
+    "SIHSALUS Indicadores editar": {
+        "uuid": "9437d70d-2195-4b93-84ed-a4e6e17558a9",
+        "privileges": frozenset({"app:indicadores", "app:indicadores.editar", "Get Concepts", "Get Locations", "Get Encounter Types"}),
+    },
+}
 ROLES_CHECKSUM = "configuration_checksums/roles/roles-core.checksum"
 LIQUIBASE_CHECKSUM = "configuration_checksums/liquibase/liquibase.checksum"
 UUID_PATTERN = re.compile(r"^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$")
