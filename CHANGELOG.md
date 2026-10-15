@@ -8,6 +8,13 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Roles de atención CRED (candidata 1.25.34)
+
+- Publicación pendiente de los cambios integrados en #265: añade `Enfermería Responsable` y precarga el selector de rol
+  en 29 formularios CRED, conservando la selección explícita, los UUID, nombres y versiones de formularios.
+- Asigna una versión nueva porque `1.25.33` ya está publicada en Maven Central y su artefacto no contiene esos cambios.
+- La publicación no actualiza el paquete fijado por la distribución ni acredita su carga o aceptación clínica en QLTY.
+
 ### Nombres españoles de anatomía (candidata 1.25.33)
 
 - Export de `SIHSALUS/anatomia-procedimientos` `2026-10-11-02`: ano, mama y páncreas añaden «(sitio anatómico)» al nombre preferido
