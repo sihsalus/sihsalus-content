@@ -117,7 +117,11 @@ nombres de permisos de interfaz de la referencia hospitalaria; declararlos no
 implementa nuevas operaciones de backend. El contenido no asigna automáticamente
 los roles a personas ni sobreescribe roles de pruebas locales. EMRAPI clasifica
 los nombres `app:` en minúsculas como permisos de API y los agrega a sus roles
-Full/High en el siguiente arranque; los genéricos no heredan esos roles.
+Full/High en el siguiente arranque; los genéricos no heredan esos roles. Cada
+nombre `app:` que introduce una revisión del contenido se declara además en
+`CURRENT_EMRAPI_ADDITIONS` del ensayo de Initializer, de modo que esa concesión
+del reinicio quede revisada en el diff en lugar de aparecer como un cambio RBAC
+no aprobado.
 
 Los UUID de roles nuevos son estables; laboratorio y soporte utilizan los de la
 referencia hospitalaria. Para instalaciones existentes, Initializer primero

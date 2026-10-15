@@ -23,7 +23,7 @@ from urllib.parse import urlencode
 from guards import (
     BACKEND, DISTRO_SHA, IMAGE_CONTENT_SHA, IMAGE_CONTENT_VERSION, BASELINE_SHA, DATABASE_IMAGE, DATABASE,
     OWNER_LABEL, CANONICAL_ROLE, LEGACY_ROLE, CANONICAL_UUID, EMRAPI_ROLES, CHANGESET,
-    INITIALIZER_VERSION, ROLES_FILE, CURRENT_ADMISSION_ADDITIONS,
+    INITIALIZER_VERSION, ROLES_FILE, CURRENT_ADMISSION_ADDITIONS, CURRENT_EMRAPI_ADDITIONS, CURRENT_CORE_ROLE_ADDITIONS,
     ROLES_CHECKSUM, LIQUIBASE_CHECKSUM, UUID_PATTERN, STRICT_JAVA, HarnessFailure,
     require, checked, validate_runner, properties, extract_archive,
     single_file_archive, assemble, validate_assembly, sql_string, admission_privileges,
@@ -239,16 +239,33 @@ class Harness:
             "SIHSALUS Laboratorio", "SIHSALUS Soporte"},
             "hospital_role_scope_changed")
         with (candidate / ROLES_FILE).open(encoding="utf-8-sig", newline="") as handle:
-            laboratory = [row for row in csv.DictReader(handle) if row["Role name"] == "Laboratorio"]
+            candidate_roles = list(csv.DictReader(handle))
+        laboratory = [row for row in candidate_roles if row["Role name"] == "Laboratorio"]
         require(len(laboratory) == 1 and laboratory[0]["Uuid"] == "2049b153-6d8c-4bc1-96ab-f34f0ca43285",
                 "canonical_laboratory_identity_changed")
         with (baseline / ROLES_FILE).open(encoding="utf-8-sig", newline="") as handle:
-            old_laboratory = [row for row in csv.DictReader(handle) if row["Role name"] == "Laboratorio"]
+            baseline_roles = list(csv.DictReader(handle))
+        old_laboratory = [row for row in baseline_roles if row["Role name"] == "Laboratorio"]
         require(len(old_laboratory) == 1 and
                 set(laboratory[0]["Privileges"].split(";")) ==
                 set(old_laboratory[0]["Privileges"].split(";")) | {"Get Patient Programs"},
                 "unreviewed_laboratory_privilege_delta")
         self.canonical_laboratory = laboratory
+        self.current_core_roles = [row for row in candidate_roles
+                                   if row["Role name"] in CURRENT_CORE_ROLE_ADDITIONS]
+        require(len(self.current_core_roles) == len(CURRENT_CORE_ROLE_ADDITIONS), "current_core_role_scope_changed")
+        require(
+            not {row["Role name"] for row in baseline_roles} & set(CURRENT_CORE_ROLE_ADDITIONS),
+            "historical_fixture_contains_current_core_role_additions",
+        )
+        for row in self.current_core_roles:
+            reviewed = CURRENT_CORE_ROLE_ADDITIONS[row["Role name"]]
+            require(
+                row["Uuid"] == reviewed["uuid"]
+                and not row["Inherited roles"].strip()
+                and set(filter(None, row["Privileges"].split(";"))) == reviewed["privileges"],
+                "unreviewed_current_core_role_delta",
+            )
         with (candidate / HOSPITAL_COMPATIBILITY_FILE).open(encoding="utf-8-sig", newline="") as handle:
             self.hospital_compatibility = {row["Privilege name"] for row in csv.DictReader(handle)}
         require(len(self.hospital_compatibility) == 5 and
@@ -619,13 +636,16 @@ class Harness:
 
     def expected_emrapi_refresh(self, before):
         # EMRAPI contextRefreshed precedes Initializer. Its pinned implementation
-        # classifies lowercase app: names as API privileges (only 'App: ' and
-        # 'Task: ' are excluded), and adds these five safe compatibility names
-        # to both module-owned privilege levels on the next startup.
+        # classifies every name that is not 'App: ' or 'Task: ' as an API
+        # privilege and adds it to both module-owned privilege levels on the next
+        # startup, except the unsafe names that only 'Privilege Level: Full'
+        # receives. The historical upgrade fixture can only introduce the declared
+        # hospital-reference names and the current revision's additions, so both
+        # sets are sanctioned here and the restart stays reviewed.
         expected = {table: list(rows) for table, rows in before.items()}
         grants = expected["role_privilege"]
         for role in EMRAPI_ROLES:
-            for privilege in self.hospital_compatibility:
+            for privilege in self.hospital_compatibility | CURRENT_EMRAPI_ADDITIONS:
                 value = role + "\t" + privilege
                 if value not in grants:
                     grants.append(value)
@@ -1090,7 +1110,7 @@ class Harness:
         self.assert_checksums(backend, self.candidate_role_md5)
         self.check_admission(db, self.candidate_privileges)
         state["role_privilege"].extend(CANONICAL_ROLE + "\t" + privilege for privilege in CURRENT_ADMISSION_ADDITIONS)
-        state = self.expected_hospital_role_state(db, state, self.canonical_laboratory)
+        state = self.expected_hospital_role_state(db, state, self.canonical_laboratory + self.current_core_roles)
         self.assert_state(db, state, "current_csv_changed_unapproved_rbac")
         require(self.history(db) == history, "current_csv_changed_migration_history")
         self.rbac(backend, db)

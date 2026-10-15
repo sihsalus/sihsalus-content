@@ -150,9 +150,11 @@ The `upgrade` scenario requires:
    references against the explicit allowed transformation, preserving unrelated
    multiplicities and Stock identity/audit fields. No role groups are excluded.
    Require real changeSet history and full loader
-   completion. Restart with the same data and checksums and require unchanged
-   RBAC and complete journal rows, with only the native `runAlways` execution
-   metadata exception described above.
+   completion. Restart with the same data and checksums and require RBAC
+   unchanged except the sanctioned EMRAPI grant of the declared
+   hospital-reference names and `CURRENT_EMRAPI_ADDITIONS` to Full/High, plus
+   complete journal rows, with only the native `runAlways` execution metadata
+   exception described above.
 3. **Current candidate CSV:** start the reconciled database with the complete,
    unmodified candidate configuration. Require its actual roles checksum, exactly
    59 admission privileges, and only the approved read privilege added to the
