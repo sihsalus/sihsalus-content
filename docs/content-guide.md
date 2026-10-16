@@ -230,8 +230,11 @@ La corrección aprobada consiste en habilitar `allow_decimal` en la fuente
 canónica, conservando identidad, unidad, nombres y mappings, e incorporar un
 export oficial versionado después de revisar su diferencia completa.
 
-La consulta actual de OCL exige autenticación. Aún no se ha actualizado el
-concepto ni sustituido el export. Antes de incorporarlo hay que resolver también
+La consulta actual de OCL exige autenticación. La comprobación de solo lectura
+del catálogo institucional el 16/10/2026 confirmó la misma identidad, unidad y
+restricción de decimales. Aún no se ha actualizado el concepto ni sustituido el
+export. El token institucional solo corresponde a ese servidor; no autentica
+contra OCL Cloud. Antes de incorporar un export hay que resolver también
 la compatibilidad con la suscripción remota `2026-07-16-02`, que podría restaurar
 la metadata anterior, y conservar las exclusiones del catálogo de barrios
 documentadas en [la auditoría OCL](audits/2026-09-12-ocl-refresh.md).
