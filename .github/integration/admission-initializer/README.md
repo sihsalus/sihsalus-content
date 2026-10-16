@@ -148,6 +148,30 @@ No checksum is removed or reset: unchanged and retired-file checksum records
 must survive byte-identically, changed files must receive their actual new
 checksum, and all 34 candidate OCL ZIP checksums must be present.
 
+After verifying baseline startup, checksums and integer-only birth-length
+metadata, `ocl-upgrade` also saves `ocl-baseline-order-{sha}.json` as a separate
+seven-day CI artifact. This happens **before creating synthetic people or
+observations and before loading the candidate**. Neither `ocl-fresh` nor the
+historical scenarios produce it. The artifact records the pinned baseline
+version/source SHA and backend digest, plus only the 17,404 active OCL catalog
+relationships declared by the published baseline exports: 3,270 `Q-AND-A` and
+14,134 `CONCEPT-SET` mappings. Each entry contains its type, mapping UUID,
+parent/target concept UUIDs, `drug_uuid: null`, and the actual numeric sort weight
+(or JSON `null` for SQL NULL). The OCL edges point to concepts; an unexpected
+drug reference fails validation. No database IDs, concept names, accounts,
+clinical records, SQL dumps or raw responses are included.
+
+The database edges must match the allowlisted UUIDs and endpoints exactly;
+missing, duplicate or mismatched entries fail. Canonical UUIDs and the published
+36-character CIEL identifiers (digits followed by `A`) are validated, and
+malformed/non-finite weights are rejected. CSV-owned relationships outside the
+OCL allowlist are omitted. The complete projection is validated before the
+artifact becomes visible; an existing destination or symlink is not overwritten.
+The JSON is **review evidence, not a migration or OCL update payload**. Its
+presence proves only that baseline metadata was captured: the candidate may
+still fail the unchanged complete graph/weight, checksum and restart assertions.
+It does not establish the ordering of an existing DEV/QLTY/production database.
+
 Both scenarios require the exact birth-length UUID
 `bf82beb1-d3b8-400e-8160-90869cad8136`, the existing numeric concept ID, unit `cm`,
 and `allow_decimal=true` in SQL and REST. A native REST submission of `30.1`
@@ -387,10 +411,12 @@ activity proves readiness: completion and the real started module are still
 required. Exhausting either budget remains a failed validation.
 
 Stdout contains only sanitized JSON phase results, public source identifiers,
-checksums and fixed diagnostic codes. Preserve only that JSONL in the separate
+checksums and fixed diagnostic codes. Preserve that JSONL in the separate
 `admission-initializer-{scenario}-{sha}` CI artifacts,
 never raw application logs, Docker inspections, HTTP bodies, SQL dumps or the
-private run directory. A failed RBAC snapshot comparison identifies only the
+private run directory. The OCL baseline ordering artifact described above is
+the only additional metadata projection; it is not copied from raw diagnostics.
+A failed RBAC snapshot comparison identifies only the
 fixed table name, table presence and counts of added/removed whole rows; it never
 prints roles, privileges, users or row contents. Repeated rows remain significant.
 Cleanup validates resource ownership before removal;

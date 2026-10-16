@@ -25,7 +25,7 @@ from guards import (
     OWNER_LABEL, CANONICAL_ROLE, LEGACY_ROLE, CANONICAL_UUID, EMRAPI_ROLES, CHANGESET,
     INITIALIZER_VERSION, ROLES_FILE, CURRENT_ADMISSION_ADDITIONS, CURRENT_EMRAPI_ADDITIONS, CURRENT_CORE_ROLE_ADDITIONS,
     ROLES_CHECKSUM, LIQUIBASE_CHECKSUM, UUID_PATTERN, STRICT_JAVA, HarnessFailure,
-    require, checked, validate_runner, properties, extract_archive,
+    require, checked, validate_runner, properties, extract_archive, ocl_order_rows,
     single_file_archive, assemble, validate_assembly, sql_string, admission_privileges,
     OCL_BACKEND, OCL_DISTRO_SHA, OCL_BASELINE_SHA, OCL_BASELINE_VERSION,
     OCL_CORE_VERSION, OCL_MODULE_VERSION, OCL_API_URL, BIRTH_LENGTH_UUID,
@@ -98,6 +98,7 @@ class Harness:
 
     def __init__(self, env, scenario="upgrade"):
         runner_temp = validate_runner(env)
+        self.scenario = scenario
         self.ocl_transition = scenario in ("ocl-fresh", "ocl-upgrade")
         if self.ocl_transition:
             self.backend_image = OCL_BACKEND
@@ -430,6 +431,61 @@ class Harness:
                                      + " ORDER BY " + columns.split(",")[0]))
                 for key, (table, columns) in TERMINOLOGY_TABLES.items()}
 
+    @staticmethod
+    def ocl_order_contract(configuration):
+        """Allow only active relationships in the published catalog exports."""
+        exports = []
+        for path in sorted((configuration / "ocl").glob("*.zip")):
+            with zipfile.ZipFile(path) as archive:
+                exports.append(json.loads(archive.read("export.json")))
+        require(len(exports) == 34, "ocl_order_published_archive_count_changed")
+        concepts = {}
+        for export in exports:
+            for concept in export["concepts"]:
+                require(concept["url"] not in concepts, "ocl_order_duplicate_catalog_concept")
+                concepts[concept["url"]] = concept["external_id"]
+        expected = {}
+        for export in exports:
+            for mapping in export["mappings"]:
+                kind = mapping["map_type"]
+                if kind not in ("Q-AND-A", "CONCEPT-SET") or mapping["retired"]:
+                    continue
+                identifier = mapping["external_id"]
+                require(identifier not in expected, "ocl_order_duplicate_catalog_mapping")
+                require(mapping["from_concept_url"] in concepts and mapping["to_concept_url"] in concepts,
+                        "ocl_order_catalog_reference_missing")
+                expected[identifier] = (kind, concepts[mapping["from_concept_url"]],
+                                       concepts[mapping["to_concept_url"]])
+        require(Counter(edge[0] for edge in expected.values()) == {"Q-AND-A": 3270, "CONCEPT-SET": 14134},
+                "ocl_order_published_catalog_size_changed")
+        return expected
+
+    def preserve_ocl_baseline_order(self, db):
+        """Review evidence from the pinned synthetic baseline, never an import payload."""
+        require(self.scenario == "ocl-upgrade" and self.backend_image == OCL_BACKEND
+                and self.image_content_sha == OCL_BASELINE_SHA
+                and self.image_content_version == OCL_BASELINE_VERSION,
+                "ocl_order_requires_published_baseline")
+        expected = self.ocl_order_contract(self.directory / "source-34")
+        rows = self.query(db, "SELECT 'Q-AND-A',a.uuid,p.uuid,c.uuid,d.uuid,a.sort_weight "
+            "FROM concept_answer a LEFT JOIN concept p ON p.concept_id=a.concept_id "
+            "LEFT JOIN concept c ON c.concept_id=a.answer_concept LEFT JOIN drug d ON d.drug_id=a.answer_drug "
+            "UNION ALL SELECT 'CONCEPT-SET',s.uuid,p.uuid,c.uuid,NULL,s.sort_weight "
+            "FROM concept_set s LEFT JOIN concept p ON p.concept_id=s.concept_set "
+            "LEFT JOIN concept c ON c.concept_id=s.concept_id")
+        payload = {"schema_version": 1, "baseline_version": OCL_BASELINE_VERSION,
+            "baseline_sha": OCL_BASELINE_SHA, "backend_digest": OCL_BACKEND.split("@")[1],
+            "mappings": ocl_order_rows(expected, rows)}
+        # Validate and serialize completely before atomically exposing a separate
+        # artifact. Exclusive linking rejects existing files and symlink targets.
+        output = self.directory.parent / ("ocl-baseline-order-" + self.candidate_sha + ".json")
+        private = self.private("ocl-baseline-order.json", json.dumps(payload, indent=2, allow_nan=False) + "\n")
+        try:
+            os.link(private, output)
+        except OSError:
+            raise HarnessFailure("ocl_order_artifact_not_created") from None
+        emit("ocl_baseline_order", "PASSED", mappings=len(payload["mappings"]))
+
     def assert_terminology_identity(self, db, expected, phase):
         """Keep the strict oracle; diagnose drift without emitting row values."""
         require(phase in ("upgrade", "restart"), "invalid_terminology_snapshot_phase")
@@ -501,6 +557,8 @@ class Harness:
         self.wait_initializer(backend, "ocl_baseline" if upgrade else "ocl_fresh")
         self.assert_checksums(backend, self.role_md5 if upgrade else self.candidate_role_md5)
         concept_id = self.check_birth_length(backend, db, decimal=not upgrade)
+        if upgrade:
+            self.preserve_ocl_baseline_order(db)
         code, person = self.request(backend, "POST", "/person", {
             "names": [{"givenName": "Synthetic", "familyName": "OCL CI " + self.nonce[:8]}],
             "gender": "F", "birthdate": "2026-10-01"})

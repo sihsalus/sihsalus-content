@@ -36,34 +36,34 @@ externas de `Saver` 4.0.0 usa fuente+código. Ningún mapping `Q-AND-A` o
 `CONCEPT-SET`, que sí necesita URL de destino, pierde esa URL. Los campos
 derivados de propietario no forman parte del modelo `OclMapping` importado.
 
-| Fuente | Versión preparada | Conceptos | Mappings |
-| --- | --- | ---: | ---: |
-| medicamentos | 2026-06-30 | 1001 | 17 |
-| procedimientos | 2026-07-10-02 | 12333 | 12331 |
-| diagnosis | 2026-06-30 | 13484 | 0 |
-| laboratorio | 2026-07-10-02 | 212 | 1050 |
-| inmunizaciones | 2026-06-30 | 22 | 60 |
-| prestacionales | 2026-06-30 | 66 | 65 |
-| geografia | 2026-07-10-02 | 196 | 364 |
-| etnias | 2026-06-30 | 62 | 64 |
-| seguros | 2026-07-17-01 | 25 | 33 |
-| religiones | 2026-06-30 | 12 | 24 |
-| sihsalus | **2026-10-16-1, sin publicar** | 4474 | 5679 |
-| lenguas | 2026-07-10-02 | 63 | 121 |
-| ocupaciones | 2026-07-09-01 | 448 | 447 |
-| estado-civil | 2026-06-30 | 6 | 8 |
-| educacion | 2026-06-30 | 12 | 13 |
-| barrios-santa-clotilde | 2026-08-22-01 | 11 | 10 |
-| referencia-institucional | 2026-08-25-01 | 3 | 0 |
-| anatomia-procedimientos | **2026-10-16-1, sin publicar** | 121 | 266 |
+| Fuente                   | Versión preparada              | Conceptos | Mappings |
+| ------------------------ | ------------------------------ | --------: | -------: |
+| medicamentos             | 2026-06-30                     |      1001 |       17 |
+| procedimientos           | 2026-07-10-02                  |     12333 |    12331 |
+| diagnosis                | 2026-06-30                     |     13484 |        0 |
+| laboratorio              | 2026-07-10-02                  |       212 |     1050 |
+| inmunizaciones           | 2026-06-30                     |        22 |       60 |
+| prestacionales           | 2026-06-30                     |        66 |       65 |
+| geografia                | 2026-07-10-02                  |       196 |      364 |
+| etnias                   | 2026-06-30                     |        62 |       64 |
+| seguros                  | 2026-07-17-01                  |        25 |       33 |
+| religiones               | 2026-06-30                     |        12 |       24 |
+| sihsalus                 | **2026-10-16-1, sin publicar** |      4474 |     5679 |
+| lenguas                  | 2026-07-10-02                  |        63 |      121 |
+| ocupaciones              | 2026-07-09-01                  |       448 |      447 |
+| estado-civil             | 2026-06-30                     |         6 |        8 |
+| educacion                | 2026-06-30                     |        12 |       13 |
+| barrios-santa-clotilde   | 2026-08-22-01                  |        11 |       10 |
+| referencia-institucional | 2026-08-25-01                  |         3 |        0 |
+| anatomia-procedimientos  | **2026-10-16-1, sin publicar** |       121 |      266 |
 
 Las otras 16 versiones ya están publicadas en el servidor institucional.
 Los dos candidatos se crearon con `released: false` y se descargaron mediante
 el endpoint oficial de export. No se inventó una versión dentro de los ZIP.
 
-| Export oficial candidato combinado | SHA-256 del ZIP descargado |
-| --- | --- |
-| `sihsalus/2026-10-16-1` | `e9fb3c4cefc8435cafd87e3690e7e4c60cf2d2f0e02f991ad9e18f2358373b3a` |
+| Export oficial candidato combinado     | SHA-256 del ZIP descargado                                         |
+| -------------------------------------- | ------------------------------------------------------------------ |
+| `sihsalus/2026-10-16-1`                | `e9fb3c4cefc8435cafd87e3690e7e4c60cf2d2f0e02f991ad9e18f2358373b3a` |
 | `anatomia-procedimientos/2026-10-16-1` | `f9fe22e1e4545da70cb3a9e892c143885a88c7b20594719e313896571cdf8259` |
 
 El splitter existente separa conceptos y mappings, conserva los slots de carga
@@ -107,13 +107,13 @@ su única definición operativa.
 
 Consulta de solo lectura el 16/10/2026:
 
-| Propiedad | DEV | QLTY |
-| --- | --- | --- |
-| Suscripción | OCL Cloud, `sihsalus/2026-07-16-02` | OCL Cloud, `sihsalus/2026-07-16-02` |
-| `scheduledDays` | `0` | `0` |
-| `scheduledTime` | `0:0` | `0:0` |
-| `subscribedToSnapshot` | `false` | `false` |
-| `validationType` | `FULL` | `FULL` |
+| Propiedad              | DEV                                 | QLTY                                |
+| ---------------------- | ----------------------------------- | ----------------------------------- |
+| Suscripción            | OCL Cloud, `sihsalus/2026-07-16-02` | OCL Cloud, `sihsalus/2026-07-16-02` |
+| `scheduledDays`        | `0`                                 | `0`                                 |
+| `scheduledTime`        | `0:0`                               | `0:0`                               |
+| `subscribedToSnapshot` | `false`                             | `false`                             |
+| `validationType`       | `FULL`                              | `FULL`                              |
 
 No hay días configurados para una descarga automática. El pin antiguo podría
 restaurar `allow_decimal: false` en una importación remota manual; por eso la
@@ -157,6 +157,43 @@ publicado. No se presentan ambos como una misma línea base.
 
 No se realizaron pruebas clínicas de estas correcciones en DEV/QLTY ni se
 cambiaron datos clínicos, cuentas, permisos o migraciones de los ambientes.
+
+## Bloqueo de preservación del orden y siguiente comprobación
+
+El ensayo nativo de actualización del candidato confirmó que la talla decimal
+se corrige y conserva su identidad, pero el importador oficial cambia
+`concept_answer.sort_weight` a `NULL` en **2.922 respuestas** y cambia el peso
+de **dos miembros de conjuntos** a `1`. Sus UUID, claves y extremos se
+conservan. El control completo de identidad y relaciones continúa rechazando
+ese resultado; no se excluye el orden del criterio de aceptación.
+
+El orden de los arrays de los exports no demuestra los pesos del runtime
+publicado. Por eso, antes de proponer una actualización del catálogo, el ensayo
+`ocl-upgrade` conservará un artefacto separado del orden de la línea base
+sintética **1.25.34**: únicamente UUID de las relaciones declaradas en sus
+exports, UUID de origen/destino y peso, ligados al commit y a la imagen
+inmutables. Se obtiene antes de crear los datos clínicos sintéticos y antes de
+cargar el candidato. No contiene nombres, pacientes, observaciones, usuarios,
+credenciales ni volcados de la base de datos. Su presencia tampoco acredita
+que la actualización haya pasado.
+
+La corrección propuesta reutiliza la propiedad nativa `sort_weight` de OCL
+4.0.0. No basta reordenar los ZIP: el importador escribe un peso nulo cuando
+actualiza una respuesta sin esa propiedad. El inventario actual identifica
+respuestas activas sin peso en laboratorio (358), etnias (62), seguros (19),
+religiones (12), sihsalus (2.451), estado civil (7) y educación (13). Los dos
+miembros de conjuntos de sihsalus tienen referencia declarativa en
+`configuration/conceptsets/stock_foundation_concept_sets.csv`: mapping `4163`
+peso `10` y mapping `4146` peso `60`.
+
+El artefacto debe contrastarse por UUID con los exports candidatos y con
+cualquier diferencia documentada de los ambientes antes de preparar el payload
+final. El responsable del catálogo debe aprobar esa propuesta concreta antes
+de cambiar las siete fuentes institucionales o crear/publicar nuevas versiones.
+No se ejecuta reparación SQL, no se mantiene un loader alternativo y no se
+modifica el OMOD. Los casos #389 y #390 se preparan por separado porque sus
+validaciones de formulario no necesitan esta transición; #391 continúa
+bloqueado hasta demostrar su actualización completa.
 
 ## Decisiones pendientes y recuperación
 

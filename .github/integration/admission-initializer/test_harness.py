@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """Pure harness contracts. No Docker, network, backend, or existing credentials."""
 
+import io
+import json
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from unittest.mock import Mock, patch
+from contextlib import redirect_stdout
 
 import guards
 import harness
@@ -60,6 +63,123 @@ def procedure_anatomy_result():
     responses = [(200, {"results": [{"uuid": by_code[code], "display": "Sitio sintético"}]})
                  for code in ("ADB", "DELT", "ESO")] + [(200, {"results": []})]
     return (root_uuid, expected, terms, association), rows, responses
+
+
+class OclOrderEvidenceContracts(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix="ocl-order-unit-")
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.answer = "10000000-0000-4000-8000-000000000001"
+        self.member = "10000000-0000-4000-8000-000000000002"
+        self.parent = "20000000-0000-4000-8000-000000000001"
+        self.target = "1067AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        self.expected = {self.answer: ("Q-AND-A", self.parent, self.target),
+                         self.member: ("CONCEPT-SET", self.parent, self.target)}
+        self.rows = [f"Q-AND-A\t{self.answer}\t{self.parent}\t{self.target}\tNULL\t10.5",
+                     f"CONCEPT-SET\t{self.member}\t{self.parent}\t{self.target}\tNULL\tNULL"]
+        self.runtime = object.__new__(harness.Harness)
+        self.runtime.scenario = "ocl-upgrade"
+        self.runtime.backend_image = guards.OCL_BACKEND
+        self.runtime.image_content_sha = guards.OCL_BASELINE_SHA
+        self.runtime.image_content_version = guards.OCL_BASELINE_VERSION
+        self.runtime.candidate_sha = "a" * 40
+        self.runtime.directory = self.root / "private"
+        self.runtime.directory.mkdir(mode=0o700)
+        self.runtime.ocl_order_contract = Mock(return_value=self.expected)
+        self.runtime.query = Mock(return_value=self.rows)
+        self.output = self.root / ("ocl-baseline-order-" + self.runtime.candidate_sha + ".json")
+
+    def test_projects_only_allowlisted_public_metadata_and_preserves_actual_null_or_fraction(self):
+        unrelated = "CONCEPT-SET\tprivate-not-allowlisted\tprivate-name\tprivate-name\tNULL\tsecret"
+        actual = guards.ocl_order_rows(self.expected, [unrelated, *reversed(self.rows)])
+        self.assertEqual(actual, [
+            {"map_type": "Q-AND-A", "mapping_uuid": self.answer, "parent_uuid": self.parent,
+             "target_uuid": self.target, "drug_uuid": None, "sort_weight": 10.5},
+            {"map_type": "CONCEPT-SET", "mapping_uuid": self.member, "parent_uuid": self.parent,
+             "target_uuid": self.target, "drug_uuid": None, "sort_weight": None},
+        ])
+        self.assertNotIn("private", json.dumps(actual))
+        for weight, expected in (("-0.25", -0.25), ("1e3", 1000), ("0", 0)):
+            rows = [self.rows[0].rsplit("\t", 1)[0] + "\t" + weight, self.rows[1]]
+            self.assertEqual(guards.ocl_order_rows(self.expected, rows)[0]["sort_weight"], expected)
+
+    def test_rejects_nonfinite_malformed_duplicate_missing_and_mismatched_rows_without_values(self):
+        invalid = [[], [self.rows[0]], self.rows + [self.rows[0]], ["secret"], [None],
+                   [self.rows[0] + "\tprivate-extra-column", self.rows[1]]]
+        for weight in ("NaN", "Infinity", "-Infinity", "1e999", "true", "[1]", "0x10", "01",
+                       " 1", "1\nprivate-name", "private-token"):
+            invalid.append([self.rows[0].rsplit("\t", 1)[0] + "\t" + weight, self.rows[1]])
+        for column, value in ((0, "private-kind"), (1, self.member), (2, self.member),
+                              (3, "private-uuid"), (4, self.answer)):
+            fields = self.rows[0].split("\t")
+            fields[column] = value
+            invalid.append(["\t".join(fields), self.rows[1]])
+        for rows in invalid:
+            with self.subTest(rows=rows), self.assertRaises(HarnessFailure) as failure:
+                guards.ocl_order_rows(self.expected, rows)
+            self.assertRegex(str(failure.exception), r"^ocl_order_[a-z_]+$")
+            self.assertNotIn("private", str(failure.exception))
+
+    def test_rejects_untrusted_catalog_identifiers_and_relationship_types(self):
+        for expected in ({}, None, {"private-uuid": self.expected[self.answer]},
+                         {self.answer: ("Q-AND-A", "private-name", self.target)},
+                         {self.answer: ("Q-AND-A", self.parent, "1067AAAAAAAA")},
+                         {self.answer: ("SAME-AS", self.parent, self.target)},
+                         {self.answer: None}):
+            with self.subTest(expected=expected), self.assertRaises(HarnessFailure):
+                guards.ocl_order_rows(expected, self.rows)
+
+    def test_artifact_has_fixed_provenance_and_no_raw_output_and_survives_private_cleanup(self):
+        output = io.StringIO()
+        with redirect_stdout(output):
+            self.runtime.preserve_ocl_baseline_order("owned-db")
+        saved = json.loads(self.output.read_text())
+        self.assertEqual(set(saved), {"schema_version", "baseline_version", "baseline_sha", "backend_digest", "mappings"})
+        self.assertEqual(saved["baseline_version"], "1.25.34")
+        self.assertEqual(saved["baseline_sha"], guards.OCL_BASELINE_SHA)
+        self.assertEqual(saved["backend_digest"], guards.OCL_BACKEND.split("@")[1])
+        self.assertEqual(saved["mappings"], guards.ocl_order_rows(self.expected, self.rows))
+        self.assertEqual(self.output.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(json.loads(output.getvalue()), {"stage": "ocl_baseline_order", "status": "PASSED", "mappings": 2})
+        self.runtime.ocl_order_contract.assert_called_once_with(self.runtime.directory / "source-34")
+        query = self.runtime.query.call_args.args[1]
+        for forbidden in ("person", "patient", "obs", "users", ".name", "SELECT *"):
+            self.assertNotIn(forbidden, query)
+        (self.runtime.directory / "ocl-baseline-order.json").unlink()
+        self.assertEqual(json.loads(self.output.read_text()), saved)
+
+    def test_invalid_runtime_or_rows_never_expose_an_artifact(self):
+        for attribute, value in (("scenario", "ocl-fresh"), ("scenario", "upgrade"),
+                                 ("backend_image", guards.BACKEND), ("image_content_sha", "b" * 40),
+                                 ("image_content_version", "1.25.35")):
+            original = getattr(self.runtime, attribute)
+            setattr(self.runtime, attribute, value)
+            with self.subTest(attribute=attribute, value=value), self.assertRaises(HarnessFailure):
+                self.runtime.preserve_ocl_baseline_order("owned-db")
+            self.assertFalse(self.output.exists())
+            self.runtime.query.assert_not_called()
+            setattr(self.runtime, attribute, original)
+        self.runtime.query.return_value = [self.rows[0].replace("10.5", "private-token"), self.rows[1]]
+        with self.assertRaises(HarnessFailure):
+            self.runtime.preserve_ocl_baseline_order("owned-db")
+        self.assertFalse(self.output.exists())
+        self.assertFalse((self.runtime.directory / "ocl-baseline-order.json").exists())
+
+    def test_artifact_never_overwrites_an_existing_destination_or_follows_its_symlink(self):
+        target = self.root / "unrelated"
+        target.write_text("keep")
+        for symlink in (False, True):
+            if symlink:
+                self.output.symlink_to(target)
+            else:
+                self.output.write_text("keep")
+            with self.assertRaisesRegex(HarnessFailure, "ocl_order_artifact_not_created"):
+                self.runtime.preserve_ocl_baseline_order("owned-db")
+            self.assertEqual(self.output.read_text(), "keep")
+            self.assertEqual(target.read_text(), "keep")
+            self.output.unlink()
+            (self.runtime.directory / "ocl-baseline-order.json").unlink()
 
 
 class HarnessContracts(unittest.TestCase):
@@ -152,7 +272,7 @@ class HarnessContracts(unittest.TestCase):
         runtime.start_backend = Mock(side_effect=[("baseline", "owned-volume"), ("upgrade", "owned-volume"),
                                                  ("restart", "owned-volume")])
         for name in ("wait_initializer", "assert_checksums", "check_retained_checksums", "check_ocl_namespace",
-                     "docker", "remove_container"):
+                     "docker", "remove_container", "preserve_ocl_baseline_order"):
             setattr(runtime, name, Mock())
         runtime.check_birth_length = Mock(return_value="510")
         runtime.request = Mock(return_value=(201, {"uuid": "10000000-0000-4000-8000-000000000001"}))
@@ -164,8 +284,14 @@ class HarnessContracts(unittest.TestCase):
         changed_identities = {**identities, "answers": ("610\tsynthetic-private-uuid\t10\t20\tNULL\tNULL",)}
         runtime.terminology_identity_snapshot = Mock(return_value=identities)
         runtime.checksum_snapshot = Mock(return_value={"ocl/a.checksum": b"existing checksum"})
+        sequence = Mock()
+        sequence.attach_mock(runtime.preserve_ocl_baseline_order, "order")
+        sequence.attach_mock(runtime.request, "request")
+        sequence.attach_mock(runtime.start_backend, "start")
         with patch.object(harness, "emit"):
             runtime.ocl_transition_run(upgrade=True)
+        self.assertEqual([call[0] for call in sequence.mock_calls], ["start", "order", "request", "start", "start"])
+        runtime.preserve_ocl_baseline_order.assert_called_once_with("owned-db")
         for call in runtime.start_backend.call_args_list[1:]:
             self.assertEqual(call.kwargs, {"data_volume": "owned-volume"})
         runtime.check_retained_checksums.assert_called_once()
@@ -194,6 +320,13 @@ class HarnessContracts(unittest.TestCase):
         self.assertEqual(emit.call_args_list[0].kwargs,
                          {"phase": "upgrade", "concept_id_preserved": True, "allow_decimal": True})
         self.assertEqual(emit.call_args_list[1].args, ("terminology_snapshot", "FAILED"))
+
+        runtime.preserve_ocl_baseline_order.reset_mock()
+        runtime.start_backend.side_effect = [("fresh", "owned-volume"), ("restart", "owned-volume")]
+        runtime.terminology_identity_snapshot.side_effect = None
+        with patch.object(harness, "emit"):
+            runtime.ocl_transition_run(upgrade=False)
+        runtime.preserve_ocl_baseline_order.assert_not_called()
 
     def test_terminology_drift_reports_only_fixed_columns_and_counts_without_accepting_changes(self):
         before = {key: () for key in harness.TERMINOLOGY_TABLES}
