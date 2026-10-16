@@ -195,7 +195,6 @@ catálogo. `Enfermera de Triaje` conserva su alcance de triaje y los encuentros
 históricos conservan su rol. El cambio de profesional sigue sujeto a la
 autorización del backend; el rol del encuentro no concede privilegios.
 
-
 `(CRED) Detalles de Nacimiento` incorpora una observación opcional de fecha y
 hora de alta del recién nacido. Reutiliza `Fecha de alta` de OCL, UUID
 `e911fe60-6d45-40c7-8d65-1ab93b3c77f4`, datatype `Datetime`. Su contexto es el
@@ -209,6 +208,25 @@ válida y un mínimo exacto de 48 horas, y una lectura incompleta o fallida no
 habilita el control. El segundo control incluye el día 14 y conserva siete días
 mínimos desde el control anterior. La reanudación del mismo control conserva su
 número.
+
+La corrección de los reportes #389 y #390 mantiene la identidad del formulario
+`(CRED) Detalles de Nacimiento` `1.2`. El alta no puede preceder al día de
+nacimiento ni estar en el futuro; se permite el mismo día sin inferir una hora
+de nacimiento que el dato demográfico no contiene. Si se introduce un alta y
+no se dispone de una fecha de nacimiento válida, pide revisar la demografía.
+
+El tiempo de hospitalización solo se edita con «Sí». Al cambiar a «No» se
+conserva el valor introducido, pero se bloquea el guardado contradictorio y se
+pide volver a «Sí» para corregirlo o borrarlo. No se eliminan observaciones por
+ocultación ni se sustituye una respuesta ausente por cero. La regla se aplica
+también al editar; no modifica registros históricos automáticamente.
+
+La validación local ejecuta estas expresiones con el [evaluador nativo del
+frontend](../.github/integration/form-expressions/README.md), sin sustituir su
+comportamiento por JavaScript. Queda pendiente la aceptación en QLTY con un
+paciente sintético: alta anterior e igual al nacimiento, alta futura, cambio
+Sí → No con duración previa (incluido cero), corrección explícita y lectura
+después de guardar. Las pruebas de expresiones no acreditan persistencia.
 
 `CRED-001` `1.2.1` conserva la hemoglobina medida y la clasificación confirmada
 por el profesional; incluye 500 m en la advertencia de ajuste por altitud y
@@ -232,16 +250,16 @@ El inventario de `configuration/ocl/*concepts*.zip` no contiene conceptos
 específicos para estos resultados. No sustituirlos por el concepto de Hb medida,
 un resultado nutricional genérico repetido ni un UUID inventado en el formulario.
 
-| Dato | Tipo / unidad | Semántica y revisión requerida |
-| --- | --- | --- |
-| Corrección de hemoglobina por altitud | Numeric, g/dL | Cantidad restada; conservar altitud aplicable, método/tabla y versión. |
-| Hemoglobina ajustada por altitud | Numeric, g/dL | Resultado separado de la medición original y ligado a ella. |
-| Puntaje z de P/E, T/E, P/T, IMC/E y PC/E | Un Numeric por indicador, sin unidad | Identificador propio por indicador; conservar sexo, edad al medir, referencia y mediciones fuente. |
-| Clasificación de cada indicador | Un Coded por indicador | Respuestas compatibles con edad/referencia; no reutilizar indiscriminadamente la clasificación global. |
-| Notificación del nacimiento extrainstitucional | Datetime | Fecha de conocimiento del nacimiento, diferente de fecha de nacimiento y de atención. |
-| Ítems EDI | Coded por ítem | Mantener código oficial, grupo de edad, eje, observación/pregunta y respuestas completas. |
-| Hitos Huanca | Coded por hito | Mantener pauta, área y método de constatación de la adaptación aprobada. |
-| Ítems y seguimiento M-CHAT-R/F | Coded por ítem y decisión de seguimiento | Conservar orden, versión, respuestas iniciales, segunda etapa y resultado final diferenciado. |
+| Dato                                           | Tipo / unidad                            | Semántica y revisión requerida                                                                         |
+| ---------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Corrección de hemoglobina por altitud          | Numeric, g/dL                            | Cantidad restada; conservar altitud aplicable, método/tabla y versión.                                 |
+| Hemoglobina ajustada por altitud               | Numeric, g/dL                            | Resultado separado de la medición original y ligado a ella.                                            |
+| Puntaje z de P/E, T/E, P/T, IMC/E y PC/E       | Un Numeric por indicador, sin unidad     | Identificador propio por indicador; conservar sexo, edad al medir, referencia y mediciones fuente.     |
+| Clasificación de cada indicador                | Un Coded por indicador                   | Respuestas compatibles con edad/referencia; no reutilizar indiscriminadamente la clasificación global. |
+| Notificación del nacimiento extrainstitucional | Datetime                                 | Fecha de conocimiento del nacimiento, diferente de fecha de nacimiento y de atención.                  |
+| Ítems EDI                                      | Coded por ítem                           | Mantener código oficial, grupo de edad, eje, observación/pregunta y respuestas completas.              |
+| Hitos Huanca                                   | Coded por hito                           | Mantener pauta, área y método de constatación de la adaptación aprobada.                               |
+| Ítems y seguimiento M-CHAT-R/F                 | Coded por ítem y decisión de seguimiento | Conservar orden, versión, respuestas iniciales, segunda etapa y resultado final diferenciado.          |
 
 Antes de asignar UUIDs, el mantenedor de OCL debe buscar equivalencias en HEAD,
 reutilizar las existentes y publicar una versión/export oficial con los Q-AND-A.
@@ -286,17 +304,17 @@ módulos del distro y la norma vigente en fuentes oficiales.
 
 ### Formularios y metadata incluidos
 
-| Área | Contenido y límites |
-| --- | --- |
-| Consulta externa y salud mental | `CE-*` y `PSIC-001` a `PSIC-004`. Los diagnósticos se registran mediante Visit Notes. |
-| Signos vitales y emergencia | Metadata separada para el chart, triaje y atención posterior; el [contrato de encuentros](contracts/chart-vitals-encounter-contract.md) requiere captura embebida en el frontend. No hay un JSON AMPATH adicional. |
-| Obstetricia y neonatal | `OBST-*`, partograma, recién nacido y puerperio. |
-| Hospitalización | `HOSP-001`, `HOSP-004`, `HOSP-008`, `HOSP-009`, `HOSP-012` y `FormularioEpicrisisMédica`. |
-| Referencia | `CE-REF-*` y [catálogo de transporte](contracts/referral-transport-terminology.md). |
-| CRED | `CRED-*`, incluidos Huanca adaptado (`CRED-026`) y habilidades/conductas (`CRED-027`); véase el [contrato clínico de CRED](#contrato-clínico-de-cred). |
-| Odontología | `ODONT-*`; el odontograma es un componente separado. |
-| Inmunizaciones | `INMU-001` e `INMU-002`; la [auditoría NTS 246](audits/2026-06-17-inmunizaciones-nts-246.md) registra brechas de vacunas y productos. |
-| Laboratorio | Formularios de resultados y rangos con los límites del [contrato de laboratorio](contracts/laboratory-reporting.md). |
+| Área                            | Contenido y límites                                                                                                                                                                                                |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Consulta externa y salud mental | `CE-*` y `PSIC-001` a `PSIC-004`. Los diagnósticos se registran mediante Visit Notes.                                                                                                                              |
+| Signos vitales y emergencia     | Metadata separada para el chart, triaje y atención posterior; el [contrato de encuentros](contracts/chart-vitals-encounter-contract.md) requiere captura embebida en el frontend. No hay un JSON AMPATH adicional. |
+| Obstetricia y neonatal          | `OBST-*`, partograma, recién nacido y puerperio.                                                                                                                                                                   |
+| Hospitalización                 | `HOSP-001`, `HOSP-004`, `HOSP-008`, `HOSP-009`, `HOSP-012` y `FormularioEpicrisisMédica`.                                                                                                                          |
+| Referencia                      | `CE-REF-*` y [catálogo de transporte](contracts/referral-transport-terminology.md).                                                                                                                                |
+| CRED                            | `CRED-*`, incluidos Huanca adaptado (`CRED-026`) y habilidades/conductas (`CRED-027`); véase el [contrato clínico de CRED](#contrato-clínico-de-cred).                                                             |
+| Odontología                     | `ODONT-*`; el odontograma es un componente separado.                                                                                                                                                               |
+| Inmunizaciones                  | `INMU-001` e `INMU-002`; la [auditoría NTS 246](audits/2026-06-17-inmunizaciones-nts-246.md) registra brechas de vacunas y productos.                                                                              |
+| Laboratorio                     | Formularios de resultados y rangos con los límites del [contrato de laboratorio](contracts/laboratory-reporting.md).                                                                                               |
 
 ### Referencias documentadas
 

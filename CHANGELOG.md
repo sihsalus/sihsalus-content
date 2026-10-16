@@ -8,6 +8,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Validaciones de nacimiento CRED (candidata 1.25.35)
+
+- El formulario de nacimiento `1.2` rechaza altas anteriores al día de nacimiento y conserva la validación de fechas futuras (#389).
+- El tiempo de hospitalización solo se edita con «Sí»; una duración incompatible con «No» bloquea el guardado y pide corregirla sin borrar datos (#390).
+- Ejecuta las regresiones con el evaluador nativo del frontend y valida las referencias de expresiones de deshabilitación.
+- Esta entrega separa las validaciones del formulario de la transición OCL del PR #269. Conserva los catálogos, suscripción y roles actuales.
+  Si se integra primero esta candidata `1.25.35`, el PR #269 deberá rebasarse y adoptar una versión posterior antes de publicarse.
+- La aceptación de interfaz y persistencia en QLTY sigue pendiente; no se acredita el cierre de los reportes mediante pruebas locales.
+
 ### Roles de atención CRED (candidata 1.25.34)
 
 - Publicación pendiente de los cambios integrados en #265: añade `Enfermería Responsable` y precarga el selector de rol
