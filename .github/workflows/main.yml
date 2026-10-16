@@ -48,10 +48,26 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+      - name: Checkout verified frontend expression evaluator
+        uses: actions/checkout@v4
+        with:
+          repository: sihsalus/sihsalus-frontend
+          ref: 0420291580c1a5d8ee3c39712afa8b62174eceea
+          path: .github/integration/frontend-runtime
+          persist-credentials: false
+      - name: Build native expression evaluator with its existing lockfile
+        working-directory: .github/integration/frontend-runtime
+        run: |
+          corepack yarn workspaces focus @openmrs/esm-expression-evaluator
+          corepack yarn workspace @openmrs/esm-expression-evaluator build
+          git diff --exit-code -- yarn.lock
       - name: Test clinical form expressions
+        env:
+          SIHSALUS_EXPRESSION_EVALUATOR: ${{ github.workspace }}/.github/integration/frontend-runtime/packages/libs/esm-expression-evaluator/dist/index.js
         run: |
           npm ci --prefix .github/integration/form-expressions --ignore-scripts
           npm test --prefix .github/integration/form-expressions
+          TZ=America/Lima npm test --prefix .github/integration/form-expressions
           TZ=America/New_York npm test --prefix .github/integration/form-expressions
       - name: Validate CE-001 diagnosis contract
         run: python3 .github/scripts/validate_ce001_diagnosis_contract.py
@@ -89,6 +105,8 @@ jobs:
         run: python3 .github/scripts/validate_stock_foundation.py
       - name: Validate OCL exports
         run: python3 .github/scripts/validate_ocl_exports.py
+      - name: Test institutional OCL transition and birth length metadata
+        run: python3 .github/scripts/test_ocl_exports.py
       - name: Test laboratory capture compatibility
         run: python3 .github/scripts/test_laboratory_capture_validation.py
       - name: Test reproducible OCL export exclusions

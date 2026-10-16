@@ -29,12 +29,8 @@ class NeighborhoodCatalogValidationTest(unittest.TestCase):
         self.mappings_path = self.ocl_directory / (
             "65_SIHSALUS_barrios-santa-clotilde_mappings_2026-08-22-01.zip"
         )
-        self.main_concepts_path = self.ocl_directory / (
-            "10_SIHSALUS_sihsalus_concepts_2026-07-16-02.zip"
-        )
-        self.main_mappings_path = self.ocl_directory / (
-            "60_SIHSALUS_sihsalus_mappings_2026-07-16-02.zip"
-        )
+        self.main_concepts_path = self.ocl_directory / VALIDATOR.EXPECTED_SIHSALUS_CONCEPTS_EXPORT.name
+        self.main_mappings_path = self.ocl_directory / VALIDATOR.EXPECTED_SIHSALUS_MAPPINGS_EXPORT.name
         for path in (
             self.concepts_path,
             self.mappings_path,
@@ -58,20 +54,24 @@ class NeighborhoodCatalogValidationTest(unittest.TestCase):
             VALIDATOR.validate_ocl_global_properties(errors)
         return errors
 
-    def test_accepts_existing_zip_import_namespace(self):
+    def test_accepts_exact_institutional_candidate_namespace(self):
         self.assertEqual(
             self.validate_subscription(
-                "https://api.openconceptlab.org/orgs/SIHSALUS/sources/sihsalus/2026-07-16-02"
+                "https://api.gidis-terminology.duckdns.org/orgs/SIHSALUS/sources/sihsalus/2026-10-16-1"
             ),
             [],
         )
 
-    def test_rejects_premature_institutional_host_transition(self):
-        errors = self.validate_subscription(
-            "https://api.gidis-terminology.duckdns.org/orgs/SIHSALUS/sources/sihsalus/2026-09-09-1"
-        )
-        self.assertEqual(len(errors), 1)
-        self.assertIn("openconceptlab.subscriptionUrl", errors[0])
+    def test_rejects_old_cloud_or_incompatible_institutional_subscription(self):
+        for url in (
+            "https://api.openconceptlab.org/orgs/SIHSALUS/sources/sihsalus/2026-07-16-02",
+            "https://api.gidis-terminology.duckdns.org/orgs/SIHSALUS/sources/sihsalus/2026-09-09-1",
+            "https://api.gidis-terminology.duckdns.org/orgs/SIHSALUS/sources/sihsalus/HEAD",
+        ):
+            with self.subTest(url=url):
+                errors = self.validate_subscription(url)
+                self.assertEqual(len(errors), 1)
+                self.assertIn("openconceptlab.subscriptionUrl", errors[0])
 
     def source_version(self, concepts, mappings):
         return {

@@ -3,6 +3,8 @@
 import csv
 import hashlib
 import io
+import json
+import math
 import re
 import shutil
 import subprocess
@@ -15,6 +17,16 @@ DISTRO_SHA = "fb11da724dced859d00974c9ff2928aae135e704"
 IMAGE_CONTENT_SHA = "762920145a806f989fd8876ab2938ef217f57aab"
 IMAGE_CONTENT_VERSION = "1.25.26"
 BASELINE_SHA = "8000b27f48bf124fe9a553d4ba41c678e9acc231"
+# Keep the historical admission fixture unchanged. These separate immutable
+# inputs exercise the currently published distribution and content release.
+OCL_BACKEND = "ghcr.io/sihsalus/sihsalus-backend@sha256:72c0c4cedfd5ba4b3eb1a3fabd8d1f4e9222548ce49ba06dd7ac2c3a00282414"
+OCL_DISTRO_SHA = "bdfa1bb78095e59fc24eb655bb39aa352fdf5681"
+OCL_BASELINE_SHA = "b9e93638fd7ed9c8dffe8b48f2be868f3d9b1a10"
+OCL_BASELINE_VERSION = "1.25.34"
+OCL_CORE_VERSION = "2.8.10-sihsalus.4"
+OCL_MODULE_VERSION = "4.0.0"
+OCL_API_URL = "https://api.gidis-terminology.duckdns.org"
+BIRTH_LENGTH_UUID = "bf82beb1-d3b8-400e-8160-90869cad8136"
 DATABASE_IMAGE = "mariadb:10.11.7"
 DATABASE = "admission_initializer_ci"
 OWNER_LABEL = "org.sihsalus.admission-initializer"
@@ -71,6 +83,42 @@ class HarnessFailure(Exception):
 def require(condition, code):
     if not condition:
         raise HarnessFailure(code)
+
+
+def ocl_order_rows(expected, rows):
+    """Project only catalog-allowlisted edges; never publish database IDs or text."""
+    def concept_uuid(value):
+        return isinstance(value, str) and (UUID_PATTERN.fullmatch(value)
+            or (len(value) == 36 and re.fullmatch(r"[0-9]+A+", value)))
+
+    require(isinstance(expected, dict) and bool(expected), "ocl_order_empty_contract")
+    for identifier, edge in expected.items():
+        require(isinstance(identifier, str) and UUID_PATTERN.fullmatch(identifier)
+                and isinstance(edge, tuple) and len(edge) == 3 and edge[0] in ("Q-AND-A", "CONCEPT-SET")
+                and concept_uuid(edge[1]) and concept_uuid(edge[2]), "ocl_order_contract_invalid")
+    result = {}
+    for row in rows:
+        require(isinstance(row, str), "ocl_order_row_shape_invalid")
+        fields = row.split("\t")
+        require(len(fields) == 6, "ocl_order_row_shape_invalid")
+        kind, identifier, parent, target, drug, weight = fields
+        if identifier not in expected:
+            # CSV-owned sets are outside this OCL review artifact.
+            continue
+        require(identifier not in result, "ocl_order_duplicate_mapping")
+        require((kind, parent, target) == expected[identifier] and drug == "NULL",
+                "ocl_order_edge_mismatch")
+        value = None
+        if weight != "NULL":
+            require(len(weight) <= 64 and re.fullmatch(
+                r"-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?", weight),
+                "ocl_order_weight_invalid")
+            value = json.loads(weight)
+            require(math.isfinite(value), "ocl_order_weight_invalid")
+        result[identifier] = {"map_type": kind, "mapping_uuid": identifier,
+            "parent_uuid": parent, "target_uuid": target, "drug_uuid": None, "sort_weight": value}
+    require(result.keys() == expected.keys(), "ocl_order_catalog_incomplete")
+    return [result[identifier] for identifier in sorted(result)]
 
 
 def validate_runner(env):
