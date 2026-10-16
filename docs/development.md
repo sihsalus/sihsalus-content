@@ -8,8 +8,9 @@ leer [AGENTS.md](../AGENTS.md) y el [contrato correspondiente](README.md#contrat
 - Python 3.9 o superior para los validadores y pruebas de biblioteca estándar.
 - Bash para las comprobaciones de rangos, terminología y publicación.
 - Node 24 y npm para ejecutar las expresiones JavaScript de formularios con la
-  misma biblioteca de fechas del motor. Esta prueba usa el runner nativo de Node;
-  los validadores Python no ejecutan JavaScript.
+  misma biblioteca de fechas del motor. Los casos neonatales usan también el
+  [evaluador nativo del frontend](../.github/integration/form-expressions/README.md)
+  fijado en CI; los validadores Python no ejecutan JavaScript.
 - Maven Wrapper fija Maven 3.10.0 para el paquete y su publicación; descarga la
   distribución oficial y comprueba su SHA-256.
 - Java: CI usa Java 21 LTS para el paquete, publicación y MariaDB/Liquibase,
@@ -34,8 +35,11 @@ for regression in .github/scripts/test_*.sh; do
   bash "$regression"
 done
 python3 -B .github/integration/admission-initializer/test_harness.py
+# Preparar el evaluador del checkout de frontend verificado según su README.
+export SIHSALUS_EXPRESSION_EVALUATOR=/absolute/path/to/frontend/packages/libs/esm-expression-evaluator/dist/index.js
 npm ci --prefix .github/integration/form-expressions --ignore-scripts
 npm test --prefix .github/integration/form-expressions
+TZ=America/Lima npm test --prefix .github/integration/form-expressions
 TZ=America/New_York npm test --prefix .github/integration/form-expressions
 ```
 
@@ -68,11 +72,11 @@ identidades/checksums de Liquibase.
 
 ## Ensayos de integración
 
-| Ensayo | Ejecución y alcance |
-| --- | --- |
-| [Autorización de rangos](../.github/integration/reference-range-access/README.md) | Core real con datos sintéticos, sin base de datos ni servidor; Java 17. |
-| [MariaDB/Liquibase](../.github/integration/admission-role-reconciliation/README.md) | Migración completa contra MariaDB efímero; Java 21. |
-| [Initializer](../.github/integration/admission-initializer/README.md) | Backend fijado, instalación nueva y dos escenarios de actualización; runner desechable de GitHub. |
+| Ensayo                                                                              | Ejecución y alcance                                                                               |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| [Autorización de rangos](../.github/integration/reference-range-access/README.md)   | Core real con datos sintéticos, sin base de datos ni servidor; Java 17.                           |
+| [MariaDB/Liquibase](../.github/integration/admission-role-reconciliation/README.md) | Migración completa contra MariaDB efímero; Java 21.                                               |
+| [Initializer](../.github/integration/admission-initializer/README.md)               | Backend fijado, instalación nueva y dos escenarios de actualización; runner desechable de GitHub. |
 
 La autorización de rangos se puede ejecutar sin base de datos ni Docker:
 
