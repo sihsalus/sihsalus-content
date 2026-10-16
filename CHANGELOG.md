@@ -8,13 +8,17 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
-### Validaciones de nacimiento y acceso CRED (candidata 1.25.35)
+### Validaciones de nacimiento, catálogo institucional y acceso CRED (candidata 1.25.35)
 
 - El formulario de nacimiento `1.2` rechaza altas anteriores al día de nacimiento y conserva la validación de fechas futuras (#389).
 - El tiempo de hospitalización solo se edita con «Sí»; una duración incompatible con «No» bloquea el guardado y pide corregirla sin borrar datos (#390).
 - El contrato del perfil de pruebas CRED incorpora el rol existente de edición de programas para registrar, editar y anular inscripciones (#387).
   La asignación efectiva a la cuenta sigue pendiente de un administrador autorizado; publicar content no la ejecuta.
 - Añade regresiones de las expresiones distribuidas y reconoce el contexto nativo `patient` y las referencias de expresiones de deshabilitación.
+- Corrige en OCL canónico la talla al nacer (#391): permite decimales y conserva UUID, unidad `cm`, nombres y mappings.
+- Prepara juntos los 34 exports de las 18 fuentes y la suscripción institucional para que una importación remota antigua no restaure la restricción de decimales.
+  Las versiones candidatas de `sihsalus` y `anatomia-procedimientos` permanecen **sin publicar**; la segunda registra la transición sin cambios clínicos.
+  La [auditoría de transición](docs/audits/2026-10-16-ocl-institutional-transition.md) distingue comparación estática, pruebas nativas y aprobación pendiente.
 
 ### Roles de atención CRED (candidata 1.25.34)
 

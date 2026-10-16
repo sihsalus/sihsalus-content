@@ -70,6 +70,118 @@ class HarnessContracts(unittest.TestCase):
         self.runtime = object.__new__(harness.Harness)
         self.runtime.hospital_roles = []
 
+    def test_institutional_namespace_requires_every_source_and_the_candidate_versions(self):
+        source = "/orgs/SIHSALUS/sources/anatomia-procedimientos/"
+        url = guards.OCL_API_URL + source + "concepts/SYNTHETIC/"
+        identifier = "10000000-0000-4000-8000-000000000001"
+        self.runtime.ocl_items = {("CONCEPT", url): (identifier, url + "2/")}
+        self.runtime.ocl_sources = {source}
+        valid = "\t".join(["CONCEPT", url, identifier, url + "2/", "1", "0"])
+        historical = valid.replace(guards.OCL_API_URL, "https://api.openconceptlab.org")
+        with patch.object(harness, "emit"):
+            self.runtime.query = Mock(return_value=[valid, historical])
+            self.runtime.check_ocl_namespace("owned", "upgrade")
+            for rows in ([historical], [], [valid, valid],
+                         [valid.replace(url + "2/", url + "1/")],
+                         [valid.replace(identifier, "10000000-0000-4000-8000-000000000002")],
+                         [valid.rsplit("\t", 2)[0] + "\t4\t1"],
+                         [valid.rsplit("\t", 2)[0] + "\t5\t0"]):
+                self.runtime.query.return_value = rows
+                with self.subTest(rows=rows), self.assertRaises(HarnessFailure):
+                    self.runtime.check_ocl_namespace("owned", "upgrade")
+
+    def test_ocl_upgrade_keeps_prior_checksum_files_and_only_updates_changed_content(self):
+        self.runtime.baseline_config, self.runtime.candidate_config = self.root / "old", self.root / "new"
+        for directory in (self.runtime.baseline_config, self.runtime.candidate_config):
+            (directory / "ocl").mkdir(parents=True)
+            (directory / "roles").mkdir()
+            (directory / "roles/stable.csv").write_bytes(b"unchanged")
+        (self.runtime.baseline_config / "ocl/old.zip").write_bytes(b"published")
+        (self.runtime.candidate_config / "ocl/new.zip").write_bytes(b"candidate")
+        before = self.runtime.configuration_checksums(self.runtime.baseline_config)
+        after = {**before, **self.runtime.configuration_checksums(self.runtime.candidate_config)}
+        self.runtime.check_retained_checksums(before, after)
+        for removed in ("ocl/old.checksum", "ocl/new.checksum", "roles/stable.checksum"):
+            invalid = dict(after)
+            del invalid[removed]
+            with self.subTest(removed=removed), self.assertRaises(HarnessFailure):
+                self.runtime.check_retained_checksums(before, invalid)
+        for key in after:
+            with self.subTest(changed=key), self.assertRaises(HarnessFailure):
+                self.runtime.check_retained_checksums(before, {**after, key: b"0" * 32})
+
+    def test_birth_length_requires_native_decimal_metadata_with_the_existing_identity_and_unit(self):
+        identifier = guards.BIRTH_LENGTH_UUID
+        for decimal in (False, True):
+            row = f"510\t{identifier}\t0\tNumeric\tcm\t{int(decimal)}"
+            concept = {"uuid": identifier, "allowDecimal": decimal, "units": "cm"}
+            self.runtime.query = Mock(return_value=[row])
+            self.runtime.request = Mock(return_value=(200, concept))
+            self.assertEqual(self.runtime.check_birth_length("owned", "db", decimal), "510")
+            for rows in ([], [row, row], [row.replace("\tcm\t", "\tmm\t")],
+                         [row.rsplit("\t", 1)[0] + "\t" + str(int(not decimal))]):
+                self.runtime.query.return_value = rows
+                with self.assertRaises(HarnessFailure):
+                    self.runtime.check_birth_length("owned", "db", decimal)
+            self.runtime.query.return_value = [row]
+            self.runtime.request.return_value = (200, {**concept, "allowDecimal": not decimal})
+            with self.assertRaisesRegex(HarnessFailure, "birth_length_rest_contract_invalid"):
+                self.runtime.check_birth_length("owned", "db", decimal)
+
+    def test_birth_length_observation_rejects_rounding_and_uses_the_native_rest_endpoint(self):
+        person = "10000000-0000-4000-8000-000000000001"
+        observation = "20000000-0000-4000-8000-000000000001"
+        self.runtime.request = Mock(return_value=(201, {"uuid": observation}))
+        row = f"30.1\t{guards.BIRTH_LENGTH_UUID}\t{person}\t0"
+        self.runtime.query = Mock(side_effect=[[row], ["complete synthetic observation"]])
+        self.assertEqual(self.runtime.create_birth_length_observation("owned", "db", person, 30.1),
+                         ["complete synthetic observation"])
+        request = self.runtime.request.call_args.args
+        self.assertEqual(request[1:3], ("POST", "/obs"))
+        self.assertEqual(request[3]["value"], 30.1)
+        self.runtime.query = Mock(return_value=[row.replace("30.1", "30")])
+        with self.assertRaisesRegex(HarnessFailure, "birth_length_observation_value_changed"):
+            self.runtime.create_birth_length_observation("owned", "db", person, 30.1)
+
+    def test_ocl_transition_compares_all_graph_edges_and_preserves_same_owned_volume(self):
+        runtime = self.runtime
+        runtime.nonce = "a" * 32
+        runtime.baseline_config, runtime.candidate_config = self.root / "old", self.root / "new"
+        runtime.role_md5, runtime.candidate_role_md5 = "old", "new"
+        runtime.start_database = Mock(return_value="owned-db")
+        runtime.start_backend = Mock(side_effect=[("baseline", "owned-volume"), ("upgrade", "owned-volume"),
+                                                 ("restart", "owned-volume")])
+        for name in ("wait_initializer", "assert_checksums", "check_retained_checksums", "check_ocl_namespace",
+                     "docker", "remove_container"):
+            setattr(runtime, name, Mock())
+        runtime.check_birth_length = Mock(return_value="510")
+        runtime.request = Mock(return_value=(201, {"uuid": "10000000-0000-4000-8000-000000000001"}))
+        runtime.create_birth_length_observation = Mock(return_value=["original observation"])
+        runtime.query = Mock(return_value=["original observation", "decimal observation"])
+        runtime.history = Mock(return_value=["complete journal"])
+        runtime.terminology_identity_snapshot = Mock(return_value={"all edges": ("stable identities",)})
+        runtime.checksum_snapshot = Mock(return_value={"ocl/a.checksum": b"existing checksum"})
+        with patch.object(harness, "emit"):
+            runtime.ocl_transition_run(upgrade=True)
+        for call in runtime.start_backend.call_args_list[1:]:
+            self.assertEqual(call.kwargs, {"data_volume": "owned-volume"})
+        runtime.check_retained_checksums.assert_called_once()
+        for method, changed, reason in (
+                ("terminology_identity_snapshot", {"all edges": ("recreated identity",)}, "identities_or_cross_references"),
+                ("history", ["altered journal checksum"], "liquibase_history"),
+                ("checksum_snapshot", {"ocl/a.checksum": b"reset checksum"}, "checksums"),
+                ("query", ["modified observation"], "observations")):
+            with self.subTest(method=method):
+                runtime.start_backend.side_effect = [("baseline", "owned-volume"), ("upgrade", "owned-volume"),
+                                                     ("restart", "owned-volume")]
+                target = getattr(runtime, method)
+                target.side_effect = [target.return_value, target.return_value, target.return_value, changed]
+                if method == "query":
+                    target.side_effect = [target.return_value, changed]
+                with patch.object(harness, "emit"), self.assertRaisesRegex(HarnessFailure, "ocl_restart_changed_" + reason):
+                    runtime.ocl_transition_run(upgrade=True)
+                target.side_effect = None
+
     def test_procedure_anatomy_checks_native_search_and_preserves_database_identities(self):
         contract, rows, responses = procedure_anatomy_result()
         self.runtime.procedure_anatomy_contract = Mock(return_value=contract)

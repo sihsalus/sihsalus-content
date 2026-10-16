@@ -18,7 +18,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 from collections import Counter
 from pathlib import Path, PurePosixPath
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urljoin, urlsplit
 
 from guards import (
     BACKEND, DISTRO_SHA, IMAGE_CONTENT_SHA, IMAGE_CONTENT_VERSION, BASELINE_SHA, DATABASE_IMAGE, DATABASE,
@@ -27,6 +27,8 @@ from guards import (
     ROLES_CHECKSUM, LIQUIBASE_CHECKSUM, UUID_PATTERN, STRICT_JAVA, HarnessFailure,
     require, checked, validate_runner, properties, extract_archive,
     single_file_archive, assemble, validate_assembly, sql_string, admission_privileges,
+    OCL_BACKEND, OCL_DISTRO_SHA, OCL_BASELINE_SHA, OCL_BASELINE_VERSION,
+    OCL_CORE_VERSION, OCL_MODULE_VERSION, OCL_API_URL, BIRTH_LENGTH_UUID,
 )
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -80,8 +82,20 @@ def emit(stage, status, **safe):
 
 
 class Harness:
-    def __init__(self, env):
+    backend_image = BACKEND
+    distro_sha = DISTRO_SHA
+    image_content_sha = IMAGE_CONTENT_SHA
+    image_content_version = IMAGE_CONTENT_VERSION
+    ocl_transition = False
+
+    def __init__(self, env, scenario="upgrade"):
         runner_temp = validate_runner(env)
+        self.ocl_transition = scenario in ("ocl-fresh", "ocl-upgrade")
+        if self.ocl_transition:
+            self.backend_image = OCL_BACKEND
+            self.distro_sha = OCL_DISTRO_SHA
+            self.image_content_sha = OCL_BASELINE_SHA
+            self.image_content_version = OCL_BASELINE_VERSION
         self.directory = Path(tempfile.mkdtemp(prefix="admission-initializer-", dir=runner_temp))
         self.directory.chmod(0o700)
         self.env = {"PATH": env.get("PATH", "/usr/bin:/bin"), "LANG": "C.UTF-8"}
@@ -211,22 +225,29 @@ class Harness:
         require(Path("/var/run/docker.sock").is_socket(), "local_runner_docker_socket_required")
         require(checked(["git", "rev-parse", "HEAD"], cwd=ROOT).stdout.decode().strip() == self.candidate_sha, "checkout_sha_mismatch")
         require(not checked(["git", "status", "--porcelain", "--untracked-files=no"], cwd=ROOT).stdout, "clean_tracked_checkout_required")
-        self.docker("pull", "--platform", "linux/amd64", BACKEND, timeout=self.remaining(600))
+        self.docker("pull", "--platform", "linux/amd64", self.backend_image, timeout=self.remaining(600))
         self.docker("pull", "--platform", "linux/amd64", DATABASE_IMAGE, timeout=self.remaining(300))
-        image = self.inspect("image", BACKEND)
+        image = self.inspect("image", self.backend_image)
         require(image.get("Os") == "linux" and image.get("Architecture") == "amd64", "unexpected_backend_platform")
-        require(image.get("Config", {}).get("Labels", {}).get("org.opencontainers.image.revision") == DISTRO_SHA, "backend_revision_label_mismatch")
-        require(BACKEND in image.get("RepoDigests", []), "backend_digest_mismatch")
+        require(image.get("Config", {}).get("Labels", {}).get("org.opencontainers.image.revision") == self.distro_sha, "backend_revision_label_mismatch")
+        require(self.backend_image in image.get("RepoDigests", []), "backend_digest_mismatch")
         # The restore helper chowns seeded application data to the image's declared user.
         self.backend_owner = image["Config"].get("User", "")
         require(re.fullmatch(r"[1-9][0-9]*(?::[0-9]+)?", self.backend_owner), "numeric_nonroot_backend_user_required")
         # Never started: only used to copy the image's shipped configuration out.
-        probe = self.container("probe", ["--network", "none"], BACKEND)
+        probe = self.container("probe", ["--network", "none"], self.backend_image)
         self.image_config = self.directory / "image-configuration"
         self.copy_tree(probe, "/openmrs/distribution/openmrs_config", self.image_config, "openmrs_config")
         distro = properties(self.copy_file(probe, "/openmrs/distribution/openmrs-distro.properties"))
-        require(distro.get("content.sihsalus-content") == IMAGE_CONTENT_VERSION, "image_content_version_mismatch")
+        require(distro.get("content.sihsalus-content") == self.image_content_version, "image_content_version_mismatch")
+        if self.ocl_transition:
+            require(distro.get("war.openmrs") == OCL_CORE_VERSION
+                    and distro.get("omod.openconceptlab") == OCL_MODULE_VERSION
+                    and distro.get("omod.initializer") == INITIALIZER_VERSION, "ocl_runtime_versions_mismatch")
         self.remove_container(probe)
+        if self.ocl_transition:
+            self.prepare_ocl_transition()
+            return
         original, baseline, candidate = [self.directory / name for name in ("source-image", "source-15", "source-candidate")]
         for sha, version, path in ((IMAGE_CONTENT_SHA, IMAGE_CONTENT_VERSION, original), (BASELINE_SHA, "1.25.15", baseline), (self.candidate_sha, None, candidate)):
             self.git_configuration(sha, version, path)
@@ -287,6 +308,203 @@ class Harness:
         emit("prepare", "PASSED", source_sha=self.candidate_sha, baseline_sha=BASELINE_SHA,
              candidate_version=self.candidate_version, backend_digest=BACKEND.split("@")[1], **receipt)
 
+    def prepare_ocl_transition(self):
+        """Overlay the published 1.25.34 package, preserving the image remainder."""
+        baseline, candidate = self.directory / "source-34", self.directory / "source-candidate"
+        self.git_configuration(OCL_BASELINE_SHA, OCL_BASELINE_VERSION, baseline)
+        self.git_configuration(self.candidate_sha, None, candidate)
+        require(tuple(map(int, self.candidate_version.split("."))) > (1, 25, 34),
+                "ocl_candidate_reuses_baseline_version")
+        self.baseline_config, self.candidate_config = self.directory / "config-baseline", self.directory / "config-candidate"
+        assemble(self.image_config, baseline, baseline, self.baseline_config)
+        receipt = assemble(self.image_config, baseline, candidate, self.candidate_config)
+        self.role_md5 = hashlib.md5((baseline / ROLES_FILE).read_bytes()).hexdigest()
+        self.candidate_role_md5 = hashlib.md5((candidate / ROLES_FILE).read_bytes()).hexdigest()
+        self.ocl_items, self.ocl_sources = self.ocl_item_contract(candidate)
+        self.network = self.prefix + "-network"
+        self.docker("network", "create", "--internal", "--label", OWNER_LABEL + "=" + self.nonce, self.network)
+        require(self.owned("network", self.network).get("Internal") is True, "network_not_internal")
+        emit("prepare", "PASSED", source_sha=self.candidate_sha, baseline_sha=OCL_BASELINE_SHA,
+             baseline_version=OCL_BASELINE_VERSION, candidate_version=self.candidate_version,
+             backend_digest=self.backend_image.split("@")[1], core_version=OCL_CORE_VERSION,
+             ocl_version=OCL_MODULE_VERSION, ocl_sources=len(self.ocl_sources), **receipt)
+
+    @staticmethod
+    def ocl_item_contract(configuration):
+        """Expected native item URLs from the exact exports, without contacting OCL."""
+        expected, sources = {}, set()
+        archives = sorted((configuration / "ocl").glob("*.zip"))
+        require(len(archives) == 34, "ocl_transition_archive_count_changed")
+        for path in archives:
+            with zipfile.ZipFile(path) as archive:
+                export = json.loads(archive.read("export.json"))
+            source = export["source"]["url"]
+            require(re.fullmatch(r"/orgs/SIHSALUS/sources/[A-Za-z0-9_-]+/", source),
+                    "ocl_transition_source_invalid")
+            sources.add(source)
+            for collection, kind in (("concepts", "CONCEPT"), ("mappings", "MAPPING")):
+                for entry in export[collection]:
+                    relative = entry["url"]
+                    version = entry["version_url"] if kind == "CONCEPT" else relative
+                    identifier = entry["external_id"]
+                    require(relative.startswith(source) and version.startswith(relative)
+                            and isinstance(identifier, str) and 0 < len(identifier) <= 38
+                            and re.fullmatch(r"[A-Za-z0-9-]+", identifier), "ocl_transition_item_invalid")
+                    url, version_url = (urljoin(OCL_API_URL, value) for value in (relative, version))
+                    require(urlsplit(url).netloc == urlsplit(OCL_API_URL).netloc,
+                            "ocl_transition_item_host_invalid")
+                    key = (kind, url)
+                    require(key not in expected, "ocl_transition_duplicate_item")
+                    expected[key] = (identifier, version_url)
+        require(len(sources) == 18 and len(expected) == 32551 + 20552, "ocl_transition_catalog_size_changed")
+        return expected, sources
+
+    def check_ocl_namespace(self, db, phase):
+        # History from the former host remains valid history. Inspect the latest
+        # item for each candidate URL; every source, including anatomy, must load.
+        rows = self.query(db, "SELECT i.type,i.url,i.uuid,i.version_url,i.state,"
+            "IF(i.error_message IS NULL OR i.error_message='',0,1) FROM openconceptlab_item i "
+            "JOIN (SELECT type,url,MAX(item_id) item_id FROM openconceptlab_item WHERE url LIKE "
+            + sql_string(OCL_API_URL + "/%") + " GROUP BY type,url) latest ON latest.item_id=i.item_id")
+        actual = {}
+        for row in rows:
+            fields = row.split("\t")
+            require(len(fields) == 6, "ocl_transition_item_shape_invalid")
+            key = (fields[0], fields[1])
+            require(key not in actual, "ocl_transition_native_item_duplicated")
+            actual[key] = fields[2:]
+        for key, (identifier, version_url) in self.ocl_items.items():
+            require(key in actual, "ocl_transition_source_namespace_incomplete")
+            record = actual[key]
+            require(record[:2] == [identifier, version_url]
+                    and record[2] in {"0", "1", "2", "3", "6"} and record[3] == "0",
+                    "ocl_transition_item_not_successfully_loaded")
+        emit("ocl_namespace", "PASSED", phase=phase, sources=len(self.ocl_sources),
+             concepts=32551, mappings=20552)
+
+    def checksum_snapshot(self, backend):
+        target = self.directory / ("checksums-" + uuid.uuid4().hex)
+        self.copy_tree(backend, "/openmrs/data/configuration_checksums", target, "configuration_checksums")
+        return {str(path.relative_to(target)): path.read_bytes()
+                for path in target.rglob("*") if path.is_file()}
+
+    @staticmethod
+    def configuration_checksums(configuration):
+        """Use Initializer's native located filename convention for comparisons."""
+        result = {}
+        for path in configuration.rglob("*"):
+            if not path.is_file():
+                continue
+            relative = path.relative_to(configuration)
+            if len(relative.parts) < 2:
+                continue  # Initializer loads domain directories, not root files.
+            located = "_".join(relative.parts[1:]).rsplit(".", 1)[0]
+            key = relative.parts[0] + "/" + located + ".checksum"
+            require(key not in result, "configuration_checksum_name_collision")
+            result[key] = hashlib.md5(path.read_bytes()).hexdigest().encode()
+        return result
+
+    def check_retained_checksums(self, before, after):
+        old = self.configuration_checksums(self.baseline_config)
+        new = self.configuration_checksums(self.candidate_config)
+        require(before.keys() <= after.keys(), "ocl_upgrade_removed_prior_checksums")
+        for key, value in before.items():
+            expected = new[key] if key in new and old.get(key) != new[key] else value
+            require(after[key] == expected, "ocl_upgrade_changed_unapproved_checksum")
+        for path in (self.candidate_config / "ocl").glob("*.zip"):
+            key = "ocl/" + path.stem + ".checksum"
+            require(after.get(key) == new[key], "ocl_candidate_checksum_missing_or_stale")
+
+    def terminology_identity_snapshot(self, db):
+        # Compare identities and actual graph edges, not timestamps that native
+        # OCL legitimately updates while applying identical metadata.
+        queries = {
+            "concepts": "SELECT concept_id,uuid,datatype_id,class_id,is_set,retired FROM concept ORDER BY concept_id",
+            "sets": "SELECT concept_set_id,uuid,concept_id,concept_set,sort_weight FROM concept_set ORDER BY concept_set_id",
+            "answers": "SELECT concept_answer_id,uuid,concept_id,answer_concept,answer_drug,sort_weight FROM concept_answer ORDER BY concept_answer_id",
+            "mappings": "SELECT concept_map_id,uuid,concept_id,concept_reference_term_id,concept_map_type_id FROM concept_reference_map ORDER BY concept_map_id",
+            "terms": "SELECT concept_reference_term_id,uuid,concept_source_id,code,retired FROM concept_reference_term ORDER BY concept_reference_term_id",
+            "sources": "SELECT concept_source_id,uuid,name,retired FROM concept_reference_source ORDER BY concept_source_id",
+        }
+        return {key: tuple(self.query(db, query)) for key, query in queries.items()}
+
+    def check_birth_length(self, backend, db, decimal):
+        rows = self.query(db, "SELECT c.concept_id,c.uuid,c.retired,dt.name,n.units,n.allow_decimal "
+            "FROM concept c JOIN concept_datatype dt ON dt.concept_datatype_id=c.datatype_id "
+            "JOIN concept_numeric n ON n.concept_id=c.concept_id WHERE c.uuid=" + sql_string(BIRTH_LENGTH_UUID))
+        require(len(rows) == 1, "birth_length_identity_missing_or_duplicated")
+        fields = rows[0].split("\t")
+        require(len(fields) == 6 and re.fullmatch(r"[1-9][0-9]*", fields[0])
+                and fields[1:] == [BIRTH_LENGTH_UUID, "0", "Numeric", "cm", str(int(decimal))],
+                "birth_length_numeric_contract_invalid")
+        code, concept = self.request(backend, "GET", "/concept/" + BIRTH_LENGTH_UUID + "?v=full")
+        require(code == 200 and isinstance(concept, dict) and concept.get("uuid") == BIRTH_LENGTH_UUID
+                and concept.get("allowDecimal") is decimal and concept.get("units") == "cm",
+                "birth_length_rest_contract_invalid")
+        return fields[0]
+
+    def create_birth_length_observation(self, backend, db, person, value):
+        code, observation = self.request(backend, "POST", "/obs", {
+            "person": person, "concept": BIRTH_LENGTH_UUID, "obsDatetime": "2026-10-15T10:00:00.000+0000",
+            "value": value})
+        require(code == 201 and isinstance(observation, dict)
+                and UUID_PATTERN.fullmatch(observation.get("uuid", "")), "birth_length_observation_not_created")
+        identifier = observation["uuid"]
+        rows = self.query(db, "SELECT o.value_numeric,c.uuid,p.uuid,o.voided FROM obs o "
+            "JOIN concept c ON c.concept_id=o.concept_id JOIN person p ON p.person_id=o.person_id "
+            "WHERE o.uuid=" + sql_string(identifier))
+        require(len(rows) == 1, "birth_length_observation_missing")
+        fields = rows[0].split("\t")
+        require(len(fields) == 4 and float(fields[0]) == value
+                and fields[1:] == [BIRTH_LENGTH_UUID, person, "0"], "birth_length_observation_value_changed")
+        return self.query(db, "SELECT * FROM obs WHERE uuid=" + sql_string(identifier))
+
+    def ocl_transition_run(self, upgrade):
+        """Published content -> candidate -> restart, using the same owned volumes."""
+        db = self.start_database("ocl")
+        configuration = self.baseline_config if upgrade else self.candidate_config
+        backend, volume = self.start_backend("ocl-baseline" if upgrade else "ocl-fresh", configuration)
+        self.wait_initializer(backend, "ocl_baseline" if upgrade else "ocl_fresh")
+        self.assert_checksums(backend, self.role_md5 if upgrade else self.candidate_role_md5)
+        concept_id = self.check_birth_length(backend, db, decimal=not upgrade)
+        code, person = self.request(backend, "POST", "/person", {
+            "names": [{"givenName": "Synthetic", "familyName": "OCL CI " + self.nonce[:8]}],
+            "gender": "F", "birthdate": "2026-10-01"})
+        require(code == 201 and isinstance(person, dict) and UUID_PATTERN.fullmatch(person.get("uuid", "")),
+                "ocl_synthetic_person_not_created")
+        original_obs = self.create_birth_length_observation(backend, db, person["uuid"], 30)
+        if upgrade:
+            history, identities = self.history(db), self.terminology_identity_snapshot(db)
+            checksums = self.checksum_snapshot(backend)
+            self.docker("stop", "--time", "30", backend, timeout=45)
+            self.remove_container(backend)
+            backend, _ = self.start_backend("ocl-upgrade", self.candidate_config, data_volume=volume)
+            self.wait_initializer(backend, "ocl_upgrade")
+            self.assert_checksums(backend, self.candidate_role_md5)
+            require(self.history(db) == history, "ocl_upgrade_changed_liquibase_history")
+            require(self.terminology_identity_snapshot(db) == identities, "ocl_upgrade_changed_identities_or_cross_references")
+            self.check_retained_checksums(checksums, self.checksum_snapshot(backend))
+        require(self.check_birth_length(backend, db, decimal=True) == concept_id, "birth_length_concept_id_changed")
+        self.check_ocl_namespace(db, "upgrade" if upgrade else "fresh")
+        self.create_birth_length_observation(backend, db, person["uuid"], 30.1)
+        observations = self.query(db, "SELECT * FROM obs ORDER BY obs_id")
+        require(all(row in observations for row in original_obs), "ocl_upgrade_changed_existing_observation")
+        identities, history, checksums = self.terminology_identity_snapshot(db), self.history(db), self.checksum_snapshot(backend)
+        self.docker("stop", "--time", "30", backend, timeout=45)
+        self.remove_container(backend)
+        backend, _ = self.start_backend("ocl-restart", self.candidate_config, data_volume=volume)
+        self.wait_initializer(backend, "ocl_restart")
+        self.assert_checksums(backend, self.candidate_role_md5)
+        require(self.checksum_snapshot(backend) == checksums, "ocl_restart_changed_checksums")
+        require(self.history(db) == history, "ocl_restart_changed_liquibase_history")
+        require(self.terminology_identity_snapshot(db) == identities, "ocl_restart_changed_identities_or_cross_references")
+        require(self.query(db, "SELECT * FROM obs ORDER BY obs_id") == observations, "ocl_restart_changed_observations")
+        require(self.check_birth_length(backend, db, decimal=True) == concept_id, "birth_length_concept_id_changed_on_restart")
+        self.check_ocl_namespace(db, "restart")
+        emit("ocl_transition", "PASSED", scenario="upgrade" if upgrade else "fresh",
+             restart_verified=True, prior_checksums_preserved=True, clinical_observations=2,
+             concept_id_preserved=True, cross_references_preserved=True, decimal_value=30.1)
+
     def start_database(self, suffix):
         volume = self.volume(suffix + "-db")
         name = self.container(suffix + "-db",
@@ -334,14 +552,14 @@ class Harness:
                 ["--network", "none", "--user", "0",
                  "--mount", "type=bind,src=" + str(self.baseline_data) + ",dst=/seed,readonly",
                  "--mount", "type=volume,src=" + volume + ",dst=/openmrs/data", "--entrypoint", "/bin/bash"],
-                BACKEND, ["-ceu", "test -d /seed/configuration_checksums; cp -a /seed/. /openmrs/data/; chown -R " + self.backend_owner + " /openmrs/data"])
+                self.backend_image, ["-ceu", "test -d /seed/configuration_checksums; cp -a /seed/. /openmrs/data/; chown -R " + self.backend_owner + " /openmrs/data"])
             self.docker("start", "--attach", helper, timeout=self.remaining(180))
             self.remove_container(helper)
         name = self.container(suffix,
             ["--network", self.network, "--memory", "4g", "--cpus", "2", "--env-file", str(self.backend_env),
              "--env", "OMRS_EXTRA_INITIALIZER_LOGGING_LOCATION=" + lifecycle_file,
              "--mount", "type=bind,src=" + str(configuration) + ",dst=/openmrs/distribution/openmrs_config,readonly",
-             "--mount", "type=volume,src=" + volume + ",dst=/openmrs/data"], BACKEND)
+             "--mount", "type=volume,src=" + volume + ",dst=/openmrs/data"], self.backend_image)
         self.lifecycle_files[name] = lifecycle_file
         self.docker("start", name)
         return name, volume
@@ -382,6 +600,11 @@ class Harness:
         require(body.get("uuid") == "initializer", "initializer_module_missing")
         require(body.get("version") == INITIALIZER_VERSION, "initializer_version_mismatch")
         require(isinstance(body.get("started"), bool), "initializer_started_state_missing")
+        if self.ocl_transition and body["started"]:
+            code, ocl = self.request(backend, "GET", "/module/openconceptlab?v=full")
+            require(code == 200 and isinstance(ocl, dict)
+                    and ocl.get("uuid") == "openconceptlab" and ocl.get("started") is True
+                    and ocl.get("version") == OCL_MODULE_VERSION, "ocl_module_not_started_at_pinned_version")
         return body["started"]
 
     def bootstrap(self, backend):
@@ -1202,10 +1425,12 @@ def main(scenario="upgrade"):
     signal.signal(signal.SIGTERM, interrupted)
     signal.signal(signal.SIGINT, interrupted)
     try:
-        require(scenario in ("upgrade", "fresh", "operational"), "invalid_initializer_scenario")
-        harness = Harness(os.environ)
+        require(scenario in ("upgrade", "fresh", "operational", "ocl-fresh", "ocl-upgrade"), "invalid_initializer_scenario")
+        harness = Harness(os.environ, scenario)
         harness.prepare()
-        if scenario == "fresh":
+        if scenario in ("ocl-fresh", "ocl-upgrade"):
+            harness.ocl_transition_run(upgrade=scenario == "ocl-upgrade")
+        elif scenario == "fresh":
             harness.fresh()
         else:
             harness.baseline()

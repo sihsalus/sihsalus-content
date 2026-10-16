@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scenario: [upgrade, fresh, operational]
+        scenario: [upgrade, fresh, operational, ocl-fresh, ocl-upgrade]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -24,7 +24,8 @@ jobs:
         run: |
           git fetch --no-tags --depth=1 origin \
             8000b27f48bf124fe9a553d4ba41c678e9acc231 \
-            762920145a806f989fd8876ab2938ef217f57aab
+            762920145a806f989fd8876ab2938ef217f57aab \
+            b9e93638fd7ed9c8dffe8b48f2be868f3d9b1a10
       - name: Test the harness isolation and assertions without Docker
         run: python3 -B .github/integration/admission-initializer/test_harness.py
       - name: Exercise the pinned backend with exclusively synthetic data

@@ -222,23 +222,24 @@ pide volver a «Sí» para corregirlo o borrarlo. No se eliminan observaciones p
 ocultación ni se sustituye una respuesta ausente por cero. La regla se aplica
 también al editar; no modifica registros históricos automáticamente.
 
-**Talla al nacer (#391), pendiente de OCL:** el concepto `SIHSALUS/sihsalus:382`
-(`bf82beb1-d3b8-400e-8160-90869cad8136`) es numérico, usa `cm` y el export
-incluido todavía declara `extras.allow_decimal: false`. El formulario ya admite
-pasos de `0.1`; no debe redondear la medición para compensar esa discrepancia.
-La corrección aprobada consiste en habilitar `allow_decimal` en la fuente
-canónica, conservando identidad, unidad, nombres y mappings, e incorporar un
-export oficial versionado después de revisar su diferencia completa.
+**Talla al nacer (#391):** el candidato institucional `sihsalus/2026-10-16-1`
+declara `extras.allow_decimal: true` para el concepto `382`
+(`bf82beb1-d3b8-400e-8160-90869cad8136`). Conserva tipo numérico, unidad `cm`,
+nombres y mappings. El formulario mantiene sus pasos de `0.1`, sin redondear
+la medición. La corrección canónica y su snapshot están preparados; **la
+publicación OCL y la aplicación en ambientes siguen pendientes**.
 
-La consulta actual de OCL exige autenticación. La comprobación de solo lectura
-del catálogo institucional el 16/10/2026 confirmó la misma identidad, unidad y
-restricción de decimales. Aún no se ha actualizado el concepto ni sustituido el
-export. El token institucional solo corresponde a ese servidor; no autentica
-contra OCL Cloud. Antes de incorporar un export hay que resolver también
-la compatibilidad con la suscripción remota `2026-07-16-02`, que podría restaurar
-la metadata anterior, y conservar las exclusiones del catálogo de barrios
-documentadas en [la auditoría OCL](audits/2026-09-12-ocl-refresh.md).
-No editar a mano el ZIP oficial, duplicar el concepto en CSV ni aplicar SQL.
+La [transición institucional](audits/2026-10-16-ocl-institutional-transition.md)
+coordina los 34 exports con el host de la suscripción. Conserva las exclusiones
+históricas de barrios y verifica las identidades en las 18 fuentes. Los ZIP se
+generan desde exports oficiales con el splitter existente; no se editan registros
+a mano ni se duplican conceptos en CSV/SQL.
+
+El token institucional solo autentica en ese servidor. El secret de GitHub
+no cambia `OMRS_OCL_TOKEN` en DEV/QLTY. La importación local de los ZIP por
+Initializer no descarga el catálogo ni usa ese token; una futura importación
+remota requiere verificar la credencial del entorno mediante una aprobación
+operativa separada. La tarea no modifica credenciales ni controles del backend.
 La aceptación requiere verificar `allowDecimal: true` y guardar/reabrir una
 talla sintética de `30.1 cm` tras la actualización autorizada de content.
 

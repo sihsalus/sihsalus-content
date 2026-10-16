@@ -1,11 +1,22 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
+import { pathToFileURL } from 'node:url';
 import vm from 'node:vm';
 import dayjs from 'dayjs';
 
-// Evaluate the shipped expressions with the date library exposed by the form engine.
-// This tests schema behavior, not browser rendering or encounter persistence.
+// Neonatal regressions must use the form engine's evaluator: its logical
+// operators are eager, unlike node:vm. Never substitute JavaScript on failure.
+assert.ok(process.env.SIHSALUS_EXPRESSION_EVALUATOR,
+  'Set SIHSALUS_EXPRESSION_EVALUATOR to the pinned frontend esm-expression-evaluator/dist/index.js; see README.md');
+const { evaluateAsBoolean, extractVariableNames } = await import(
+  pathToFileURL(process.env.SIHSALUS_EXPRESSION_EVALUATOR).href
+);
+const evaluateNative = (expression, values) => evaluateAsBoolean(expression, { dayjs, ...values });
+
+// These tests read shipped expressions, not copies of their clinical rules.
+// Existing non-neonatal cases retain JavaScript evaluation; neither suite proves
+// browser rendering or encounter persistence.
 function fields(filename) {
   const form = JSON.parse(readFileSync(new URL(`../../../configuration/ampathforms/${filename}`, import.meta.url)));
   const walk = ({ questions = [] }) => questions.flatMap((question) => [question, ...walk(question)]);
@@ -20,41 +31,45 @@ const birth = fields('(CRED) Detalles de Nacimiento.json');
 const evaluate = (expression, values) => vm.runInNewContext(expression, { dayjs, ...values });
 const date = (value) => dayjs(value).toDate();
 
-test('neonatal discharge rejects days before birth and allows the birth day', () => {
+test('native evaluator: neonatal discharge rejects days before birth and allows the birth day', () => {
   const validator = birth.fechaAltaRecienNacido.validators.find((v) => v.type === 'js_expression');
   const isEmpty = (value) => value == null || value === '';
   for (const [value, expected] of [
     ['2026-10-14T23:59:00', true], ['2026-10-15T00:00:00', false], ['2026-10-16T10:30:00', false],
   ]) {
-    assert.equal(evaluate(validator.failsWhenExpression, {
+    assert.equal(evaluateNative(validator.failsWhenExpression, {
       myValue: date(value), patient: { birthDate: '2026-10-15' }, isEmpty,
     }), expected);
   }
   for (const patient of [undefined, null, {}, { birthDate: null }, { birthDate: '' }, { birthDate: 'invalid' }]) {
-    assert.equal(evaluate(validator.failsWhenExpression, { myValue: date('2026-10-15'), patient, isEmpty }), true);
+    assert.equal(evaluateNative(validator.failsWhenExpression, { myValue: date('2026-10-15'), patient, isEmpty }), true);
     for (const myValue of [undefined, null, '']) {
-      assert.equal(evaluate(validator.failsWhenExpression, { myValue, patient, isEmpty }), false);
+      assert.equal(evaluateNative(validator.failsWhenExpression, { myValue, patient, isEmpty }), false);
     }
   }
   assert.ok(birth.fechaAltaRecienNacido.validators.some((v) => v.type === 'date' && v.allowFutureDates === 'false'));
 });
 
-test('hospitalization duration is disabled unless Yes and contradictory values are rejected without clearing them', () => {
+test('native evaluator: hospitalization duration disables unless Yes and rejects contradictions without clearing', () => {
   const yes = birth.requirioHospitalizacion.questionOptions.answers.find((answer) => answer.label === 'Sí').concept;
   const no = birth.requirioHospitalizacion.questionOptions.answers.find((answer) => answer.label === 'No').concept;
   const isEmpty = (value) => value == null || value === '';
-  for (const response of [yes, no, undefined]) {
-    assert.equal(evaluate(birth.tiempoDeHospitalizacion.disabled.disableWhenExpression, {
+  for (const response of [yes, no, undefined, null]) {
+    assert.equal(evaluateNative(birth.tiempoDeHospitalizacion.disabled.disableWhenExpression, {
       requirioHospitalizacion: response,
     }), response !== yes);
     for (const duration of [undefined, null, '', 0, 3]) {
-      assert.equal(evaluate(birth.requirioHospitalizacion.validators[0].failsWhenExpression, {
+      assert.equal(evaluateNative(birth.requirioHospitalizacion.validators[0].failsWhenExpression, {
         myValue: response, tiempoDeHospitalizacion: duration, isEmpty,
       }), response !== yes && !isEmpty(duration));
     }
   }
   assert.equal(birth.tiempoDeHospitalizacion.hide, undefined);
   assert.equal(birth.tiempoDeHospitalizacion.questionOptions.calculate, undefined);
+  assert.ok(extractVariableNames(birth.tiempoDeHospitalizacion.disabled.disableWhenExpression)
+    .includes('requirioHospitalizacion'));
+  assert.ok(extractVariableNames(birth.requirioHospitalizacion.validators[0].failsWhenExpression)
+    .includes('tiempoDeHospitalizacion'));
 });
 
 test('altitude warning includes the first nonzero adjustment band', () => {
