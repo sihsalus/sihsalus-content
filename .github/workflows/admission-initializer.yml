@@ -3,6 +3,13 @@ name: Admission Initializer upgrade integration
 on:
   workflow_call:
   workflow_dispatch:
+    inputs:
+      scenario:
+        description: Scenario to diagnose; PR checks always run all five
+        type: choice
+        required: true
+        default: all
+        options: [all, upgrade, fresh, operational, ocl-fresh, ocl-upgrade]
 
 permissions:
   contents: read
@@ -15,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scenario: [upgrade, fresh, operational, ocl-fresh, ocl-upgrade]
+        scenario: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.scenario && inputs.scenario != 'all' && format('["{0}"]', inputs.scenario) || '["upgrade","fresh","operational","ocl-fresh","ocl-upgrade"]') }}
     steps:
       - uses: actions/checkout@v4
         with:

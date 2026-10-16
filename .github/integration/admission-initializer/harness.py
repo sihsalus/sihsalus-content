@@ -63,6 +63,14 @@ STATE_TABLES = {
     "role_role": "parent_role,child_role", "user_role": "user_id,role",
     "patientflags_tag_role": "tag_id,role", "stockmgmt_user_role_scope": "user_role_scope_id",
 }
+TERMINOLOGY_TABLES = {
+    "concepts": ("concept", "concept_id,uuid,datatype_id,class_id,is_set,retired"),
+    "sets": ("concept_set", "concept_set_id,uuid,concept_id,concept_set,sort_weight"),
+    "answers": ("concept_answer", "concept_answer_id,uuid,concept_id,answer_concept,answer_drug,sort_weight"),
+    "mappings": ("concept_reference_map", "concept_map_id,uuid,concept_id,concept_reference_term_id,concept_map_type_id"),
+    "terms": ("concept_reference_term", "concept_reference_term_id,uuid,concept_source_id,code,retired"),
+    "sources": ("concept_reference_source", "concept_source_id,uuid,name,retired"),
+}
 ADMISSION_SUPPLEMENT = "SIHSALUS Admision Hospitalaria"
 SUPPLEMENT_CHANGESET = "retire-admission-hospital-supplement-20260921"
 HOSPITAL_ROLES_FILE = "roles/roles_hospital_operations.csv"
@@ -418,15 +426,41 @@ class Harness:
     def terminology_identity_snapshot(self, db):
         # Compare identities and actual graph edges, not timestamps that native
         # OCL legitimately updates while applying identical metadata.
-        queries = {
-            "concepts": "SELECT concept_id,uuid,datatype_id,class_id,is_set,retired FROM concept ORDER BY concept_id",
-            "sets": "SELECT concept_set_id,uuid,concept_id,concept_set,sort_weight FROM concept_set ORDER BY concept_set_id",
-            "answers": "SELECT concept_answer_id,uuid,concept_id,answer_concept,answer_drug,sort_weight FROM concept_answer ORDER BY concept_answer_id",
-            "mappings": "SELECT concept_map_id,uuid,concept_id,concept_reference_term_id,concept_map_type_id FROM concept_reference_map ORDER BY concept_map_id",
-            "terms": "SELECT concept_reference_term_id,uuid,concept_source_id,code,retired FROM concept_reference_term ORDER BY concept_reference_term_id",
-            "sources": "SELECT concept_source_id,uuid,name,retired FROM concept_reference_source ORDER BY concept_source_id",
-        }
-        return {key: tuple(self.query(db, query)) for key, query in queries.items()}
+        return {key: tuple(self.query(db, "SELECT " + columns + " FROM " + table
+                                     + " ORDER BY " + columns.split(",")[0]))
+                for key, (table, columns) in TERMINOLOGY_TABLES.items()}
+
+    def assert_terminology_identity(self, db, expected, phase):
+        """Keep the strict oracle; diagnose drift without emitting row values."""
+        require(phase in ("upgrade", "restart"), "invalid_terminology_snapshot_phase")
+        actual = self.terminology_identity_snapshot(db)
+        require(actual.keys() == expected.keys() == TERMINOLOGY_TABLES.keys(),
+                "terminology_snapshot_shape_changed")
+        for key, (table, column_list) in TERMINOLOGY_TABLES.items():
+            if actual[key] == expected[key]:
+                continue
+            columns = column_list.split(",")
+            before_rows = [row.split("\t") for row in expected[key]]
+            after_rows = [row.split("\t") for row in actual[key]]
+            require(all(len(row) == len(columns) for row in before_rows + after_rows),
+                    "terminology_snapshot_column_shape_changed")
+            before, after = ({row[0]: row for row in rows} for rows in (before_rows, after_rows))
+            require(len(before) == len(before_rows) and len(after) == len(after_rows),
+                    "terminology_snapshot_duplicate_primary_key")
+            common = before.keys() & after.keys()
+            changed_columns = {column: sum(before[pk][index] != after[pk][index] for pk in common)
+                               for index, column in enumerate(columns)}
+            became_null = {column: sum(before[pk][index] != "NULL" and after[pk][index] == "NULL"
+                                      for pk in common) for index, column in enumerate(columns)}
+            old, new = Counter(expected[key]), Counter(actual[key])
+            emit("terminology_snapshot", "FAILED", phase=phase, table=table,
+                 expected_rows=len(before_rows), actual_rows=len(after_rows),
+                 removed_rows=sum((old - new).values()), added_rows=sum((new - old).values()),
+                 primary_keys_preserved=before.keys() == after.keys(),
+                 uuids_preserved=Counter(row[1] for row in before_rows) == Counter(row[1] for row in after_rows),
+                 changed_columns={column: count for column, count in changed_columns.items() if count},
+                 became_null={column: count for column, count in became_null.items() if count})
+        require(actual == expected, "ocl_" + phase + "_changed_identities_or_cross_references")
 
     def check_birth_length(self, backend, db, decimal):
         rows = self.query(db, "SELECT c.concept_id,c.uuid,c.retired,dt.name,n.units,n.allow_decimal "
@@ -481,10 +515,13 @@ class Harness:
             backend, _ = self.start_backend("ocl-upgrade", self.candidate_config, data_volume=volume)
             self.wait_initializer(backend, "ocl_upgrade")
             self.assert_checksums(backend, self.candidate_role_md5)
+            candidate_concept_id = self.check_birth_length(backend, db, decimal=True)
+            emit("birth_length", "PASSED" if candidate_concept_id == concept_id else "FAILED",
+                 phase="upgrade", concept_id_preserved=candidate_concept_id == concept_id, allow_decimal=True)
+            require(candidate_concept_id == concept_id, "birth_length_concept_id_changed")
             require(self.history(db) == history, "ocl_upgrade_changed_liquibase_history")
-            require(self.terminology_identity_snapshot(db) == identities, "ocl_upgrade_changed_identities_or_cross_references")
+            self.assert_terminology_identity(db, identities, "upgrade")
             self.check_retained_checksums(checksums, self.checksum_snapshot(backend))
-        require(self.check_birth_length(backend, db, decimal=True) == concept_id, "birth_length_concept_id_changed")
         self.check_ocl_namespace(db, "upgrade" if upgrade else "fresh")
         self.create_birth_length_observation(backend, db, person["uuid"], 30.1)
         observations = self.query(db, "SELECT * FROM obs ORDER BY obs_id")
@@ -497,7 +534,7 @@ class Harness:
         self.assert_checksums(backend, self.candidate_role_md5)
         require(self.checksum_snapshot(backend) == checksums, "ocl_restart_changed_checksums")
         require(self.history(db) == history, "ocl_restart_changed_liquibase_history")
-        require(self.terminology_identity_snapshot(db) == identities, "ocl_restart_changed_identities_or_cross_references")
+        self.assert_terminology_identity(db, identities, "restart")
         require(self.query(db, "SELECT * FROM obs ORDER BY obs_id") == observations, "ocl_restart_changed_observations")
         require(self.check_birth_length(backend, db, decimal=True) == concept_id, "birth_length_concept_id_changed_on_restart")
         self.check_ocl_namespace(db, "restart")

@@ -159,7 +159,10 @@ class HarnessContracts(unittest.TestCase):
         runtime.create_birth_length_observation = Mock(return_value=["original observation"])
         runtime.query = Mock(return_value=["original observation", "decimal observation"])
         runtime.history = Mock(return_value=["complete journal"])
-        runtime.terminology_identity_snapshot = Mock(return_value={"all edges": ("stable identities",)})
+        identities = {key: () for key in harness.TERMINOLOGY_TABLES}
+        identities["answers"] = ("610\tsynthetic-private-uuid\t10\t20\tNULL\t1",)
+        changed_identities = {**identities, "answers": ("610\tsynthetic-private-uuid\t10\t20\tNULL\tNULL",)}
+        runtime.terminology_identity_snapshot = Mock(return_value=identities)
         runtime.checksum_snapshot = Mock(return_value={"ocl/a.checksum": b"existing checksum"})
         with patch.object(harness, "emit"):
             runtime.ocl_transition_run(upgrade=True)
@@ -167,7 +170,7 @@ class HarnessContracts(unittest.TestCase):
             self.assertEqual(call.kwargs, {"data_volume": "owned-volume"})
         runtime.check_retained_checksums.assert_called_once()
         for method, changed, reason in (
-                ("terminology_identity_snapshot", {"all edges": ("recreated identity",)}, "identities_or_cross_references"),
+                ("terminology_identity_snapshot", changed_identities, "identities_or_cross_references"),
                 ("history", ["altered journal checksum"], "liquibase_history"),
                 ("checksum_snapshot", {"ocl/a.checksum": b"reset checksum"}, "checksums"),
                 ("query", ["modified observation"], "observations")):
@@ -181,6 +184,43 @@ class HarnessContracts(unittest.TestCase):
                 with patch.object(harness, "emit"), self.assertRaisesRegex(HarnessFailure, "ocl_restart_changed_" + reason):
                     runtime.ocl_transition_run(upgrade=True)
                 target.side_effect = None
+
+        runtime.start_backend.side_effect = [("baseline", "owned-volume"), ("upgrade", "owned-volume")]
+        runtime.terminology_identity_snapshot.side_effect = [identities, changed_identities]
+        with patch.object(harness, "emit") as emit, self.assertRaisesRegex(
+                HarnessFailure, "^ocl_upgrade_changed_identities_or_cross_references$"):
+            runtime.ocl_transition_run(upgrade=True)
+        self.assertEqual(emit.call_args_list[0].args, ("birth_length", "PASSED"))
+        self.assertEqual(emit.call_args_list[0].kwargs,
+                         {"phase": "upgrade", "concept_id_preserved": True, "allow_decimal": True})
+        self.assertEqual(emit.call_args_list[1].args, ("terminology_snapshot", "FAILED"))
+
+    def test_terminology_drift_reports_only_fixed_columns_and_counts_without_accepting_changes(self):
+        before = {key: () for key in harness.TERMINOLOGY_TABLES}
+        before["answers"] = ("610\tsynthetic-private-uuid\t10\t20\tNULL\t1",)
+        changes = (
+            ("610\tsynthetic-private-uuid\t10\t20\tNULL\tNULL", True, True, {"sort_weight": 1}, {"sort_weight": 1}),
+            ("610\tsynthetic-new-uuid\t10\t20\tNULL\t1", True, False, {"uuid": 1}, {}),
+            ("611\tsynthetic-private-uuid\t10\t20\tNULL\t1", False, True, {}, {}),
+            ("610\tsynthetic-private-uuid\t10\t21\tNULL\t1", True, True, {"answer_concept": 1}, {}),
+        )
+        for row, pk_preserved, uuid_preserved, columns, nulls in changes:
+            with self.subTest(row=row):
+                self.runtime.terminology_identity_snapshot = Mock(return_value={**before, "answers": (row,)})
+                with patch.object(harness, "emit") as emit, self.assertRaisesRegex(
+                        HarnessFailure, "^ocl_upgrade_changed_identities_or_cross_references$"):
+                    self.runtime.assert_terminology_identity("owned", before, "upgrade")
+                emit.assert_called_once_with("terminology_snapshot", "FAILED", phase="upgrade",
+                    table="concept_answer", expected_rows=1, actual_rows=1, removed_rows=1, added_rows=1,
+                    primary_keys_preserved=pk_preserved, uuids_preserved=uuid_preserved,
+                    changed_columns=columns, became_null=nulls)
+                self.assertNotIn("synthetic-private-uuid", str(emit.call_args))
+                self.assertNotIn("synthetic-new-uuid", str(emit.call_args))
+
+        self.runtime.terminology_identity_snapshot.return_value = before
+        with patch.object(harness, "emit") as emit:
+            self.runtime.assert_terminology_identity("owned", before, "restart")
+        emit.assert_not_called()
 
     def test_procedure_anatomy_checks_native_search_and_preserves_database_identities(self):
         contract, rows, responses = procedure_anatomy_result()
