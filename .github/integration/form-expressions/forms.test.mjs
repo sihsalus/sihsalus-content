@@ -16,8 +16,44 @@ const anemia = fields('CRED-001-TAMIZAJE DE ANEMIA.json');
 const obstetrics = fields('OBST-002-EMBARAZO ACTUAL.json');
 const history = fields('OBST-001-ANTECEDENTES.json');
 const mentalHealth = fields('CRED-011-SALUD MENTAL NIÑO Y CUIDADOR.json');
+const birth = fields('(CRED) Detalles de Nacimiento.json');
 const evaluate = (expression, values) => vm.runInNewContext(expression, { dayjs, ...values });
 const date = (value) => dayjs(value).toDate();
+
+test('neonatal discharge rejects days before birth and allows the birth day', () => {
+  const validator = birth.fechaAltaRecienNacido.validators.find((v) => v.type === 'js_expression');
+  const isEmpty = (value) => value == null || value === '';
+  for (const [value, expected] of [
+    ['2026-10-14T23:59:00', true], ['2026-10-15T00:00:00', false], ['2026-10-16T10:30:00', false],
+  ]) {
+    assert.equal(evaluate(validator.failsWhenExpression, {
+      myValue: date(value), patient: { birthDate: '2026-10-15' }, isEmpty,
+    }), expected);
+  }
+  for (const patient of [null, {}, { birthDate: 'invalid' }]) {
+    assert.equal(evaluate(validator.failsWhenExpression, { myValue: date('2026-10-15'), patient, isEmpty }), true);
+  }
+  assert.equal(evaluate(validator.failsWhenExpression, { myValue: null, patient: null, isEmpty }), false);
+  assert.ok(birth.fechaAltaRecienNacido.validators.some((v) => v.type === 'date' && v.allowFutureDates === 'false'));
+});
+
+test('hospitalization duration is disabled unless Yes and contradictory values are rejected without clearing them', () => {
+  const yes = birth.requirioHospitalizacion.questionOptions.answers.find((answer) => answer.label === 'Sí').concept;
+  const no = birth.requirioHospitalizacion.questionOptions.answers.find((answer) => answer.label === 'No').concept;
+  const isEmpty = (value) => value == null || value === '';
+  for (const response of [yes, no, undefined]) {
+    assert.equal(evaluate(birth.tiempoDeHospitalizacion.disabled.disableWhenExpression, {
+      requirioHospitalizacion: response,
+    }), response !== yes);
+    for (const duration of [undefined, null, '', 0, 3]) {
+      assert.equal(evaluate(birth.requirioHospitalizacion.validators[0].failsWhenExpression, {
+        myValue: response, tiempoDeHospitalizacion: duration, isEmpty,
+      }), response !== yes && !isEmpty(duration));
+    }
+  }
+  assert.equal(birth.tiempoDeHospitalizacion.hide, undefined);
+  assert.equal(birth.tiempoDeHospitalizacion.questionOptions.calculate, undefined);
+});
 
 test('altitude warning includes the first nonzero adjustment band', () => {
   for (const [altitud, expected] of [[0, false], [499, false], [500, true], [501, true], [5500, true]]) {

@@ -210,6 +210,35 @@ habilita el control. El segundo control incluye el día 14 y conserva siete día
 mínimos desde el control anterior. La reanudación del mismo control conserva su
 número.
 
+La corrección de los reportes #389 y #390 mantiene la identidad del formulario
+`(CRED) Detalles de Nacimiento` `1.2`. El alta no puede preceder al día de
+nacimiento ni estar en el futuro; se permite el mismo día sin inferir una hora
+de nacimiento que el dato demográfico no contiene. Si se introduce un alta y
+no se dispone de una fecha de nacimiento válida, pide revisar la demografía.
+
+El tiempo de hospitalización solo se edita con «Sí». Al cambiar a «No» se
+conserva el valor introducido, pero se bloquea el guardado contradictorio y se
+pide volver a «Sí» para corregirlo o borrarlo. No se eliminan observaciones por
+ocultación ni se sustituye una respuesta ausente por cero. La regla se aplica
+también al editar; no modifica registros históricos automáticamente.
+
+**Talla al nacer (#391), pendiente de OCL:** el concepto `SIHSALUS/sihsalus:382`
+(`bf82beb1-d3b8-400e-8160-90869cad8136`) es numérico, usa `cm` y el export
+incluido todavía declara `extras.allow_decimal: false`. El formulario ya admite
+pasos de `0.1`; no debe redondear la medición para compensar esa discrepancia.
+La corrección aprobada consiste en habilitar `allow_decimal` en la fuente
+canónica, conservando identidad, unidad, nombres y mappings, e incorporar un
+export oficial versionado después de revisar su diferencia completa.
+
+La consulta actual de OCL exige autenticación. Aún no se ha actualizado el
+concepto ni sustituido el export. Antes de incorporarlo hay que resolver también
+la compatibilidad con la suscripción remota `2026-07-16-02`, que podría restaurar
+la metadata anterior, y conservar las exclusiones del catálogo de barrios
+documentadas en [la auditoría OCL](audits/2026-09-12-ocl-refresh.md).
+No editar a mano el ZIP oficial, duplicar el concepto en CSV ni aplicar SQL.
+La aceptación requiere verificar `allowDecimal: true` y guardar/reabrir una
+talla sintética de `30.1 cm` tras la actualización autorizada de content.
+
 `CRED-001` `1.2.1` conserva la hemoglobina medida y la clasificación confirmada
 por el profesional; incluye 500 m en la advertencia de ajuste por altitud y
 admite captura hasta 5500 m, según la tabla 1 de la

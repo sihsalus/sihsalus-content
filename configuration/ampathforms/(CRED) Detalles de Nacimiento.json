@@ -105,6 +105,11 @@
                   "type": "date",
                   "allowFutureDates": "false",
                   "message": "El alta no puede estar en el futuro"
+                },
+                {
+                  "type": "js_expression",
+                  "failsWhenExpression": "!isEmpty(myValue) && (!patient || isEmpty(patient.birthDate) || !dayjs(patient.birthDate).isValid() || dayjs(myValue).isBefore(dayjs(patient.birthDate), 'day'))",
+                  "message": "El alta no puede ser anterior al nacimiento. Verifique la fecha de nacimiento del paciente."
                 }
               ]
             }
@@ -243,7 +248,14 @@
                 ]
               },
               "id": "requirioHospitalizacion",
-              "label": "Requirió hospitalización"
+              "label": "Requirió hospitalización",
+              "validators": [
+                {
+                  "type": "js_expression",
+                  "failsWhenExpression": "myValue !== 'f7e458ef-8dea-4e53-b429-81664cbeda49' && !isEmpty(tiempoDeHospitalizacion)",
+                  "message": "Hay un tiempo de hospitalización registrado. Seleccione Sí para revisarlo o borrarlo antes de indicar que no requirió hospitalización."
+                }
+              ]
             },
             {
               "type": "obs",
@@ -255,7 +267,10 @@
                 "max": "365"
               },
               "id": "tiempoDeHospitalizacion",
-              "label": "Tiempo de hospitalización"
+              "label": "Tiempo de hospitalización",
+              "disabled": {
+                "disableWhenExpression": "requirioHospitalizacion !== 'f7e458ef-8dea-4e53-b429-81664cbeda49'"
+              }
             }
           ]
         }
