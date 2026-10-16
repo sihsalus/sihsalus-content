@@ -30,10 +30,12 @@ test('neonatal discharge rejects days before birth and allows the birth day', ()
       myValue: date(value), patient: { birthDate: '2026-10-15' }, isEmpty,
     }), expected);
   }
-  for (const patient of [null, {}, { birthDate: 'invalid' }]) {
+  for (const patient of [undefined, null, {}, { birthDate: null }, { birthDate: '' }, { birthDate: 'invalid' }]) {
     assert.equal(evaluate(validator.failsWhenExpression, { myValue: date('2026-10-15'), patient, isEmpty }), true);
+    for (const myValue of [undefined, null, '']) {
+      assert.equal(evaluate(validator.failsWhenExpression, { myValue, patient, isEmpty }), false);
+    }
   }
-  assert.equal(evaluate(validator.failsWhenExpression, { myValue: null, patient: null, isEmpty }), false);
   assert.ok(birth.fechaAltaRecienNacido.validators.some((v) => v.type === 'date' && v.allowFutureDates === 'false'));
 });
 

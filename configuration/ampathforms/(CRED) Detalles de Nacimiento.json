@@ -108,7 +108,7 @@
                 },
                 {
                   "type": "js_expression",
-                  "failsWhenExpression": "!isEmpty(myValue) && (!patient || isEmpty(patient.birthDate) || !dayjs(patient.birthDate).isValid() || dayjs(myValue).isBefore(dayjs(patient.birthDate), 'day'))",
+                  "failsWhenExpression": "isEmpty(myValue) ? false : !patient ? true : isEmpty(patient.birthDate) || !dayjs(patient.birthDate).isValid() || dayjs(myValue).isBefore(dayjs(patient.birthDate), 'day')",
                   "message": "El alta no puede ser anterior al nacimiento. Verifique la fecha de nacimiento del paciente."
                 }
               ]
