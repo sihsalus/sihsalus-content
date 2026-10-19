@@ -8,6 +8,12 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Categoría local de Enfermería (candidata 1.25.38)
+
+- Asocia la atención ambulatoria por enfermería a la categoría local «Enfermería», conservando su UUID de servicio y la cola compartida de Consulta Externa.
+- Mantiene separadas la categoría general y las especialidades de CRED/Pediatría; no asigna categorías a profesionales ni concede permisos o habilitación clínica.
+- Documenta el cambio de agenda y añade regresiones de referencias y enrutamiento. Requiere aceptación del responsable de cartera y revisión del modo off/warn/strict antes del despliegue.
+
 ### Especialidades y categorías de agenda (candidata 1.25.36)
 
 - Distribuye el catálogo de citas en medicina, enfermería, odontología y categorías locales mediante CSV nativos de Initializer.

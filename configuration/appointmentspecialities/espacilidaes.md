@@ -39,8 +39,10 @@ la primera denominación. Ambas conservan identidades distintas. La
 regula la prestación CRED; el catálogo de especialidades no establece por sí
 solo un requisito de titulación para realizar esa prestación.
 
-El servicio general de atención por enfermería debe conservar su alcance
-profesional. Una agenda específica de CRED requiere definir el servicio y su
+El servicio general de atención por enfermería conserva su alcance profesional
+y usa la categoría local «Enfermería» (`83cc14ae-0774-437e-8697-0d93b999ddf3`).
+Su asociación no exige una especialidad infantil ni asigna categorías a los
+profesionales. Una agenda específica de CRED requiere definir el servicio y su
 asociación en el contrato canónico, con validación del responsable de cartera.
 
 ## Fuentes oficiales y alcance de la evidencia
