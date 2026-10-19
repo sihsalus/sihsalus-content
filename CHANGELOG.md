@@ -13,7 +13,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - Distribuye el catálogo de citas en medicina, enfermería, odontología y categorías locales mediante CSV nativos de Initializer.
 - Conserva los 16 UUID históricos y normaliza cinco denominaciones médicas contra la publicación oficial de MINSA.
 - Añade 19 especialidades de CONAREN con identidades propias, incluida la denominación específica de CRED e Inmunizaciones.
-- Mantiene el contrato de servicios y enrutamiento; valida referencias y duplicados entre todos los CSV del dominio.
+- Mantiene el contrato de servicios y enrutamiento; valida referencias y duplicados entre todos los CSV del dominio, incluidos nombres que solo difieren por mayúsculas.
 - La versión evita la `1.25.35` propuesta por los PR de CRED abiertos; la habilitación de cartera, aceptación clínica y despliegue siguen pendientes de sus responsables.
 
 ### Roles de atención CRED (candidata 1.25.34)

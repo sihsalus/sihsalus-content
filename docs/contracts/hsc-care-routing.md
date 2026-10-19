@@ -88,7 +88,9 @@ específica exige definir el servicio y su enrutamiento en el contrato canónico
 El loader nativo de Initializer admite varios CSV de especialidades. La separación de
 archivos conserva el encabezado `Uuid,Void/Retire,Name` y las referencias por UUID; el
 validador comprueba el catálogo completo y detecta identidades o nombres duplicados entre
-archivos. Los UUID son identidades de OpenMRS, no códigos oficiales de MINSA o CONAREN.
+archivos. Los nombres se comparan sin distinguir mayúsculas, como el fallback por nombre de
+`SpecialitiesCsvParser`: una colisión entre UUID distintos podría reutilizar la identidad
+equivocada al cargar. Los UUID son identidades de OpenMRS, no códigos oficiales de MINSA o CONAREN.
 
 ## Referencias
 

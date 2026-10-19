@@ -829,11 +829,13 @@ def validate_service_durations(errors):
     return len(definitions), len(service_types)
 
 
-def _index_unique(rows, key, path, errors):
+def _index_unique(rows, key, path, errors, normalize=None):
     indexed = {}
     duplicates = set()
     for row in rows:
         value = row.get(key, "")
+        if normalize:
+            value = normalize(value)
         if value in indexed:
             duplicates.add(value)
         indexed[value] = row
@@ -859,7 +861,8 @@ def validate_canonical_care_routing(errors):
     specialities = _index_unique(
         speciality_rows, "Uuid", SPECIALITIES_DIR, errors
     )
-    _index_unique(speciality_rows, "Name", SPECIALITIES_DIR, errors)
+    # Initializer falls back to a case-insensitive name lookup when a UUID is new.
+    _index_unique(speciality_rows, "Name", SPECIALITIES_DIR, errors, normalize=str.casefold)
     locations = _index_unique(read_csv(LOCATIONS_PATH), "Uuid", LOCATIONS_PATH, errors)
     queue_rows = read_csv(QUEUES_PATH)
     queues = _index_unique(queue_rows, "Uuid", QUEUES_PATH, errors)

@@ -70,6 +70,13 @@ class AppointmentSpecialityCatalogTest(unittest.TestCase):
             ])
         self.assertTrue(any("must be active" in error for error in self.validate()))
 
+    def test_rejects_case_insensitive_name_collision_across_files(self):
+        row = VALIDATOR.read_csv(next(self.catalog.glob("*.csv")))[0]
+        self.write_rows(self.catalog / "case-collision.csv", [dict(
+            row, Uuid="00000000-0000-4000-8000-000000000001", Name=row["Name"].swapcase()
+        )])
+        self.assertTrue(any("duplicate Name" in error for error in self.validate()))
+
     def test_rejects_empty_catalog(self):
         for path in self.catalog.glob("*.csv"):
             path.unlink()
