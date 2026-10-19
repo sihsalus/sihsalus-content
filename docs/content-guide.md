@@ -218,8 +218,11 @@ No calcula ni persiste hemoglobina ajustada. La selección de rangos de
 hemoglobina por edad a la fecha de la muestra pertenece al
 [contrato de laboratorio](contracts/laboratory-reporting.md).
 
-Las curvas escolares del frontend usan las tablas OMS 2007 para ambos sexos
-entre 61 y 228 meses; no se persisten puntajes z ni clasificaciones. EDI
+Las curvas escolares del frontend usan las tablas OMS 2007 para ambos sexos.
+El [PR coordinado de frontend](https://github.com/sihsalus/sihsalus-frontend/pull/1241)
+amplía su intervalo de 61–228 a 60–228 meses incorporando las cuatro filas
+oficiales del mes 60, sin extrapolar; su aceptación clínica sigue pendiente.
+No se persisten puntajes z ni clasificaciones. EDI
 (`CRED-009`) es una transcripción resumida de cinco ejes, Huanca (`CRED-026`)
 guarda áreas y detalles y M-CHAT (`CRED-010`) conserva puntaje y resumen;
 ninguno captura ítems individuales. Distribuir el cuestionario
@@ -271,8 +274,11 @@ PPSC/PSC-17 conserva su opción, conceptos, rango de puntaje, resultados y edad
 del niño. El plan sigue siendo obligatorio para resultados positivos o sospecha
 diagnóstica. El cálculo y la visibilidad dejan de referenciar el campo de
 violencia retirado; el puntaje sigue obligatorio para la opción infantil
-restante. Esta corrección de sujeto no valida la selección clínica de PPSC o
-PSC-17, no añade reglas de edad ni sustituye sus instrumentos oficiales.
+restante. Esta corrección de sujeto en content no valida la selección clínica
+de PPSC o PSC-17 ni sustituye sus instrumentos oficiales. El
+[frontend coordinado](https://github.com/sihsalus/sihsalus-frontend/pull/1241)
+limita el acceso al formulario infantil por edad y separa la orientación para
+evaluar al cuidador en su propia historia; requiere aceptación clínica del flujo.
 
 El loader nativo conserva el esquema `1.3.0` y sus encuentros. No migra ni
 reatribuye resultados históricos del cuidador; su revisión requiere un
