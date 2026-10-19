@@ -129,13 +129,14 @@ def concept_summary(concept):
     )
 
 
-def load_ocl_bundle():
+def load_ocl_bundle(ocl_dir=None):
+    ocl_dir = Path(ocl_dir) if ocl_dir is not None else OCL_DIR
     errors = []
     active_by_external_id = defaultdict(list)
     retired_by_external_id = defaultdict(list)
     q_and_a_targets = defaultdict(set)
 
-    for zip_path in sorted(OCL_DIR.glob("*.zip")):
+    for zip_path in sorted(ocl_dir.glob("*.zip")):
         try:
             with zipfile.ZipFile(zip_path) as archive:
                 export = json.loads(archive.read("export.json"))
@@ -181,8 +182,30 @@ def load_ocl_bundle():
                     (to_source, str(to_code))
                 )
 
+    # Native Initializer concepts are also shipped metadata. Keep this one index
+    # for both form validators; reject a second active definition during OCL transfer.
+    for csv_path in sorted((ocl_dir.parent / "concepts").glob("*.csv")):
+        try:
+            with csv_path.open(encoding="utf-8-sig", newline="") as handle:
+                for row in csv.DictReader(handle):
+                    external_id = (row.get("Uuid") or "").strip()
+                    if not external_id:
+                        continue
+                    indexed_concept = {
+                        "source": "initializer-local", "code": external_id,
+                        "external_id": external_id,
+                        "display_name": row.get("Fully specified name:es") or row.get("Fully specified name:en"),
+                        "concept_class": row.get("Data class"), "datatype": row.get("Data type"),
+                        "units": row.get("Units"), "zip_path": csv_path,
+                    }
+                    retired = (row.get("Void/Retire") or "").strip().lower() in {"1", "true", "yes"}
+                    index = retired_by_external_id if retired else active_by_external_id
+                    index[external_id].append(indexed_concept)
+        except (OSError, csv.Error) as error:
+            errors.append(f"{csv_path}: cannot load native concepts: {error}")
+
     if not active_by_external_id:
-        errors.append(f"{OCL_DIR}: no active bundled OCL concepts found")
+        errors.append(f"{ocl_dir}: no active bundled concepts found")
 
     return {
         "active_by_external_id": active_by_external_id,

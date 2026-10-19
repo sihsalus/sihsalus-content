@@ -52,6 +52,34 @@ class AmpathFormIdentityTest(unittest.TestCase):
             status = validator.main()
         return status, output.getvalue() + errors.getvalue()
 
+    def write_native_concept(self, concept_uuid="native-dose", datatype="Numeric"):
+        directory = self.forms.parent / "concepts"
+        directory.mkdir(exist_ok=True)
+        (directory / "measurement.csv").write_text(
+            "Uuid,Void/Retire,Fully specified name:es,Data class,Data type,Units\n"
+            f"{concept_uuid},,Dosis administrada,Question,{datatype},UI\n"
+        )
+
+    def test_resolves_native_numeric_concept_and_keeps_unit(self):
+        self.write_native_concept()
+        self.write_form("dose.json", pages=[{"sections": [{"questions": [{
+            "id": "dose", "type": "obs", "questionOptions": {"concept": "native-dose", "rendering": "number"},
+        }]}]}])
+        status, output = self.run_validator()
+        self.assertEqual(0, status, output)
+        bundle, errors = validator.load_ocl_bundle()
+        self.assertEqual([], errors)
+        self.assertEqual("UI", bundle["active_by_external_id"]["native-dose"][0]["units"])
+
+    def test_rejects_duplicate_operational_definition_in_native_csv_and_ocl(self):
+        self.write_native_concept("synthetic-concept", "Text")
+        self.write_form("duplicate.json", pages=[{"sections": [{"questions": [{
+            "id": "duplicate", "type": "obs", "questionOptions": {"concept": "synthetic-concept", "rendering": "text"},
+        }]}]}])
+        status, output = self.run_validator()
+        self.assertEqual(1, status, output)
+        self.assertIn("ambiguous", output)
+
     def test_patient_context_is_native_but_unknown_local_fields_still_fail(self):
         self.assertEqual(
             {'missingDate'},
@@ -166,6 +194,72 @@ class AmpathFormIdentityTest(unittest.TestCase):
                     status, output = self.run_validator()
                     self.assertEqual(1, status, output)
                     self.assertIn(f"{field} must be a non-empty string", output)
+
+
+class ShippedClinicalMetadataContractTest(unittest.TestCase):
+    def test_vitamin_a_writes_a_numeric_dose_in_ui_without_reusing_score(self):
+        root = Path(__file__).resolve().parents[2]
+        path = root / "configuration/ampathforms/CRED-013-ADMINISTRACIÓN DE VITAMINA A.json"
+        form = json.loads(path.read_text())
+        questions = [question for page in form["pages"] for section in page["sections"]
+                     for question in section["questions"]]
+        dose = next(question for question in questions if question.get("id") == "dosisUi")
+        bundle, errors = validator.load_ocl_bundle()
+        concept = validator.resolve_concept(path, dose, dose["questionOptions"]["concept"], "question", bundle, errors)
+        self.assertEqual([], errors)
+        self.assertEqual(("Numeric", "UI"), (concept["datatype"], concept["units"]))
+        self.assertNotEqual("f0000007-0000-4000-8000-000000000007", concept["external_id"])
+        self.assertNotEqual(validator.ampath_persisted_form_uuid(form["name"], "1.0.0"),
+                            validator.ampath_persisted_form_uuid(form["name"], form["version"]))
+
+    def test_immunization_separates_record_and_administration_dates(self):
+        root = Path(__file__).resolve().parents[2]
+        path = root / "configuration/ampathforms/INMU-001-REGISTRO DE VACUNACIÓN.json"
+        form = json.loads(path.read_text())
+        questions = [question for page in form["pages"] for section in page["sections"]
+                     for question in section["questions"]]
+        record = next(question for question in questions if question.get("id") == "fechaVacunacion")
+        administration = next(question for question in questions if question.get("id") == "fechaAdministracion")
+        self.assertEqual("encounterDatetime", record["type"])
+        self.assertEqual("obs", administration["type"])
+        bundle, errors = validator.load_ocl_bundle()
+        concept = validator.resolve_concept(path, administration, administration["questionOptions"]["concept"], "question", bundle, errors)
+        self.assertEqual([], errors)
+        self.assertEqual("Datetime", concept["datatype"])
+        self.assertEqual("1.1.0", form["version"])
+        self.assertNotEqual(validator.ampath_persisted_form_uuid(form["name"], "1.0.1"),
+                            validator.ampath_persisted_form_uuid(form["name"], form["version"]))
+
+    def test_cred_referral_writes_canonical_priority_answers(self):
+        root = Path(__file__).resolve().parents[2]
+        path = root / "configuration/ampathforms/CRED-024-INTERCONSULTA DERIVACIÓN REFERENCIA.json"
+        form = json.loads(path.read_text())
+        questions = [question for page in form["pages"] for section in page["sections"]
+                     for question in section["questions"]]
+        priority = next(question for question in questions if question.get("id") == "prioridad")
+        bundle, errors = validator.load_ocl_bundle()
+        self.assertEqual([], errors)
+        options = priority["questionOptions"]
+        concept = validator.resolve_concept(path, priority, options["concept"], "question", bundle, errors)
+        self.assertEqual("Prioridad de referencia", concept["display_name"])
+        self.assertEqual("Coded", concept["datatype"])
+        allowed = bundle["q_and_a_targets"][(concept["source"], concept["code"])]
+        self.assertEqual(4, len(options["answers"]))
+        for answer in options["answers"]:
+            resolved = validator.resolve_concept(path, priority, answer["concept"], "answer", bundle, errors)
+            self.assertIn((resolved["source"], resolved["code"]), allowed)
+            self.assertNotIn("ESAVI", resolved["display_name"])
+        self.assertEqual([], errors)
+
+    def test_corrected_capture_has_distinct_persisted_form_identity(self):
+        root = Path(__file__).resolve().parents[2]
+        form = json.loads((root / "configuration/ampathforms/CRED-024-INTERCONSULTA DERIVACIÓN REFERENCIA.json").read_text())
+        self.assertEqual("1.1.0", form["version"])
+        self.assertNotEqual(
+            validator.ampath_persisted_form_uuid(form["name"], "1.0.0"),
+            validator.ampath_persisted_form_uuid(form["name"], form["version"]),
+        )
+        self.assertEqual("c2240000-0000-4000-8000-000000000024", form["uuid"])
 
 
 if __name__ == "__main__":

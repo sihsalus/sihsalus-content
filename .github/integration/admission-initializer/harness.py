@@ -37,7 +37,10 @@ REVIEWED_FORMS = ("CRED-001-TAMIZAJE DE ANEMIA.json", "OBST-002-EMBARAZO ACTUAL.
                   "CE-SOAP-001-NOTA SOAP.json", "CE-001-CONSULTA EXTERNA.json",
                   "OBST-001-ANTECEDENTES.json", "OBST-006-PUERPERIO INMEDIATO.json",
                   "HOSP-010-EPICRISIS OBSTÉTRICO-POSTPARTO.json",
-                  "CRED-011-SALUD MENTAL NIÑO Y CUIDADOR.json")
+                  "CRED-011-SALUD MENTAL NIÑO Y CUIDADOR.json",
+                  "CRED-013-ADMINISTRACIÓN DE VITAMINA A.json",
+                  "CRED-024-INTERCONSULTA DERIVACIÓN REFERENCIA.json",
+                  "INMU-001-REGISTRO DE VACUNACIÓN.json")
 REVIEWED_RANGES = (
     "f0c6d3dc-a0d2-497c-921f-b7266d448fcf", "a769e98e-e91f-4d4c-b029-1c66e267f32a",
     "0502ff16-270e-423f-8fa6-95255fdc9b19", "a75289e3-427c-4e14-ad67-50fc34dcc733",
@@ -71,6 +74,7 @@ TERMINOLOGY_TABLES = {
     "terms": ("concept_reference_term", "concept_reference_term_id,uuid,concept_source_id,code,retired"),
     "sources": ("concept_reference_source", "concept_source_id,uuid,name,retired"),
 }
+VITAMIN_A_DOSE_UUID = "9c0b51ef-0d4c-49a3-bdbb-2ee7083fe778"
 ADMISSION_SUPPLEMENT = "SIHSALUS Admision Hospitalaria"
 SUPPLEMENT_CHANGESET = "retire-admission-hospital-supplement-20260921"
 HOSPITAL_ROLES_FILE = "roles/roles_hospital_operations.csv"
@@ -518,6 +522,17 @@ class Harness:
                  became_null={column: count for column, count in became_null.items() if count})
         require(actual == expected, "ocl_" + phase + "_changed_identities_or_cross_references")
 
+    def expected_vitamin_a_insertion(self, db, baseline):
+        """The reviewed CSV adds exactly this new concept; all baseline rows remain immutable."""
+        concept = self.check_vitamin_a_measurement(db)
+        fields = concept.split("\t")
+        previous = [row.split("\t") for row in baseline["concepts"]]
+        require(all(len(row) == 6 for row in previous), "terminology_snapshot_column_shape_changed")
+        require(all(row[1] != VITAMIN_A_DOSE_UUID for row in previous), "vitamin_a_unexpected_baseline_identity")
+        require(all(row[0] != fields[0] for row in previous), "vitamin_a_existing_concept_id_reused")
+        return {**baseline, "concepts": tuple(sorted((*baseline["concepts"], concept),
+                                                     key=lambda row: int(row.split("\t")[0])))}
+
     def check_birth_length(self, backend, db, decimal):
         rows = self.query(db, "SELECT c.concept_id,c.uuid,c.retired,dt.name,n.units,n.allow_decimal "
             "FROM concept c JOIN concept_datatype dt ON dt.concept_datatype_id=c.datatype_id "
@@ -578,8 +593,11 @@ class Harness:
                  phase="upgrade", concept_id_preserved=candidate_concept_id == concept_id, allow_decimal=True)
             require(candidate_concept_id == concept_id, "birth_length_concept_id_changed")
             require(self.history(db) == history, "ocl_upgrade_changed_liquibase_history")
+            identities = self.expected_vitamin_a_insertion(db, identities)
             self.assert_terminology_identity(db, identities, "upgrade")
             self.check_retained_checksums(checksums, self.checksum_snapshot(backend))
+        else:
+            self.check_vitamin_a_measurement(db)
         self.check_ocl_namespace(db, "upgrade" if upgrade else "fresh")
         self.create_birth_length_observation(backend, db, person["uuid"], 30.1)
         observations = self.query(db, "SELECT * FROM obs ORDER BY obs_id")
@@ -595,6 +613,7 @@ class Harness:
         self.assert_terminology_identity(db, identities, "restart")
         require(self.query(db, "SELECT * FROM obs ORDER BY obs_id") == observations, "ocl_restart_changed_observations")
         require(self.check_birth_length(backend, db, decimal=True) == concept_id, "birth_length_concept_id_changed_on_restart")
+        self.check_vitamin_a_measurement(db)
         self.check_ocl_namespace(db, "restart")
         emit("ocl_transition", "PASSED", scenario="upgrade" if upgrade else "fresh",
              restart_verified=True, prior_checksums_preserved=True, clinical_observations=2,
@@ -1046,6 +1065,27 @@ class Harness:
              ranges=len(REVIEWED_RANGES), historical_schemas_checked=len(previous or []))
         return current
 
+    def check_vitamin_a_measurement(self, db):
+        rows = self.query(db,
+            "SELECT c.concept_id,c.uuid,c.datatype_id,c.class_id,c.is_set,c.retired,"
+            "d.name,cc.name,n.units,n.low_absolute,n.allow_decimal FROM concept c "
+            "JOIN concept_numeric n ON n.concept_id=c.concept_id "
+            "JOIN concept_datatype d ON d.concept_datatype_id=c.datatype_id "
+            "JOIN concept_class cc ON cc.concept_class_id=c.class_id "
+            "WHERE c.uuid=" + sql_string(VITAMIN_A_DOSE_UUID))
+        require(len(rows) == 1, "vitamin_a_measurement_missing_or_duplicated")
+        fields = rows[0].split("\t")
+        require(len(fields) == 11 and all(re.fullmatch(r"[1-9][0-9]*", fields[index]) for index in (0, 2, 3))
+                and fields[1] == VITAMIN_A_DOSE_UUID
+                and fields[4:9] == ["0", "0", "Numeric", "Question", "UI"]
+                and fields[10] == "0", "vitamin_a_measurement_invalid")
+        try:
+            minimum = float(fields[9])
+        except ValueError:
+            raise HarnessFailure("vitamin_a_measurement_invalid") from None
+        require(minimum == 0, "vitamin_a_measurement_invalid")
+        return "\t".join(fields[:6])
+
     def check_clinical_drug(self, backend, db, phase, previous=None):
         """Verify the catalog entry in storage and the prescribing search response."""
         drug = CLINICAL_DRUG
@@ -1302,6 +1342,7 @@ class Harness:
         self.check_ocl_refresh(db, "fresh")
         self.check_procedure_anatomy(backend, db, "fresh")
         self.check_clinical_form_updates(db, "fresh")
+        self.check_vitamin_a_measurement(db)
         self.create_fixtures(backend)
         self.check_admission(db, self.candidate_privileges)
         self.rbac(backend, db)
@@ -1414,6 +1455,7 @@ class Harness:
         ocl_refresh = self.check_ocl_refresh(db, "upgrade")
         procedure_anatomy = self.check_procedure_anatomy(backend, db, "upgrade")
         clinical_forms = self.check_clinical_form_updates(db, "upgrade", previous=forms_before)
+        self.check_vitamin_a_measurement(db)
         state, history = self.state(db), self.history(db)
         self.rbac(backend, db)
         self.docker("stop", "--time", "30", backend, timeout=45)
@@ -1427,6 +1469,7 @@ class Harness:
         self.check_clinical_drug(backend, db, "idempotence", previous=clinical_drug)
         self.check_ocl_refresh(db, "idempotence", previous=ocl_refresh)
         self.check_procedure_anatomy(backend, db, "idempotence", previous=procedure_anatomy)
+        self.check_vitamin_a_measurement(db)
         require(self.check_clinical_form_updates(db, "idempotence", previous=clinical_forms) == clinical_forms,
                 "second_start_changed_clinical_forms")
         self.docker("stop", "--time", "30", backend, timeout=45)

@@ -180,6 +180,17 @@ byte-identical. All concept identities, set/answer edges, reference-map
 identities/types and reference-term source/codes are compared across upgrade;
 native metadata audit timestamps are not mistaken for identifier changes.
 
+The only expected addition declared by this candidate in that upgrade identity snapshot is the new native
+CSV concept `9c0b51ef-0d4c-49a3-bdbb-2ee7083fe778` for administered vitamin A
+dose. Its UUID must be absent from the published baseline and its new database
+ID must not replace an existing ID. The harness requires one active, non-set
+`Question`/`Numeric` concept, unit `UI`, absolute minimum zero and no decimals
+before adding exactly that concept row to the expected snapshot. Every prior
+concept row and every set, answer, mapping, term and source row must still be
+identical. Fresh installation and restart require the same numeric semantics;
+restart compares the complete snapshot including the newly inserted row. This
+does not permit another concept insertion, a duplicate UUID or graph drift.
+
 For every one of the 32,551 concepts and 20,552 mappings in the candidate ZIPs,
 the latest native OCL item must carry its unchanged external identifier, the
 institutional namespace `https://api.gidis-terminology.duckdns.org`, its expected

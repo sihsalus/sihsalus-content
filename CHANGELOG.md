@@ -8,6 +8,17 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Correcciones del contrato clínico (candidata 1.25.39)
+
+- CRED-013 `1.1.0` registra dosis de vitamina A en el nuevo concepto local Numeric/UI, sin reinterpretar el Puntaje histórico; ambos validadores reutilizan el índice de metadata OCL y CSV nativo.
+- INMU-001 `1.1.0` separa la fecha de administración de la fecha/hora del registro; CE-001 `1.0.4` conserva intacta la versión anterior al corregir su descripción normativa.
+- Prepara un borrador de curación OCL para dos formulaciones hexavalentes y meningococo tetravalente con sus Q-AND-A; no se carga ni publica y requiere validar formulación y autorización.
+
+- CRED-024 `1.1.0` reutiliza la prioridad de referencia y sus respuestas OCL; deja de guardar severidad ESAVI como prioridad. Conserva historia mediante Initializer.
+- Declara roles funcionales de responsable del registro de inmunización y ESAVI para el frontend coordinado, sin inferir profesión ni otorgar permisos.
+- Corrige referencias normativas impropias de encuentros/roles y la descripción de CE-001; conserva la metadata del tipo mixto histórico `Triaje`.
+- La candidata `1.25.39` parte de `main` `1.25.38`, que ya integra agenda y la categoría local de Enfermería; sustituye la reserva `1.25.37` de #273 sin reutilizar ni reducir la versión de la base. No acredita publicación, carga ni aceptación clínica.
+
 ### Categoría local de Enfermería (candidata 1.25.38)
 
 - Asocia la atención ambulatoria por enfermería a la categoría local «Enfermería», conservando su UUID de servicio y la cola compartida de Consulta Externa.

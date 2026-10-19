@@ -41,6 +41,10 @@ def ocl_refresh_result():
     ]
 
 
+def vitamin_a_result():
+    return "520\t" + harness.VITAMIN_A_DOSE_UUID + "\t1\t7\t0\t0\tNumeric\tQuestion\tUI\t0.0\t0"
+
+
 def procedure_anatomy_result():
     """Synthetic database/search responses; no clinical data or persisted codes."""
     root_uuid = "90000000-0000-4000-8000-000000000000"
@@ -324,14 +328,19 @@ class HarnessContracts(unittest.TestCase):
                      "docker", "remove_container", "preserve_ocl_baseline_order"):
             setattr(runtime, name, Mock())
         runtime.check_birth_length = Mock(return_value="510")
+        vitamin_a = "\t".join(vitamin_a_result().split("\t")[:6])
+        runtime.check_vitamin_a_measurement = Mock(return_value=vitamin_a)
         runtime.request = Mock(return_value=(201, {"uuid": "10000000-0000-4000-8000-000000000001"}))
         runtime.create_birth_length_observation = Mock(return_value=["original observation"])
         runtime.query = Mock(return_value=["original observation", "decimal observation"])
         runtime.history = Mock(return_value=["complete journal"])
-        identities = {key: () for key in harness.TERMINOLOGY_TABLES}
-        identities["answers"] = ("610\tsynthetic-private-uuid\t10\t20\tNULL\t1",)
+        baseline = {key: () for key in harness.TERMINOLOGY_TABLES}
+        baseline["concepts"] = ("510\tsynthetic-existing-concept\t1\t7\t0\t0",)
+        baseline["answers"] = ("610\tsynthetic-private-uuid\t10\t20\tNULL\t1",)
+        identities = {**baseline, "concepts": (*baseline["concepts"], vitamin_a)}
         changed_identities = {**identities, "answers": ("610\tsynthetic-private-uuid\t10\t20\tNULL\tNULL",)}
-        runtime.terminology_identity_snapshot = Mock(return_value=identities)
+        runtime.terminology_identity_snapshot = Mock(return_value=identities,
+            side_effect=[baseline, identities, identities, identities])
         runtime.checksum_snapshot = Mock(return_value={"ocl/a.checksum": b"existing checksum"})
         sequence = Mock()
         sequence.attach_mock(runtime.preserve_ocl_baseline_order, "order")
@@ -344,6 +353,8 @@ class HarnessContracts(unittest.TestCase):
         for call in runtime.start_backend.call_args_list[1:]:
             self.assertEqual(call.kwargs, {"data_volume": "owned-volume"})
         runtime.check_retained_checksums.assert_called_once()
+        self.assertEqual(runtime.check_vitamin_a_measurement.call_args_list,
+                         [unittest.mock.call("owned-db"), unittest.mock.call("owned-db")])
         for method, changed, reason in (
                 ("terminology_identity_snapshot", changed_identities, "identities_or_cross_references"),
                 ("history", ["altered journal checksum"], "liquibase_history"),
@@ -352,8 +363,10 @@ class HarnessContracts(unittest.TestCase):
             with self.subTest(method=method):
                 runtime.start_backend.side_effect = [("baseline", "owned-volume"), ("upgrade", "owned-volume"),
                                                      ("restart", "owned-volume")]
+                runtime.terminology_identity_snapshot.side_effect = [baseline, identities, identities, identities]
                 target = getattr(runtime, method)
-                target.side_effect = [target.return_value, target.return_value, target.return_value, changed]
+                target.side_effect = [baseline if method == "terminology_identity_snapshot" else target.return_value,
+                                      target.return_value, target.return_value, changed]
                 if method == "query":
                     target.side_effect = [target.return_value, changed]
                 with patch.object(harness, "emit"), self.assertRaisesRegex(HarnessFailure, "ocl_restart_changed_" + reason):
@@ -361,7 +374,7 @@ class HarnessContracts(unittest.TestCase):
                 target.side_effect = None
 
         runtime.start_backend.side_effect = [("baseline", "owned-volume"), ("upgrade", "owned-volume")]
-        runtime.terminology_identity_snapshot.side_effect = [identities, changed_identities]
+        runtime.terminology_identity_snapshot.side_effect = [baseline, changed_identities]
         with patch.object(harness, "emit") as emit, self.assertRaisesRegex(
                 HarnessFailure, "^ocl_upgrade_changed_identities_or_cross_references$"):
             runtime.ocl_transition_run(upgrade=True)
@@ -371,11 +384,14 @@ class HarnessContracts(unittest.TestCase):
         self.assertEqual(emit.call_args_list[1].args, ("terminology_snapshot", "FAILED"))
 
         runtime.preserve_ocl_baseline_order.reset_mock()
+        runtime.check_vitamin_a_measurement.reset_mock()
         runtime.start_backend.side_effect = [("fresh", "owned-volume"), ("restart", "owned-volume")]
         runtime.terminology_identity_snapshot.side_effect = None
         with patch.object(harness, "emit"):
             runtime.ocl_transition_run(upgrade=False)
         runtime.preserve_ocl_baseline_order.assert_not_called()
+        self.assertEqual(runtime.check_vitamin_a_measurement.call_args_list,
+                         [unittest.mock.call("owned-db"), unittest.mock.call("owned-db")])
 
     def test_terminology_drift_reports_only_fixed_columns_and_counts_without_accepting_changes(self):
         before = {key: () for key in harness.TERMINOLOGY_TABLES}
@@ -497,6 +513,60 @@ class HarnessContracts(unittest.TestCase):
         self.runtime.request = Mock(side_effect=responses)
         with self.assertRaisesRegex(HarnessFailure, "procedure_anatomy_changed_on_restart"):
             self.runtime.check_procedure_anatomy("owned", "db", "restart", previous)
+
+    def test_vitamin_a_measurement_requires_native_numeric_units(self):
+        valid = vitamin_a_result()
+        self.runtime.query = Mock(return_value=[valid])
+        self.assertEqual(self.runtime.check_vitamin_a_measurement("synthetic"),
+                         "\t".join(valid.split("\t")[:6]))
+        invalid = []
+        for index, value in ((0, "0"), (1, "another-uuid"), (2, "0"), (3, "0"), (4, "1"),
+                             (5, "1"), (6, "Text"), (7, "Drug"), (8, "mg"), (9, "-1"),
+                             (9, "NULL"), (9, "nan"), (10, "1")):
+            fields = valid.split("\t")
+            fields[index] = value
+            invalid.append(["\t".join(fields)])
+        for rows in ([], [valid] * 2, ["too\tfew\tcolumns"], *invalid):
+            with self.subTest(rows=rows):
+                self.runtime.query.return_value = rows
+                with self.assertRaises(HarnessFailure):
+                    self.runtime.check_vitamin_a_measurement("synthetic")
+
+    def test_ocl_upgrade_allows_only_the_verified_vitamin_a_insertion(self):
+        baseline = {key: () for key in harness.TERMINOLOGY_TABLES}
+        baseline["concepts"] = ("510\tsynthetic-existing-concept\t1\t7\t0\t0",)
+        baseline["answers"] = ("610\tsynthetic-answer\t510\t511\tNULL\t1",)
+        self.runtime.query = Mock(return_value=[vitamin_a_result()])
+        expected = self.runtime.expected_vitamin_a_insertion("owned-db", baseline)
+        inserted = "\t".join(vitamin_a_result().split("\t")[:6])
+        self.assertEqual(expected, {**baseline, "concepts": (*baseline["concepts"], inserted)})
+        self.runtime.terminology_identity_snapshot = Mock(return_value=expected)
+        with patch.object(harness, "emit"):
+            self.runtime.assert_terminology_identity("owned-db", expected, "upgrade")
+            self.runtime.assert_terminology_identity("owned-db", expected, "restart")
+        cases = [
+            {**expected, "concepts": (*expected["concepts"], "521\tsynthetic-extra\t1\t7\t0\t0")},
+            {**expected, "concepts": (baseline["concepts"][0].replace("510\t", "509\t"), inserted)},
+            {**expected, "concepts": (baseline["concepts"][0].replace("\t1\t7\t", "\t2\t7\t"), inserted)},
+            {**expected, "concepts": (*expected["concepts"], inserted.replace("520\t", "521\t"))},
+            {**expected, "answers": (baseline["answers"][0].rsplit("\t", 1)[0] + "\tNULL",)},
+            baseline,
+        ]
+        for key, (_table, columns) in harness.TERMINOLOGY_TABLES.items():
+            if key != "concepts":
+                extra = "\t".join(["900", "synthetic-extra-edge", *["0"] * (len(columns.split(",")) - 2)])
+                cases.append({**expected, key: (*expected[key], extra)})
+        for changed in cases:
+            for phase in ("upgrade", "restart"):
+                with self.subTest(changed=changed, phase=phase):
+                    self.runtime.terminology_identity_snapshot.return_value = changed
+                    with patch.object(harness, "emit"), self.assertRaises(HarnessFailure):
+                        self.runtime.assert_terminology_identity("owned-db", expected, phase)
+        for invalid_baseline in (
+                expected,
+                {**baseline, "concepts": ("520\tsynthetic-existing-concept\t1\t7\t0\t0",)}):
+            with self.subTest(baseline=invalid_baseline), self.assertRaises(HarnessFailure):
+                self.runtime.expected_vitamin_a_insertion("owned-db", invalid_baseline)
 
     def test_clinical_form_updates_preserve_history_and_require_loaded_criteria(self):
         self.runtime.candidate_config = self.root

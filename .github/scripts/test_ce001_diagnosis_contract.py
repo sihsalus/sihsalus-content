@@ -92,11 +92,11 @@ class CE001DiagnosisContractTest(unittest.TestCase):
 
     def test_rejects_new_form_version(self):
         form = copy.deepcopy(self.form)
-        form["version"] = "1.0.4"
+        form["version"] = "1.0.5"
 
         errors = VALIDATOR.validate_contract(form)
 
-        self.assertTrue(any("version must be 1.0.3" in error for error in errors))
+        self.assertTrue(any("version must be 1.0.4" in error for error in errors))
 
     def test_rejects_historical_version_that_would_overwrite_clob(self):
         form = copy.deepcopy(self.form)
