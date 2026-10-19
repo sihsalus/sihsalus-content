@@ -10,7 +10,7 @@ Consultar [AGENTS.md](../AGENTS.md) antes de contribuir.
 | [Desarrollo y validación](development.md) | Requisitos, comandos locales, empaquetado y publicación. |
 | [Contenido por dominio](content-guide.md) | Contratos de formularios, catálogos y alcance clínico documentado. |
 | [Formularios AMPATH](../configuration/ampathforms/Readme) | Nombres, versiones e identidad persistida. |
-| [Medicamentos](content-guide.md#presentaciones-adicionales-de-medicamentos) | Conceptos y presentaciones adicionales mediante CSV nativos. |
+| [Medicamentos](content-guide.md#presentaciones-adicionales-de-medicamentos) | Conceptos, presentaciones nativas y [mantenimiento de fuentes](content-guide.md#procedencia-y-mantenimiento-de-medicamentos). |
 | [Acceso clínico](clinical-rbac.md) | Roles, privilegios y restricciones por ámbito. |
 
 ## Contratos por dominio

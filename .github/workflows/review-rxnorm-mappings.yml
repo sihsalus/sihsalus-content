@@ -1,0 +1,26 @@
+name: Review RxNorm mapping status
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 12 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Review the bundled medication mappings against NLM
+        run: python3 .github/scripts/check_rxnorm_mappings.py > rxnorm-review.json
+      - name: Preserve the public terminology review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rxnorm-review-${{ github.run_id }}
+          path: rxnorm-review.json
+          if-no-files-found: error
+          retention-days: 30
