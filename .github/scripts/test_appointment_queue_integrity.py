@@ -50,6 +50,56 @@ class AppointmentSpecialityCatalogTest(unittest.TestCase):
         (self.catalog / "notes.md").write_text("Not metadata", encoding="utf-8")
         self.assertEqual([], self.validate())
 
+    def test_general_nursing_uses_its_local_category_and_shared_outpatient_route(self):
+        category_uuid = "83cc14ae-0774-437e-8697-0d93b999ddf3"
+        service_uuid = "4ec5c4fe-cfe0-48ff-9e4d-2f201078feae"
+        local_categories = VALIDATOR.read_csv(
+            self.catalog / "specialities_categorias_locales.csv"
+        )
+        category = next(row for row in local_categories if row["Uuid"] == category_uuid)
+        self.assertEqual("Enfermería", category["Name"])
+        self.assertFalse(VALIDATOR.is_retired(category["Void/Retire"]))
+        professional_categories = VALIDATOR.read_csv(
+            self.catalog / "specialities_enfermeria.csv"
+        )
+        self.assertNotIn(category_uuid, [row["Uuid"] for row in professional_categories])
+        service = next(
+            row for row in VALIDATOR.read_csv(VALIDATOR.SERVICE_DEFINITIONS_PATH)
+            if row["Uuid"] == service_uuid
+        )
+        routes = VALIDATOR.read_csv(VALIDATOR.CARE_ROUTING_CONTRACT_PATH)
+        route = next(row for row in routes if row["Appointment Service Uuid"] == service_uuid)
+        medical_route = next(
+            row for row in routes
+            if row["Appointment Service Uuid"] == "7ba3aa21-cc56-47ca-bb4d-a60549f666c0"
+        )
+        self.assertEqual(category_uuid, service["Speciality"])
+        self.assertEqual(category_uuid, route["Scheduling Category Uuid"])
+        self.assertEqual("local-scheduling", route["Category Basis"])
+        self.assertEqual("queue-optional", route["Arrival Policy"])
+        self.assertEqual(medical_route["Queue Uuid"], route["Queue Uuid"])
+        self.assertEqual(VALIDATOR.OUTPATIENT_LOCATION_UUID, route["Appointment Location Uuid"])
+        self.assertEqual(VALIDATOR.GENERIC_AMBULATORY_VISIT_TYPE_UUID, route["Required Visit Type Uuid"])
+        self.assertEqual([], self.validate())
+
+    def test_rejects_missing_or_retired_general_nursing_category(self):
+        path = self.catalog / "specialities_categorias_locales.csv"
+        rows = VALIDATOR.read_csv(path)
+        category_uuid = "83cc14ae-0774-437e-8697-0d93b999ddf3"
+        for state in ("missing", "retired"):
+            with self.subTest(state=state):
+                changed = [
+                    dict(row, **{"Void/Retire": "true"})
+                    if row["Uuid"] == category_uuid else row
+                    for row in rows
+                    if state != "missing" or row["Uuid"] != category_uuid
+                ]
+                self.write_rows(path, changed)
+                self.assertTrue(any(
+                    f"category {category_uuid}" in error and "must be active" in error
+                    for error in self.validate()
+                ))
+
     def test_rejects_duplicate_uuid_across_files(self):
         row = VALIDATOR.read_csv(next(self.catalog.glob("*.csv")))[0]
         self.write_rows(self.catalog / "duplicate.csv", [dict(row, Name="Duplicada")])

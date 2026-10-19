@@ -52,14 +52,15 @@ Los flujos no programables quedan fuera de citas:
 
 Los CSV de `configuration/appointmentspecialities/` forman un solo catálogo de
 `AppointmentSpeciality`; cada UUID y nombre aparece una sola vez entre archivos.
-La distribución conserva los 16 UUID históricos y añade 19 identidades de enfermería:
+La distribución conserva los 16 UUID históricos y añade 19 identidades de especialidades
+de enfermería y una categoría local general de Enfermería:
 
 | Archivo | Contenido |
 | --- | --- |
 | `specialities_medicina.csv` | Once especialidades médicas del catálogo histórico. |
 | `specialities_enfermeria.csv` | Diecinueve especialidades de enfermería de CONAREN. |
 | `specialities_odontologia.csv` | Cirugía Bucal y Maxilofacial. |
-| `specialities_categorias_locales.csv` | Medicina General, Odontología general, Salud Mental y Nutrición como categorías de agenda. |
+| `specialities_categorias_locales.csv` | Medicina General, Odontología general, Salud Mental, Nutrición y Enfermería como categorías de agenda. |
 
 El catálogo médico normaliza las denominaciones
 Ginecología y Obstetricia, Ortopedia y Traumatología, Radiología, Patología Clínica y Medicina
@@ -81,9 +82,14 @@ Para CRED, la denominación específica del cuadro es **Enfermería en Salud y D
 Integral Infantil: CRED e Inmunizaciones**. **Enfermería en Pediatría** es otra entrada del
 mismo cuadro. La NTS N.° 238-MINSA/DGIESP-2025 regula la prestación de control de crecimiento y
 desarrollo; catalogar una especialidad no establece por sí solo un requisito de titulación
-para prestar CRED. El servicio general «Atención ambulatoria por enfermera(o)» conserva su
-base `profession` y no se restringe a una especialidad infantil. Habilitar una agenda
-específica exige definir el servicio y su enrutamiento en el contrato canónico.
+para prestar CRED. El servicio general «Atención ambulatoria por enfermera(o)» usa la
+categoría local de agenda «Enfermería» para comparar su UUID con las categorías registradas
+del profesional, según el modo `off`, `warn` o `strict`; no se restringe a una especialidad
+infantil ni se infiere la categoría de una persona por su profesión. La categoría es
+operativa y no acredita título ni habilitación clínica. Este cambio no asigna el atributo
+de categoría a ningún profesional: el hospital debe revisar su roster y configuración
+antes de usar el modo `strict`. Una agenda específica de CRED exige definir el servicio y
+su enrutamiento en el contrato canónico.
 
 El loader nativo de Initializer admite varios CSV de especialidades. La separación de
 archivos conserva el encabezado `Uuid,Void/Retire,Name` y las referencias por UUID; el
