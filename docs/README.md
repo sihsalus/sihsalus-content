@@ -26,6 +26,7 @@ Consultar [AGENTS.md](../AGENTS.md) antes de contribuir.
 | Visit Notes | [Identidades y datatypes](contracts/visit-note-content-contract.json) |
 | Consulta externa | [Diagnóstico CE-001](content-guide.md#contrato-de-diagnóstico-de-ce-001), [examen físico](content-guide.md#contrato-de-examen-físico-de-consulta-externa) |
 | Historia social | [Alcohol y tabaco](contracts/social-history.md) |
+| Inmunizaciones | [Fechas y registro](content-guide.md#fechas-de-administración-y-registro-de-inmunización), [curación OCL pendiente](terminology/README.md) |
 | CRED | [Alta neonatal, hemoglobina y terminología pendiente](content-guide.md#contrato-clínico-de-cred) |
 | Laboratorio | [Captura y rangos](contracts/laboratory-reporting.md) |
 | Signos vitales | [Contrato de encuentros](contracts/chart-vitals-encounter-contract.md) |

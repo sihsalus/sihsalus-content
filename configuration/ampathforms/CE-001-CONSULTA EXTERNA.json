@@ -7,8 +7,8 @@
   "retired": false,
   "referencedForms": [],
   "uuid": "a8db00d0-8acd-4459-97a8-43827b0a23e8",
-  "description": "Formulario de Consulta Externa ambulatoria. Registra motivo de consulta, anamnesis, plan de tratamiento, financiador y pertenencia étnica. El examen físico se registra en su formulario específico. El diagnóstico CIE-10 se registra exclusivamente mediante Visit Notes para persistirlo como diagnóstico nativo del encuentro. Basado en el FUA y la NTS N° 029-MINSA.",
-  "version": "1.0.3",
+  "description": "Formulario de Consulta Externa ambulatoria. Registra motivo de consulta, anamnesis, plan de tratamiento, financiador y pertenencia étnica. El examen físico se registra en su formulario específico. El diagnóstico CIE-10 se registra exclusivamente mediante Visit Notes para persistirlo como diagnóstico nativo del encuentro. Basado en el FUA y la NTS N° 139-MINSA/2018/DGAIN.",
+  "version": "1.0.4",
   "pages": [
     {
       "label": "Motivo de Consulta",

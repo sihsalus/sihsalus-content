@@ -164,6 +164,17 @@ class HarnessContracts(unittest.TestCase):
         with self.assertRaisesRegex(HarnessFailure, "procedure_anatomy_changed_on_restart"):
             self.runtime.check_procedure_anatomy("owned", "db", "restart", previous)
 
+    def test_vitamin_a_measurement_requires_native_numeric_units(self):
+        self.runtime.query = Mock(return_value=["0\tNumeric\tUI\t0.0\t0"])
+        self.runtime.check_vitamin_a_measurement("synthetic")
+        for rows in ([], ["0\tNumeric\tUI\t0\t0"] * 2,
+                     ["1\tNumeric\tUI\t0\t0"], ["0\tNumeric\tmg\t0\t0"],
+                     ["0\tNumeric\tUI\t0\t1"]):
+            with self.subTest(rows=rows):
+                self.runtime.query.return_value = rows
+                with self.assertRaises(HarnessFailure):
+                    self.runtime.check_vitamin_a_measurement("synthetic")
+
     def test_clinical_form_updates_preserve_history_and_require_loaded_criteria(self):
         self.runtime.candidate_config = self.root
         (self.root / "ampathforms").mkdir()

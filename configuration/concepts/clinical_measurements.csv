@@ -1,0 +1,2 @@
+Uuid,Void/Retire,Fully specified name:es,Fully specified name:en,Description:es,Data class,Data type,Units,Allow decimals,Absolute low,_version:1,_order:1004
+9c0b51ef-0d4c-49a3-bdbb-2ee7083fe778,,Dosis de vitamina A administrada en UI,Administered vitamin A dose in IU,Cantidad de vitamina A efectivamente administrada expresada en unidades internacionales; no es un puntaje ni una pauta prescrita.,Question,Numeric,UI,false,0,,

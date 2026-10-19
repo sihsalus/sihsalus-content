@@ -19,7 +19,6 @@ import json
 import re
 import sys
 import unicodedata
-import zipfile
 from collections import defaultdict
 from pathlib import Path
 
@@ -43,31 +42,17 @@ CODED_RENDERINGS = {
 
 
 def load_concept_index(errors):
-    """external_id -> metadatos, leído de los ZIP de OCL (nunca de texto plano)."""
+    """Reuse the AMPATH validator's OCL + native Initializer concept index."""
+    from validate_ampath_forms import load_ocl_bundle
+
+    bundle, bundle_errors = load_ocl_bundle(OCL_DIR)
+    errors.extend(bundle_errors)
     index = {}
-    if not OCL_DIR.is_dir():
-        errors.append(f"{OCL_DIR}: missing OCL export directory")
-        return index
-
-    for zip_path in sorted(OCL_DIR.glob("*concepts*.zip")):
-        try:
-            with zipfile.ZipFile(zip_path) as archive:
-                export = json.loads(archive.read("export.json"))
-        except (OSError, KeyError, zipfile.BadZipFile, json.JSONDecodeError) as error:
-            errors.append(f"{zip_path}: cannot read OCL export: {error}")
-            continue
-
-        source = export.get("source") or {}
-        source_id = source.get("id") if isinstance(source, dict) else export.get("short_code")
-        for concept in export.get("concepts", []):
-            external_id = concept.get("external_id")
-            if isinstance(external_id, str) and external_id:
-                index[external_id] = {
-                    "source": source_id,
-                    "datatype": concept.get("datatype"),
-                    "concept_class": concept.get("concept_class"),
-                    "display_name": concept.get("display_name"),
-                }
+    for external_id, concepts in bundle["active_by_external_id"].items():
+        if len(concepts) != 1:
+            errors.append(f"concept {external_id} has {len(concepts)} active bundled definitions")
+        else:
+            index[external_id] = concepts[0]
     return index
 
 

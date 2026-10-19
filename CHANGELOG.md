@@ -8,6 +8,17 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Correcciones del contrato clínico (candidata 1.25.37)
+
+- CRED-013 `1.1.0` registra dosis de vitamina A en el nuevo concepto local Numeric/UI, sin reinterpretar el Puntaje histórico; ambos validadores reutilizan el índice de metadata OCL y CSV nativo.
+- INMU-001 `1.1.0` separa la fecha de administración de la fecha/hora del registro; CE-001 `1.0.4` conserva intacta la versión anterior al corregir su descripción normativa.
+- Prepara un borrador de curación OCL para hexavalente/meningococo y sus Q-AND-A; no se carga ni publica y requiere validar formulación y autorización.
+
+- CRED-024 `1.1.0` reutiliza la prioridad de referencia y sus respuestas OCL; deja de guardar severidad ESAVI como prioridad. Conserva historia mediante Initializer.
+- Declara roles funcionales de responsable del registro de inmunización y ESAVI para el frontend coordinado, sin inferir profesión ni otorgar permisos.
+- Corrige referencias normativas impropias de encuentros/roles y la descripción de CE-001; conserva la metadata del tipo mixto histórico `Triaje`.
+- La versión se reserva separada de #269/#270 (`1.25.35`) y #271 (`1.25.36`); no acredita publicación, carga ni aceptación clínica.
+
 ### Roles de atención CRED (candidata 1.25.34)
 
 - Publicación pendiente de los cambios integrados en #265: añade `Enfermería Responsable` y precarga el selector de rol

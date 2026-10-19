@@ -47,25 +47,29 @@
               "validators": []
             },
             {
-              "label": "Prioridad",
+              "label": "Prioridad de referencia",
               "type": "obs",
               "required": true,
               "id": "prioridad",
               "questionOptions": {
                 "rendering": "select",
-                "concept": "f0000001-0000-4000-8000-000000000001",
+                "concept": "3446e1ce-9b0d-4997-aac7-881fa3065997",
                 "answers": [
                   {
-                    "concept": "f0000161-0000-4000-8000-000000000161",
-                    "label": "Leve"
+                    "concept": "89f8fab4-37ab-48bc-a84c-5da98a15b985",
+                    "label": "Urgencia"
                   },
                   {
-                    "concept": "f0000162-0000-4000-8000-000000000162",
-                    "label": "Moderado"
+                    "concept": "dddcc79e-c913-4830-b488-4f630a03c328",
+                    "label": "Cuando sea conveniente"
                   },
                   {
-                    "concept": "f0000163-0000-4000-8000-000000000163",
-                    "label": "Severo"
+                    "concept": "e724bdb6-2c75-4b6f-a00c-d43f2c372974",
+                    "label": "Emergencia"
+                  },
+                  {
+                    "concept": "d2e4cae0-6256-4d93-a062-fbc8df827701",
+                    "label": "Emergencia: requiere ambulancia"
                   }
                 ]
               },
@@ -180,5 +184,5 @@
   "referencedForms": [],
   "uuid": "c2240000-0000-4000-8000-000000000024",
   "description": "Registro CRED de interconsulta, derivación o referencia por hallazgos positivos.",
-  "version": "1.0.0"
+  "version": "1.1.0"
 }

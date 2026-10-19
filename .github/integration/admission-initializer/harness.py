@@ -35,7 +35,10 @@ REVIEWED_FORMS = ("CRED-001-TAMIZAJE DE ANEMIA.json", "OBST-002-EMBARAZO ACTUAL.
                   "CE-SOAP-001-NOTA SOAP.json", "CE-001-CONSULTA EXTERNA.json",
                   "OBST-001-ANTECEDENTES.json", "OBST-006-PUERPERIO INMEDIATO.json",
                   "HOSP-010-EPICRISIS OBSTÉTRICO-POSTPARTO.json",
-                  "CRED-011-SALUD MENTAL NIÑO Y CUIDADOR.json")
+                  "CRED-011-SALUD MENTAL NIÑO Y CUIDADOR.json",
+                  "CRED-013-ADMINISTRACIÓN DE VITAMINA A.json",
+                  "CRED-024-INTERCONSULTA DERIVACIÓN REFERENCIA.json",
+                  "INMU-001-REGISTRO DE VACUNACIÓN.json")
 REVIEWED_RANGES = (
     "f0c6d3dc-a0d2-497c-921f-b7266d448fcf", "a769e98e-e91f-4d4c-b029-1c66e267f32a",
     "0502ff16-270e-423f-8fa6-95255fdc9b19", "a75289e3-427c-4e14-ad67-50fc34dcc733",
@@ -720,6 +723,17 @@ class Harness:
              ranges=len(REVIEWED_RANGES), historical_schemas_checked=len(previous or []))
         return current
 
+    def check_vitamin_a_measurement(self, db):
+        rows = self.query(db,
+            "SELECT c.retired,d.name,n.units,n.low_absolute,n.allow_decimal FROM concept c "
+            "JOIN concept_numeric n ON n.concept_id=c.concept_id "
+            "JOIN concept_datatype d ON d.concept_datatype_id=c.datatype_id "
+            "WHERE c.uuid='9c0b51ef-0d4c-49a3-bdbb-2ee7083fe778'")
+        require(len(rows) == 1, "vitamin_a_measurement_missing_or_duplicated")
+        fields = rows[0].split("\t")
+        require(len(fields) == 5 and fields[:3] == ["0", "Numeric", "UI"]
+                and float(fields[3]) == 0 and fields[4] == "0", "vitamin_a_measurement_invalid")
+
     def check_clinical_drug(self, backend, db, phase, previous=None):
         """Verify the catalog entry in storage and the prescribing search response."""
         drug = CLINICAL_DRUG
@@ -976,6 +990,7 @@ class Harness:
         self.check_ocl_refresh(db, "fresh")
         self.check_procedure_anatomy(backend, db, "fresh")
         self.check_clinical_form_updates(db, "fresh")
+        self.check_vitamin_a_measurement(db)
         self.create_fixtures(backend)
         self.check_admission(db, self.candidate_privileges)
         self.rbac(backend, db)
@@ -1088,6 +1103,7 @@ class Harness:
         ocl_refresh = self.check_ocl_refresh(db, "upgrade")
         procedure_anatomy = self.check_procedure_anatomy(backend, db, "upgrade")
         clinical_forms = self.check_clinical_form_updates(db, "upgrade", previous=forms_before)
+        self.check_vitamin_a_measurement(db)
         state, history = self.state(db), self.history(db)
         self.rbac(backend, db)
         self.docker("stop", "--time", "30", backend, timeout=45)
@@ -1101,6 +1117,7 @@ class Harness:
         self.check_clinical_drug(backend, db, "idempotence", previous=clinical_drug)
         self.check_ocl_refresh(db, "idempotence", previous=ocl_refresh)
         self.check_procedure_anatomy(backend, db, "idempotence", previous=procedure_anatomy)
+        self.check_vitamin_a_measurement(db)
         require(self.check_clinical_form_updates(db, "idempotence", previous=clinical_forms) == clinical_forms,
                 "second_start_changed_clinical_forms")
         self.docker("stop", "--time", "30", backend, timeout=45)

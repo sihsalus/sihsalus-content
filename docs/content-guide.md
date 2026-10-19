@@ -23,7 +23,7 @@ y separa `app:hoja.clinica.resumenConsulta` de
 
 `CE-001-CONSULTA EXTERNA` no captura diagnósticos. El diagnóstico CIE-10 se registra exclusivamente mediante Visit Notes como diagnóstico nativo del encuentro; no deben reintroducirse observaciones de texto, certeza u ocurrencia que simulen esa estructura.
 
-La versión `1.0.3` elimina la página SOAP completa del formulario general y conserva los demás campos. La versión `1.0.2` corrigió anteriormente el diagnóstico. `AmpathFormsLoader` deriva la identidad persistida del nombre y la versión. En upgrades, una migración idempotente retira y despublica exclusivamente el `Form` `1.0.1` con UUID persistido `da631d8c-c695-3c4a-9d77-19bbbf0174e3`; no elimina ni modifica sus encuentros históricos. La migración publicada conserva su contrato original con `1.0.2` (`df1a34b4-0e8f-3564-84d9-55ce9e4284bd`) y no se modifica. Después, el loader nativo retira esa versión y crea `1.0.3` (`a43f4ba0-1d01-3533-aa96-927ad602851a`) sin sobrescribir los esquemas anteriores. En instalación limpia crea únicamente `1.0.3`. El `uuid` incluido en el JSON no es la identidad persistida y no debe usarse como contrato de integración.
+La versión `1.0.3` elimina la página SOAP completa del formulario general y conserva los demás campos. La versión `1.0.2` corrigió anteriormente el diagnóstico. `AmpathFormsLoader` deriva la identidad persistida del nombre y la versión. En upgrades, una migración idempotente retira y despublica exclusivamente el `Form` `1.0.1` con UUID persistido `da631d8c-c695-3c4a-9d77-19bbbf0174e3`; no elimina ni modifica sus encuentros históricos. La migración publicada conserva su contrato original con `1.0.2` (`df1a34b4-0e8f-3564-84d9-55ce9e4284bd`) y no se modifica. Después, el loader nativo retira esa versión y crea `1.0.3` (`a43f4ba0-1d01-3533-aa96-927ad602851a`) sin sobrescribir los esquemas anteriores. En aquella revisión, una instalación limpia creaba únicamente `1.0.3`. El `uuid` incluido en el JSON no es la identidad persistida y no debe usarse como contrato de integración. La versión `1.0.4` corrige únicamente la referencia normativa de la descripción a NTS 139; usa una identidad nueva para conservar intacto el esquema `1.0.3`. En instalación limpia se crea `1.0.4`.
 
 No se vuelve a publicar el JSON con una versión histórica: reutilizaría y sobrescribiría el recurso que contiene la captura de diagnóstico obsoleta. El formulario retirado no se reactiva; sus encuentros se conservan para lectura histórica.
 
@@ -305,3 +305,62 @@ módulos del distro y la norma vigente en fuentes oficiales.
 - [NTS 238-MINSA/DGIESP-2025: crecimiento y desarrollo del niño](https://www.gob.pe/institucion/minsa/informes-publicaciones/7857089-norma-tecnica-de-salud-para-el-control-de-crecimiento-y-desarrollo-del-nino-nts-n-238-minsa-dgiesp-2025).
 - [NTS 246-MINSA/DGIESP-2026: esquema nacional de inmunizaciones](https://www.gob.pe/institucion/minsa/normas-legales/8265031-561-2026-minsa).
 - [Guía de Vigilancia del Neurodesarrollo de Huanca Payehuanca](https://repositorio.essalud.gob.pe/handle/20.500.12959/5846).
+
+
+## Prioridad de referencia CRED
+
+`CRED-024-INTERCONSULTA DERIVACIÓN REFERENCIA` `1.1.0` conserva nombre,
+UUID JSON e ID `prioridad`, y sustituye la pregunta genérica de tamizaje y las
+respuestas de severidad ESAVI por **Prioridad de referencia**
+(`3446e1ce-9b0d-4997-aac7-881fa3065997`, `sihsalus:265`). Reutiliza sus
+Q-AND-A publicados: urgencia, cuando sea conveniente, emergencia y emergencia
+con ambulancia. No traduce leve/moderado/severo a esas prioridades.
+
+Initializer crea una identidad persistida nueva a partir de nombre/versión y
+retira la captura anterior conservando su esquema y sus encuentros. La
+corrección no reasigna observaciones históricas. La NTS 238, numeral 6.6.3.c,
+sustenta derivar hallazgos de riesgo, pero no define esas cuatro respuestas:
+su semántica procede del diccionario canónico incluido.
+
+## Responsabilidad en inmunización y ESAVI
+
+El rol `Responsable del registro de inmunización`
+(`738ba7c1-354f-47f8-b6d4-9d705ce05731`) y el rol
+`Responsable del registro de ESAVI`
+(`e967b2f3-62d8-49df-a37a-e8467f29bc88`) identifican la responsabilidad de la
+captura. No infieren profesión, colegiatura ni habilitación y no conceden
+permisos. El frontend coordinado debe enviar el proveedor de la sesión y el
+rol correspondiente al registrar un encuentro nuevo, conservando la visita y
+su ubicación. Documentar un ESAVI no equivale a notificarlo al sistema oficial.
+
+
+## Dosis de vitamina A en UI
+
+`CRED-013` `1.1.0` conserva el ID `dosisUi` y el UUID JSON; la observación
+nueva usa `9c0b51ef-0d4c-49a3-bdbb-2ee7083fe778`, **Dosis de vitamina A
+administrada en UI**, `Question/Numeric`, unidad `UI`. Su única definición
+operativa es [clinical_measurements.csv](../configuration/concepts/clinical_measurements.csv),
+mediante Initializer nativo. No modifica el concepto Puntaje ni convierte
+observaciones históricas. El loader versionado conserva el esquema `1.0.0`.
+
+Se revisó todo el bundle y HEAD institucional el 19 de octubre de 2026: las
+búsquedas `vitamina`/`dosis` en `sihsalus` no aportaron una dosis numérica de
+vitamina A en UI. El mecanismo local reutiliza el patrón de conceptos clínicos
+CSV existente. Initializer `2.13.0-sihsalus.2`, revisión
+[`806aec0`](https://github.com/sihsalus/openmrs-module-initializer/blob/806aec0a11fbb6b582629ecb2c89992e2e46107e/api/src/main/java/org/openmrs/module/initializer/api/c/ConceptNumericLineProcessor.java),
+soporta `Units`, `Allow decimals` y `Absolute low`. Una futura incorporación
+a OCL debe preservar el UUID y retirar el CSV en el mismo cambio; el índice
+compartido de validación rechaza dos definiciones activas del concepto.
+La NTS 238, numeral 6.8.4 y tabla 4, expresa la administración en UI; el
+concepto registra cantidad administrada y no calcula una pauta.
+
+## Fechas de administración y registro de inmunización
+
+`INMU-001` `1.1.0` separa la fecha y hora del **registro**
+(`encounterDatetime`, dentro de la visita) de la **administración**
+(observación `f1410000-0000-4000-8000-000000001410`). El campo histórico
+`fechaVacunacion` conserva su ID y cambia de etiqueta; el nuevo campo
+`fechaAdministracion` conserva la fecha efectiva elegida. No se cambia una
+fecha anterior a medianoche del día de la visita ni se presenta una no
+aplicación como administración. El frontend coordinado registra explícitamente
+ambos hechos y conserva las cabeceras de encuentros antiguos al editarlos.

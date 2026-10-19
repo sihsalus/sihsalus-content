@@ -52,7 +52,7 @@
               "id": "dosisUi",
               "questionOptions": {
                 "rendering": "number",
-                "concept": "f0000007-0000-4000-8000-000000000007",
+                "concept": "9c0b51ef-0d4c-49a3-bdbb-2ee7083fe778",
                 "min": "0",
                 "max": "200000",
                 "step": 1000,
@@ -170,5 +170,5 @@
   "referencedForms": [],
   "uuid": "c2130000-0000-4000-8000-000000000013",
   "description": "Registro de administración preventiva de vitamina A durante controles CRED.",
-  "version": "1.0.0"
+  "version": "1.1.0"
 }

@@ -12,7 +12,7 @@ CE001_PATH = Path(
 )
 EXPECTED_NAME = "CE-001-CONSULTA EXTERNA"
 PREVIOUS_VERSION = "1.0.1"
-EXPECTED_VERSION = "1.0.3"
+EXPECTED_VERSION = "1.0.4"
 LEGACY_DIAGNOSIS_IDS = {
     "diagnosticoPrincipal",
     "certezaDiagnostica",

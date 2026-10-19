@@ -9,12 +9,29 @@
           "isExpanded": "true",
           "questions": [
             {
-              "label": "Fecha y hora de vacunación",
+              "label": "Fecha y hora del registro",
               "type": "encounterDatetime",
               "required": true,
               "id": "fechaVacunacion",
               "questionOptions": {
                 "rendering": "datetime"
+              },
+              "validators": [
+                {
+                  "type": "date",
+                  "allowFutureDates": "false",
+                  "message": "No puede ser una fecha futura"
+                }
+              ]
+            },
+            {
+              "label": "Fecha de administración (si se aplicó)",
+              "type": "obs",
+              "required": false,
+              "id": "fechaAdministracion",
+              "questionOptions": {
+                "rendering": "date",
+                "concept": "f1410000-0000-4000-8000-000000001410"
               },
               "validators": [
                 {
@@ -156,6 +173,6 @@
   "retired": false,
   "referencedForms": [],
   "uuid": "c1120000-0000-4000-8000-000000000011",
-  "description": "Contrato AMPATH usado por la UI especializada del calendario de vacunación para persistir dosis, lotes, estado y próxima dosis.",
-  "version": "1.0.1"
+  "description": "Contrato AMPATH de registro de inmunización. La fecha y hora del registro pertenecen a la visita; la fecha efectiva de administración se conserva como observación separada cuando se aplicó el producto. Conserva dosis, lote, estado y próxima dosis.",
+  "version": "1.1.0"
 }
