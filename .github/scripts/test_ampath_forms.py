@@ -52,6 +52,24 @@ class AmpathFormIdentityTest(unittest.TestCase):
             status = validator.main()
         return status, output.getvalue() + errors.getvalue()
 
+    def test_patient_context_is_native_but_unknown_local_fields_still_fail(self):
+        self.assertEqual(
+            {"missingDate"},
+            validator.expression_references(
+                "patient.birthDate && dayjs(missingDate).isBefore(patient.birthDate)"
+            ),
+        )
+
+    def test_disabled_expression_rejects_missing_local_question(self):
+        self.write_form("disabled.json", pages=[{"sections": [{"questions": [{
+            "id": "duration", "type": "obs",
+            "questionOptions": {"rendering": "text", "concept": "synthetic-concept"},
+            "disabled": {"disableWhenExpression": "missingResponse !== 'yes'"},
+        }]}]}])
+        status, output = self.run_validator()
+        self.assertEqual(1, status, output)
+        self.assertIn("missingResponse", output)
+
     def test_accepts_literal_options_for_text_observations(self):
         self.write_form("select.json", pages=[{"sections": [{"questions": [{
             "id": "onset", "type": "obs", "questionOptions": {

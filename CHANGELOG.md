@@ -8,6 +8,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Validaciones del formulario de nacimiento CRED (candidata 1.25.35)
+
+- `(CRED) Detalles de Nacimiento` rechaza una fecha de alta anterior al día de nacimiento del paciente y conserva
+  el rechazo de fechas futuras (sihsalus/sihsalus#389).
+- «Tiempo de hospitalización» solo se edita con «Sí» en «Requirió hospitalización»; una duración registrada con «No» o sin
+  respuesta bloquea el guardado y pide revisarla sin borrarla (sihsalus/sihsalus#390).
+- El validador AMPATH reconoce el contexto nativo `patient` y comprueba las referencias de `disableWhenExpression`;
+  añade regresiones de ambas expresiones.
+
 ### Roles de atención CRED (candidata 1.25.34)
 
 - Publicación pendiente de los cambios integrados en #265: añade `Enfermería Responsable` y precarga el selector de rol
