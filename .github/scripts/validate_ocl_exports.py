@@ -23,17 +23,58 @@ PERSON_ATTRIBUTE_TYPES_PATH = Path(
     "configuration/personattributetypes/personattributetypes.csv"
 )
 FHIR_CONCEPT_SOURCES_PATH = Path("configuration/fhirconceptsources/fhirconceptsources.csv")
+# Official institutional exports reconciled against the prior content catalog.
+# Version, concept count, mapping count, canonical recombined SHA-256, released.
+# Both exact unpublished snapshots remain candidates until human publication;
+# the main source has its own pin below.
+INSTITUTIONAL_EXPORTS = {
+    "anatomia-procedimientos": ("2026-10-16-1", 121, 266,
+        "99bd81040322494699852ed7c192566be5596611a3989e2a1bec64f491175aa8", False),
+    "barrios-santa-clotilde": ("2026-08-22-01", 11, 10,
+        "9e1579a8e5f8d46ff85e29aa7438924f33dda7991717d870320ef62b38ac41ad", True),
+    "diagnosis": ("2026-06-30", 13484, 0,
+        "2d835472f294f42c4101fec813b95bb295a85616613c68c1333b1777143f7ecf", True),
+    "educacion": ("2026-06-30", 12, 13,
+        "9420cb16f168c1e4b48bcb667b7f6cf893232d74135e237b83e74d216c5fc3a9", True),
+    "estado-civil": ("2026-06-30", 6, 8,
+        "3d462b29f2af9233bbdcd9793b05f08a93ebd8c4c81ddfee23fadc9ec04e3948", True),
+    "etnias": ("2026-06-30", 62, 64,
+        "08f69503ed41d6a2e861ab40dc618d281a22f1a908af8129e169d99280c23ca0", True),
+    "geografia": ("2026-07-10-02", 196, 364,
+        "4c2198985aaf0f34683dc73ae77c81c3be7340b01f55d3bb87bd30f5e0fe9a20", True),
+    "inmunizaciones": ("2026-06-30", 22, 60,
+        "b7864e57b77bc551ca35e80296735e5b5cea94d4f834d99839be8dac1e0562a7", True),
+    "laboratorio": ("2026-07-10-02", 212, 1050,
+        "bd177db88eab75b8085ac6fc3e607918e23dca2061f64e41ef2ca3116ad874ff", True),
+    "lenguas": ("2026-07-10-02", 63, 121,
+        "874ddf5080ae128f7defe31593bc28d882e0cd65d9ce0e19f49efceacae2a705", True),
+    "medicamentos": ("2026-06-30", 1001, 17,
+        "90e7bdc5cfa10c74475c86215de01e0753fcc6eb08248fc56f4ebaf5f486525b", True),
+    "ocupaciones": ("2026-07-09-01", 448, 447,
+        "dcb66c54b8a7024b4bef02501f302ccb7a0cd3062b20735c8947074c18513ed9", True),
+    "prestacionales": ("2026-06-30", 66, 65,
+        "c2d1365a72121ab146d814f4c262b9a0d2e7ac1292005601540c1e4723b732e8", True),
+    "procedimientos": ("2026-07-10-02", 12333, 12331,
+        "b277c371d6fd5590993cf80be474682cb87a44f5fec2543a29a38e37a8fc009a", True),
+    "referencia-institucional": ("2026-08-25-01", 3, 0,
+        "f448f638372e3401fe058f5dab34b72914fa17658d500978f5d786f9b568494c", True),
+    "religiones": ("2026-06-30", 12, 24,
+        "5756f6f9cef0245b01c49c84bed16dd310d92f0776c424c004f49a59caf068f3", True),
+    "seguros": ("2026-07-17-01", 25, 33,
+        "a52b4e179a1da1d4841671d8fb6d873337ffa1fefb680ae44c1395154e3f4151", True),
+}
+SIHSALUS_CANDIDATE_VERSION = "2026-10-16-1"
 EXPECTED_SIHSALUS_SUBSCRIPTION_URL = (
-    "https://api.openconceptlab.org/orgs/SIHSALUS/sources/sihsalus/2026-07-16-02"
+    "https://api.gidis-terminology.duckdns.org/orgs/SIHSALUS/sources/sihsalus/" + SIHSALUS_CANDIDATE_VERSION
 )
 EXPECTED_SIHSALUS_CONCEPTS_EXPORT = (
-    OCL_DIR / "10_SIHSALUS_sihsalus_concepts_2026-09-09-1.zip"
+    OCL_DIR / f"10_SIHSALUS_sihsalus_concepts_{SIHSALUS_CANDIDATE_VERSION}.zip"
 )
 EXPECTED_SIHSALUS_MAPPINGS_EXPORT = (
-    OCL_DIR / "60_SIHSALUS_sihsalus_mappings_2026-09-09-1.zip"
+    OCL_DIR / f"60_SIHSALUS_sihsalus_mappings_{SIHSALUS_CANDIDATE_VERSION}.zip"
 )
 EXPECTED_SIHSALUS_CANONICAL_SHA256 = (
-    "cae14cffdce3d5ed882e97cc3ca6030d798788526b3baded304f472f7779e195"
+    "ba66fa348811757cb427b5a5107511154f5cdfe242e77c3aba3942a3b53b3627"
 )
 OCCUPATIONS_SOURCE = "ocupaciones"
 OCCUPATIONS_ROOT_URL = "/orgs/SIHSALUS/sources/ocupaciones/concepts/1/"
@@ -42,9 +83,7 @@ EXPECTED_OCCUPATION_UNIT_GROUPS = 436
 SIHSALUS_SOURCE = "sihsalus"
 NEIGHBORHOOD_SOURCE = "barrios-santa-clotilde"
 NEIGHBORHOOD_VERSION = "2026-08-22-01"
-EXPECTED_NEIGHBORHOOD_CANONICAL_SHA256 = (
-    "fbcb4f0ed111ceb4c686ac343eee09c2435037f8dceb9b679cee0a226e1c9177"
-)
+EXPECTED_NEIGHBORHOOD_CANONICAL_SHA256 = INSTITUTIONAL_EXPORTS[NEIGHBORHOOD_SOURCE][3]
 NEIGHBORHOOD_ATTRIBUTE_TYPE_UUID = "4a182c6e-9a19-4db8-8042-4bbf3b4308c2"
 NEIGHBORHOOD_SET_UUID = "0fd3e744-6d2c-4cb3-9b7e-1f88899635d9"
 NEIGHBORHOOD_CONCEPTS_EXPORT = OCL_DIR / (
@@ -82,7 +121,7 @@ NEIGHBORHOOD_PRESENTATION_METADATA = {
 REFERRAL_SOURCE = "referencia-institucional"
 REFERRAL_VERSION = "2026-08-25-01"
 PROCEDURE_ANATOMY_SOURCE = "anatomia-procedimientos"
-PROCEDURE_ANATOMY_VERSION = "2026-10-11-02"
+PROCEDURE_ANATOMY_VERSION = INSTITUTIONAL_EXPORTS[PROCEDURE_ANATOMY_SOURCE][0]
 PROCEDURE_ANATOMY_SET_CODE = "PROCEDURE-BODY-SITES"
 PROCEDURE_ANATOMY_SET_UUID = "25b4e8e6-0781-5c04-bc76-888402f3f505"
 PROCEDURE_ANATOMY_HL7_URL = "http://terminology.hl7.org/CodeSystem/v2-0550"
@@ -94,9 +133,7 @@ PROCEDURE_ANATOMY_CONCEPTS_EXPORT = OCL_DIR / (
 PROCEDURE_ANATOMY_MAPPINGS_EXPORT = OCL_DIR / (
     f"67_SIHSALUS_{PROCEDURE_ANATOMY_SOURCE}_mappings_{PROCEDURE_ANATOMY_VERSION}.zip"
 )
-EXPECTED_PROCEDURE_ANATOMY_CANONICAL_SHA256 = (
-    "26dd43fb00dc098741742a7cbfe86f247b42aa229390d5ed4f7a687b74d928a7"
-)
+EXPECTED_PROCEDURE_ANATOMY_CANONICAL_SHA256 = INSTITUTIONAL_EXPORTS[PROCEDURE_ANATOMY_SOURCE][3]
 # Historical identities are assertions, not a second operational catalog.
 PROCEDURE_ANATOMY_HISTORICAL = {
     "85": ("NIPPL", "99a163e0-0352-4d46-a994-3b75a25cf4be", "Anatomy", "N/A"),
@@ -119,9 +156,7 @@ REFERRAL_TRANSPORT_CSV = Path(
 REFERRAL_CONCEPTS_EXPORT = OCL_DIR / (
     f"16_SIHSALUS_{REFERRAL_SOURCE}_concepts_{REFERRAL_VERSION}.zip"
 )
-EXPECTED_REFERRAL_CANONICAL_SHA256 = (
-    "9a85ebac1f3710be861ddb092fb9806eee0e5d60557e494bcdb742be510aedff"
-)
+EXPECTED_REFERRAL_CANONICAL_SHA256 = INSTITUTIONAL_EXPORTS[REFERRAL_SOURCE][3]
 REFERRAL_TRANSPORT_CONCEPTS = [
     (
         "REF-TR-01",
@@ -425,7 +460,9 @@ def main():
     validate_mapping_integrity(concepts_by_url, mapping_records, errors)
     validate_default_name_collision_safety(concept_records, errors)
     validate_laboratory_capture(concept_records, errors)
+    validate_institutional_exports(exports_by_path, errors)
     validate_sihsalus_export(exports_by_path, errors)
+    validate_birth_length(concept_records, errors)
 
     validate_development_instruments(
         concepts_by_source[SIHSALUS_SOURCE], mappings_by_source[SIHSALUS_SOURCE], errors
@@ -483,12 +520,84 @@ def validate_laboratory_capture(concept_records, errors):
                 errors.append(f"laboratorio:{code}: {uuid} must declare mg/24h consistently in units/Units")
 
 
+def validate_institutional_exports(exports_by_path, errors):
+    """Require the reconciled institutional inventory, including split ordering."""
+    by_source = defaultdict(list)
+    for path, export in exports_by_path.items():
+        by_source[export.get("short_code")].append((path, export))
+    expected_sources = set(INSTITUTIONAL_EXPORTS) | {SIHSALUS_SOURCE}
+    if set(by_source) != expected_sources:
+        errors.append("institutional OCL source inventory differs from the 18 reviewed catalogs")
+
+    for source, (version, concepts_count, mappings_count, expected_digest, released) in INSTITUTIONAL_EXPORTS.items():
+        exports = sorted(by_source[source], key=lambda row: str(row[0]))
+        if len(exports) != (2 if mappings_count else 1):
+            errors.append(f"{source}: expected one concepts export and only its nonempty mappings export")
+            continue
+        _, concepts = exports[0]
+        _, mappings = exports[-1]
+        expected_identity = {
+            "type": "Source Version", "owner": "SIHSALUS", "owner_type": "Organization",
+            "short_code": source, "id": version, "version": version, "released": released,
+        }
+        for path, export in exports:
+            for key, value in expected_identity.items():
+                if export.get(key) != value:
+                    errors.append(f"{path}: institutional release {key} must be {value!r}")
+        if not all(isinstance(export.get(key), list) for _, export in exports
+                   for key in ("concepts", "mappings")):
+            errors.append(f"{source}: concepts and mappings must be arrays")
+            continue
+        if (len(concepts["concepts"]) != concepts_count or concepts["mappings"]
+                or len(mappings["mappings"]) != mappings_count
+                or (mappings_count and mappings["concepts"])):
+            errors.append(f"{source}: split inventory/order must preserve {concepts_count} concepts and {mappings_count} mappings")
+            continue
+        metadata = [{key: value for key, value in export.items() if key not in {"concepts", "mappings"}}
+                    for _, export in exports]
+        if any(value != metadata[0] for value in metadata[1:]):
+            errors.append(f"{source}: split exports contain different institutional release metadata")
+        combined = dict(concepts, mappings=mappings["mappings"])
+        digest = hashlib.sha256(json.dumps(
+            combined, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
+        ).encode("utf-8")).hexdigest()
+        if digest != expected_digest:
+            errors.append(f"{source}: canonical institutional export differs from the reconciled artifact")
+
+
+def validate_birth_length(concept_records, errors):
+    uuid = "bf82beb1-d3b8-400e-8160-90869cad8136"
+    matches = [(source, concept) for _, source, concept in concept_records
+               if concept.get("external_id") == uuid or (source == SIHSALUS_SOURCE and concept.get("id") == "382")]
+    if len(matches) != 1:
+        errors.append("sihsalus:382 birth length must occur exactly once with its historical UUID")
+        return
+    source, concept = matches[0]
+    if (source != SIHSALUS_SOURCE or concept.get("external_id") != uuid or concept.get("id") != "382"
+            or concept.get("datatype") != "Numeric" or concept.get("concept_class") != "Finding"
+            or concept.get("retired") is not False):
+        errors.append("sihsalus:382 birth length must preserve its active Numeric/Finding identity")
+    extras = concept.get("extras") or {}
+    if extras.get("allow_decimal") is not True or extras.get("units") != "cm":
+        errors.append("sihsalus:382 birth length must allow decimal measurements in cm")
+
+
 def validate_sihsalus_export(exports_by_path, errors):
     concepts = exports_by_path.get(EXPECTED_SIHSALUS_CONCEPTS_EXPORT)
     mappings = exports_by_path.get(EXPECTED_SIHSALUS_MAPPINGS_EXPORT)
     if concepts is None or mappings is None:
         errors.append("missing pinned sihsalus concepts/mappings exports")
         return
+    for export in (concepts, mappings):
+        for field, expected in {
+            "type": "Source Version", "id": SIHSALUS_CANDIDATE_VERSION,
+            "version": SIHSALUS_CANDIDATE_VERSION, "short_code": SIHSALUS_SOURCE,
+            "owner": "SIHSALUS", "owner_type": "Organization", "released": False,
+        }.items():
+            if export.get(field) != expected:
+                errors.append(f"sihsalus: exact unpublished institutional candidate {field} must be {expected!r}")
+    if len(concepts.get("concepts", [])) != 4474 or len(mappings.get("mappings", [])) != 5679:
+        errors.append("sihsalus candidate must preserve 4474 concepts and 5679 mappings")
     if concepts.get("mappings") != [] or mappings.get("concepts") != []:
         errors.append("sihsalus exports must separate concepts from mappings")
     if {
@@ -503,7 +612,7 @@ def validate_sihsalus_export(exports_by_path, errors):
         combined, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
     ).encode("utf-8")
     if hashlib.sha256(canonical).hexdigest() != EXPECTED_SIHSALUS_CANONICAL_SHA256:
-        errors.append("sihsalus exports differ from the reviewed release with explicit neighborhood exclusions")
+        errors.append("sihsalus exports differ from the exact institutional candidate without duplicated neighborhood identities")
 
 
 def normalize_ocl_url(url):
@@ -867,7 +976,8 @@ def validate_procedure_anatomy_terminology(exports_by_path, concept_records, err
         for field, expected in {
             "type": "Source Version", "id": PROCEDURE_ANATOMY_VERSION,
             "version": PROCEDURE_ANATOMY_VERSION, "short_code": PROCEDURE_ANATOMY_SOURCE,
-            "owner": "SIHSALUS", "owner_type": "Organization", "released": True,
+            "owner": "SIHSALUS", "owner_type": "Organization",
+            "released": INSTITUTIONAL_EXPORTS[PROCEDURE_ANATOMY_SOURCE][4],
         }.items():
             if export.get(field) != expected:
                 errors.append(f"{prefix}: export {field} must be {expected!r}")
@@ -1575,8 +1685,7 @@ def validate_ocl_global_properties(errors):
 
     if properties.get("openconceptlab.subscriptionUrl") != EXPECTED_SIHSALUS_SUBSCRIPTION_URL:
         errors.append(
-            "openconceptlab.subscriptionUrl must preserve the validated import namespace "
-            "until a supported host transition: "
+            "openconceptlab.subscriptionUrl must match the institutional export candidate: "
             f"{EXPECTED_SIHSALUS_SUBSCRIPTION_URL}"
         )
     if properties.get("order.durationUnitsConceptUuid") != DURATION_UNITS_EXTERNAL_ID:

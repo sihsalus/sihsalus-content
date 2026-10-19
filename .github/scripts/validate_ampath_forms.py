@@ -64,6 +64,7 @@ VALUE_RENDERINGS = SUPPORTED_RENDERINGS - NON_VALUE_RENDERINGS
 EXPRESSION_KEYS = {
     "alertWhenExpression",
     "calculateExpression",
+    "disableWhenExpression",
     "failsWhenExpression",
     "hideWhenExpression",
 }
@@ -83,6 +84,8 @@ EXPRESSION_GLOBALS = {
     "myValue",
     "new",
     "null",
+    # Native form-engine ExpressionContext (FHIR patient), not a local field.
+    "patient",
     "this",
     "true",
     "typeof",

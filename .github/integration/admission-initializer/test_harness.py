@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """Pure harness contracts. No Docker, network, backend, or existing credentials."""
 
+import io
+import json
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from unittest.mock import Mock, patch
+from contextlib import redirect_stdout
 
 import guards
 import harness
@@ -38,6 +41,10 @@ def ocl_refresh_result():
     ]
 
 
+def vitamin_a_result():
+    return "520\t" + harness.VITAMIN_A_DOSE_UUID + "\t1\t7\t0\t0\tNumeric\tQuestion\tUI\t0.0\t0"
+
+
 def procedure_anatomy_result():
     """Synthetic database/search responses; no clinical data or persisted codes."""
     root_uuid = "90000000-0000-4000-8000-000000000000"
@@ -62,6 +69,123 @@ def procedure_anatomy_result():
     return (root_uuid, expected, terms, association), rows, responses
 
 
+class OclOrderEvidenceContracts(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix="ocl-order-unit-")
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.answer = "10000000-0000-4000-8000-000000000001"
+        self.member = "10000000-0000-4000-8000-000000000002"
+        self.parent = "20000000-0000-4000-8000-000000000001"
+        self.target = "1067AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        self.expected = {self.answer: ("Q-AND-A", self.parent, self.target),
+                         self.member: ("CONCEPT-SET", self.parent, self.target)}
+        self.rows = [f"Q-AND-A\t{self.answer}\t{self.parent}\t{self.target}\tNULL\t10.5",
+                     f"CONCEPT-SET\t{self.member}\t{self.parent}\t{self.target}\tNULL\tNULL"]
+        self.runtime = object.__new__(harness.Harness)
+        self.runtime.scenario = "ocl-upgrade"
+        self.runtime.backend_image = guards.OCL_BACKEND
+        self.runtime.image_content_sha = guards.OCL_BASELINE_SHA
+        self.runtime.image_content_version = guards.OCL_BASELINE_VERSION
+        self.runtime.candidate_sha = "a" * 40
+        self.runtime.directory = self.root / "private"
+        self.runtime.directory.mkdir(mode=0o700)
+        self.runtime.ocl_order_contract = Mock(return_value=self.expected)
+        self.runtime.query = Mock(return_value=self.rows)
+        self.output = self.root / ("ocl-baseline-order-" + self.runtime.candidate_sha + ".json")
+
+    def test_projects_only_allowlisted_public_metadata_and_preserves_actual_null_or_fraction(self):
+        unrelated = "CONCEPT-SET\tprivate-not-allowlisted\tprivate-name\tprivate-name\tNULL\tsecret"
+        actual = guards.ocl_order_rows(self.expected, [unrelated, *reversed(self.rows)])
+        self.assertEqual(actual, [
+            {"map_type": "Q-AND-A", "mapping_uuid": self.answer, "parent_uuid": self.parent,
+             "target_uuid": self.target, "drug_uuid": None, "sort_weight": 10.5},
+            {"map_type": "CONCEPT-SET", "mapping_uuid": self.member, "parent_uuid": self.parent,
+             "target_uuid": self.target, "drug_uuid": None, "sort_weight": None},
+        ])
+        self.assertNotIn("private", json.dumps(actual))
+        for weight, expected in (("-0.25", -0.25), ("1e3", 1000), ("0", 0)):
+            rows = [self.rows[0].rsplit("\t", 1)[0] + "\t" + weight, self.rows[1]]
+            self.assertEqual(guards.ocl_order_rows(self.expected, rows)[0]["sort_weight"], expected)
+
+    def test_rejects_nonfinite_malformed_duplicate_missing_and_mismatched_rows_without_values(self):
+        invalid = [[], [self.rows[0]], self.rows + [self.rows[0]], ["secret"], [None],
+                   [self.rows[0] + "\tprivate-extra-column", self.rows[1]]]
+        for weight in ("NaN", "Infinity", "-Infinity", "1e999", "true", "[1]", "0x10", "01",
+                       " 1", "1\nprivate-name", "private-token"):
+            invalid.append([self.rows[0].rsplit("\t", 1)[0] + "\t" + weight, self.rows[1]])
+        for column, value in ((0, "private-kind"), (1, self.member), (2, self.member),
+                              (3, "private-uuid"), (4, self.answer)):
+            fields = self.rows[0].split("\t")
+            fields[column] = value
+            invalid.append(["\t".join(fields), self.rows[1]])
+        for rows in invalid:
+            with self.subTest(rows=rows), self.assertRaises(HarnessFailure) as failure:
+                guards.ocl_order_rows(self.expected, rows)
+            self.assertRegex(str(failure.exception), r"^ocl_order_[a-z_]+$")
+            self.assertNotIn("private", str(failure.exception))
+
+    def test_rejects_untrusted_catalog_identifiers_and_relationship_types(self):
+        for expected in ({}, None, {"private-uuid": self.expected[self.answer]},
+                         {self.answer: ("Q-AND-A", "private-name", self.target)},
+                         {self.answer: ("Q-AND-A", self.parent, "1067AAAAAAAA")},
+                         {self.answer: ("SAME-AS", self.parent, self.target)},
+                         {self.answer: None}):
+            with self.subTest(expected=expected), self.assertRaises(HarnessFailure):
+                guards.ocl_order_rows(expected, self.rows)
+
+    def test_artifact_has_fixed_provenance_and_no_raw_output_and_survives_private_cleanup(self):
+        output = io.StringIO()
+        with redirect_stdout(output):
+            self.runtime.preserve_ocl_baseline_order("owned-db")
+        saved = json.loads(self.output.read_text())
+        self.assertEqual(set(saved), {"schema_version", "baseline_version", "baseline_sha", "backend_digest", "mappings"})
+        self.assertEqual(saved["baseline_version"], "1.25.34")
+        self.assertEqual(saved["baseline_sha"], guards.OCL_BASELINE_SHA)
+        self.assertEqual(saved["backend_digest"], guards.OCL_BACKEND.split("@")[1])
+        self.assertEqual(saved["mappings"], guards.ocl_order_rows(self.expected, self.rows))
+        self.assertEqual(self.output.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(json.loads(output.getvalue()), {"stage": "ocl_baseline_order", "status": "PASSED", "mappings": 2})
+        self.runtime.ocl_order_contract.assert_called_once_with(self.runtime.directory / "source-34")
+        query = self.runtime.query.call_args.args[1]
+        for forbidden in ("person", "patient", "obs", "users", ".name", "SELECT *"):
+            self.assertNotIn(forbidden, query)
+        (self.runtime.directory / "ocl-baseline-order.json").unlink()
+        self.assertEqual(json.loads(self.output.read_text()), saved)
+
+    def test_invalid_runtime_or_rows_never_expose_an_artifact(self):
+        for attribute, value in (("scenario", "ocl-fresh"), ("scenario", "upgrade"),
+                                 ("backend_image", guards.BACKEND), ("image_content_sha", "b" * 40),
+                                 ("image_content_version", "1.25.35")):
+            original = getattr(self.runtime, attribute)
+            setattr(self.runtime, attribute, value)
+            with self.subTest(attribute=attribute, value=value), self.assertRaises(HarnessFailure):
+                self.runtime.preserve_ocl_baseline_order("owned-db")
+            self.assertFalse(self.output.exists())
+            self.runtime.query.assert_not_called()
+            setattr(self.runtime, attribute, original)
+        self.runtime.query.return_value = [self.rows[0].replace("10.5", "private-token"), self.rows[1]]
+        with self.assertRaises(HarnessFailure):
+            self.runtime.preserve_ocl_baseline_order("owned-db")
+        self.assertFalse(self.output.exists())
+        self.assertFalse((self.runtime.directory / "ocl-baseline-order.json").exists())
+
+    def test_artifact_never_overwrites_an_existing_destination_or_follows_its_symlink(self):
+        target = self.root / "unrelated"
+        target.write_text("keep")
+        for symlink in (False, True):
+            if symlink:
+                self.output.symlink_to(target)
+            else:
+                self.output.write_text("keep")
+            with self.assertRaisesRegex(HarnessFailure, "ocl_order_artifact_not_created"):
+                self.runtime.preserve_ocl_baseline_order("owned-db")
+            self.assertEqual(self.output.read_text(), "keep")
+            self.assertEqual(target.read_text(), "keep")
+            self.output.unlink()
+            (self.runtime.directory / "ocl-baseline-order.json").unlink()
+
+
 class HarnessContracts(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="admission-harness-unit-")
@@ -69,6 +193,183 @@ class HarnessContracts(unittest.TestCase):
         self.root = Path(self.temp.name).resolve()
         self.runtime = object.__new__(harness.Harness)
         self.runtime.hospital_roles = []
+
+    def test_institutional_namespace_requires_every_source_and_the_candidate_versions(self):
+        source = "/orgs/SIHSALUS/sources/anatomia-procedimientos/"
+        url = guards.OCL_API_URL + source + "concepts/SYNTHETIC/"
+        identifier = "10000000-0000-4000-8000-000000000001"
+        self.runtime.ocl_items = {("CONCEPT", url): (identifier, url + "2/")}
+        self.runtime.ocl_sources = {source}
+        valid = "\t".join(["CONCEPT", url, identifier, url + "2/", "1", "0"])
+        historical = valid.replace(guards.OCL_API_URL, "https://api.openconceptlab.org")
+        with patch.object(harness, "emit"):
+            self.runtime.query = Mock(return_value=[valid, historical])
+            self.runtime.check_ocl_namespace("owned", "upgrade")
+            for rows in ([historical], [], [valid, valid],
+                         [valid.replace(url + "2/", url + "1/")],
+                         [valid.replace(identifier, "10000000-0000-4000-8000-000000000002")],
+                         [valid.rsplit("\t", 2)[0] + "\t4\t1"],
+                         [valid.rsplit("\t", 2)[0] + "\t5\t0"]):
+                self.runtime.query.return_value = rows
+                with self.subTest(rows=rows), self.assertRaises(HarnessFailure):
+                    self.runtime.check_ocl_namespace("owned", "upgrade")
+
+    def test_ocl_upgrade_keeps_prior_checksum_files_and_only_updates_changed_content(self):
+        self.runtime.baseline_config, self.runtime.candidate_config = self.root / "old", self.root / "new"
+        for directory in (self.runtime.baseline_config, self.runtime.candidate_config):
+            (directory / "ocl").mkdir(parents=True)
+            (directory / "roles").mkdir()
+            (directory / "roles/stable.csv").write_bytes(b"unchanged")
+        (self.runtime.baseline_config / "ocl/old.zip").write_bytes(b"published")
+        (self.runtime.candidate_config / "ocl/new.zip").write_bytes(b"candidate")
+        before = self.runtime.configuration_checksums(self.runtime.baseline_config)
+        after = {**before, **self.runtime.configuration_checksums(self.runtime.candidate_config)}
+        self.runtime.check_retained_checksums(before, after)
+        for removed in ("ocl/old.checksum", "ocl/new.checksum", "roles/stable.checksum"):
+            invalid = dict(after)
+            del invalid[removed]
+            with self.subTest(removed=removed), self.assertRaises(HarnessFailure):
+                self.runtime.check_retained_checksums(before, invalid)
+        for key in after:
+            with self.subTest(changed=key), self.assertRaises(HarnessFailure):
+                self.runtime.check_retained_checksums(before, {**after, key: b"0" * 32})
+
+    def test_birth_length_requires_native_decimal_metadata_with_the_existing_identity_and_unit(self):
+        identifier = guards.BIRTH_LENGTH_UUID
+        for decimal in (False, True):
+            row = f"510\t{identifier}\t0\tNumeric\tcm\t{int(decimal)}"
+            concept = {"uuid": identifier, "allowDecimal": decimal, "units": "cm"}
+            self.runtime.query = Mock(return_value=[row])
+            self.runtime.request = Mock(return_value=(200, concept))
+            self.assertEqual(self.runtime.check_birth_length("owned", "db", decimal), "510")
+            for rows in ([], [row, row], [row.replace("\tcm\t", "\tmm\t")],
+                         [row.rsplit("\t", 1)[0] + "\t" + str(int(not decimal))]):
+                self.runtime.query.return_value = rows
+                with self.assertRaises(HarnessFailure):
+                    self.runtime.check_birth_length("owned", "db", decimal)
+            self.runtime.query.return_value = [row]
+            self.runtime.request.return_value = (200, {**concept, "allowDecimal": not decimal})
+            with self.assertRaisesRegex(HarnessFailure, "birth_length_rest_contract_invalid"):
+                self.runtime.check_birth_length("owned", "db", decimal)
+
+    def test_birth_length_observation_rejects_rounding_and_uses_the_native_rest_endpoint(self):
+        person = "10000000-0000-4000-8000-000000000001"
+        observation = "20000000-0000-4000-8000-000000000001"
+        self.runtime.request = Mock(return_value=(201, {"uuid": observation}))
+        row = f"30.1\t{guards.BIRTH_LENGTH_UUID}\t{person}\t0"
+        self.runtime.query = Mock(side_effect=[[row], ["complete synthetic observation"]])
+        self.assertEqual(self.runtime.create_birth_length_observation("owned", "db", person, 30.1),
+                         ["complete synthetic observation"])
+        request = self.runtime.request.call_args.args
+        self.assertEqual(request[1:3], ("POST", "/obs"))
+        self.assertEqual(request[3]["value"], 30.1)
+        self.runtime.query = Mock(return_value=[row.replace("30.1", "30")])
+        with self.assertRaisesRegex(HarnessFailure, "birth_length_observation_value_changed"):
+            self.runtime.create_birth_length_observation("owned", "db", person, 30.1)
+
+    def test_ocl_transition_compares_all_graph_edges_and_preserves_same_owned_volume(self):
+        runtime = self.runtime
+        runtime.nonce = "a" * 32
+        runtime.baseline_config, runtime.candidate_config = self.root / "old", self.root / "new"
+        runtime.role_md5, runtime.candidate_role_md5 = "old", "new"
+        runtime.start_database = Mock(return_value="owned-db")
+        runtime.start_backend = Mock(side_effect=[("baseline", "owned-volume"), ("upgrade", "owned-volume"),
+                                                 ("restart", "owned-volume")])
+        for name in ("wait_initializer", "assert_checksums", "check_retained_checksums", "check_ocl_namespace",
+                     "docker", "remove_container", "preserve_ocl_baseline_order"):
+            setattr(runtime, name, Mock())
+        runtime.check_birth_length = Mock(return_value="510")
+        vitamin_a = "\t".join(vitamin_a_result().split("\t")[:6])
+        runtime.check_vitamin_a_measurement = Mock(return_value=vitamin_a)
+        runtime.request = Mock(return_value=(201, {"uuid": "10000000-0000-4000-8000-000000000001"}))
+        runtime.create_birth_length_observation = Mock(return_value=["original observation"])
+        runtime.query = Mock(return_value=["original observation", "decimal observation"])
+        runtime.history = Mock(return_value=["complete journal"])
+        baseline = {key: () for key in harness.TERMINOLOGY_TABLES}
+        baseline["concepts"] = ("510\tsynthetic-existing-concept\t1\t7\t0\t0",)
+        baseline["answers"] = ("610\tsynthetic-private-uuid\t10\t20\tNULL\t1",)
+        identities = {**baseline, "concepts": (*baseline["concepts"], vitamin_a)}
+        changed_identities = {**identities, "answers": ("610\tsynthetic-private-uuid\t10\t20\tNULL\tNULL",)}
+        runtime.terminology_identity_snapshot = Mock(return_value=identities,
+            side_effect=[baseline, identities, identities, identities])
+        runtime.checksum_snapshot = Mock(return_value={"ocl/a.checksum": b"existing checksum"})
+        sequence = Mock()
+        sequence.attach_mock(runtime.preserve_ocl_baseline_order, "order")
+        sequence.attach_mock(runtime.request, "request")
+        sequence.attach_mock(runtime.start_backend, "start")
+        with patch.object(harness, "emit"):
+            runtime.ocl_transition_run(upgrade=True)
+        self.assertEqual([call[0] for call in sequence.mock_calls], ["start", "order", "request", "start", "start"])
+        runtime.preserve_ocl_baseline_order.assert_called_once_with("owned-db")
+        for call in runtime.start_backend.call_args_list[1:]:
+            self.assertEqual(call.kwargs, {"data_volume": "owned-volume"})
+        runtime.check_retained_checksums.assert_called_once()
+        self.assertEqual(runtime.check_vitamin_a_measurement.call_args_list,
+                         [unittest.mock.call("owned-db"), unittest.mock.call("owned-db")])
+        for method, changed, reason in (
+                ("terminology_identity_snapshot", changed_identities, "identities_or_cross_references"),
+                ("history", ["altered journal checksum"], "liquibase_history"),
+                ("checksum_snapshot", {"ocl/a.checksum": b"reset checksum"}, "checksums"),
+                ("query", ["modified observation"], "observations")):
+            with self.subTest(method=method):
+                runtime.start_backend.side_effect = [("baseline", "owned-volume"), ("upgrade", "owned-volume"),
+                                                     ("restart", "owned-volume")]
+                runtime.terminology_identity_snapshot.side_effect = [baseline, identities, identities, identities]
+                target = getattr(runtime, method)
+                target.side_effect = [baseline if method == "terminology_identity_snapshot" else target.return_value,
+                                      target.return_value, target.return_value, changed]
+                if method == "query":
+                    target.side_effect = [target.return_value, changed]
+                with patch.object(harness, "emit"), self.assertRaisesRegex(HarnessFailure, "ocl_restart_changed_" + reason):
+                    runtime.ocl_transition_run(upgrade=True)
+                target.side_effect = None
+
+        runtime.start_backend.side_effect = [("baseline", "owned-volume"), ("upgrade", "owned-volume")]
+        runtime.terminology_identity_snapshot.side_effect = [baseline, changed_identities]
+        with patch.object(harness, "emit") as emit, self.assertRaisesRegex(
+                HarnessFailure, "^ocl_upgrade_changed_identities_or_cross_references$"):
+            runtime.ocl_transition_run(upgrade=True)
+        self.assertEqual(emit.call_args_list[0].args, ("birth_length", "PASSED"))
+        self.assertEqual(emit.call_args_list[0].kwargs,
+                         {"phase": "upgrade", "concept_id_preserved": True, "allow_decimal": True})
+        self.assertEqual(emit.call_args_list[1].args, ("terminology_snapshot", "FAILED"))
+
+        runtime.preserve_ocl_baseline_order.reset_mock()
+        runtime.check_vitamin_a_measurement.reset_mock()
+        runtime.start_backend.side_effect = [("fresh", "owned-volume"), ("restart", "owned-volume")]
+        runtime.terminology_identity_snapshot.side_effect = None
+        with patch.object(harness, "emit"):
+            runtime.ocl_transition_run(upgrade=False)
+        runtime.preserve_ocl_baseline_order.assert_not_called()
+        self.assertEqual(runtime.check_vitamin_a_measurement.call_args_list,
+                         [unittest.mock.call("owned-db"), unittest.mock.call("owned-db")])
+
+    def test_terminology_drift_reports_only_fixed_columns_and_counts_without_accepting_changes(self):
+        before = {key: () for key in harness.TERMINOLOGY_TABLES}
+        before["answers"] = ("610\tsynthetic-private-uuid\t10\t20\tNULL\t1",)
+        changes = (
+            ("610\tsynthetic-private-uuid\t10\t20\tNULL\tNULL", True, True, {"sort_weight": 1}, {"sort_weight": 1}),
+            ("610\tsynthetic-new-uuid\t10\t20\tNULL\t1", True, False, {"uuid": 1}, {}),
+            ("611\tsynthetic-private-uuid\t10\t20\tNULL\t1", False, True, {}, {}),
+            ("610\tsynthetic-private-uuid\t10\t21\tNULL\t1", True, True, {"answer_concept": 1}, {}),
+        )
+        for row, pk_preserved, uuid_preserved, columns, nulls in changes:
+            with self.subTest(row=row):
+                self.runtime.terminology_identity_snapshot = Mock(return_value={**before, "answers": (row,)})
+                with patch.object(harness, "emit") as emit, self.assertRaisesRegex(
+                        HarnessFailure, "^ocl_upgrade_changed_identities_or_cross_references$"):
+                    self.runtime.assert_terminology_identity("owned", before, "upgrade")
+                emit.assert_called_once_with("terminology_snapshot", "FAILED", phase="upgrade",
+                    table="concept_answer", expected_rows=1, actual_rows=1, removed_rows=1, added_rows=1,
+                    primary_keys_preserved=pk_preserved, uuids_preserved=uuid_preserved,
+                    changed_columns=columns, became_null=nulls)
+                self.assertNotIn("synthetic-private-uuid", str(emit.call_args))
+                self.assertNotIn("synthetic-new-uuid", str(emit.call_args))
+
+        self.runtime.terminology_identity_snapshot.return_value = before
+        with patch.object(harness, "emit") as emit:
+            self.runtime.assert_terminology_identity("owned", before, "restart")
+        emit.assert_not_called()
 
     def test_procedure_anatomy_checks_native_search_and_preserves_database_identities(self):
         contract, rows, responses = procedure_anatomy_result()
@@ -165,15 +466,58 @@ class HarnessContracts(unittest.TestCase):
             self.runtime.check_procedure_anatomy("owned", "db", "restart", previous)
 
     def test_vitamin_a_measurement_requires_native_numeric_units(self):
-        self.runtime.query = Mock(return_value=["0\tNumeric\tUI\t0.0\t0"])
-        self.runtime.check_vitamin_a_measurement("synthetic")
-        for rows in ([], ["0\tNumeric\tUI\t0\t0"] * 2,
-                     ["1\tNumeric\tUI\t0\t0"], ["0\tNumeric\tmg\t0\t0"],
-                     ["0\tNumeric\tUI\t0\t1"]):
+        valid = vitamin_a_result()
+        self.runtime.query = Mock(return_value=[valid])
+        self.assertEqual(self.runtime.check_vitamin_a_measurement("synthetic"),
+                         "\t".join(valid.split("\t")[:6]))
+        invalid = []
+        for index, value in ((0, "0"), (1, "another-uuid"), (2, "0"), (3, "0"), (4, "1"),
+                             (5, "1"), (6, "Text"), (7, "Drug"), (8, "mg"), (9, "-1"),
+                             (9, "NULL"), (9, "nan"), (10, "1")):
+            fields = valid.split("\t")
+            fields[index] = value
+            invalid.append(["\t".join(fields)])
+        for rows in ([], [valid] * 2, ["too\tfew\tcolumns"], *invalid):
             with self.subTest(rows=rows):
                 self.runtime.query.return_value = rows
                 with self.assertRaises(HarnessFailure):
                     self.runtime.check_vitamin_a_measurement("synthetic")
+
+    def test_ocl_upgrade_allows_only_the_verified_vitamin_a_insertion(self):
+        baseline = {key: () for key in harness.TERMINOLOGY_TABLES}
+        baseline["concepts"] = ("510\tsynthetic-existing-concept\t1\t7\t0\t0",)
+        baseline["answers"] = ("610\tsynthetic-answer\t510\t511\tNULL\t1",)
+        self.runtime.query = Mock(return_value=[vitamin_a_result()])
+        expected = self.runtime.expected_vitamin_a_insertion("owned-db", baseline)
+        inserted = "\t".join(vitamin_a_result().split("\t")[:6])
+        self.assertEqual(expected, {**baseline, "concepts": (*baseline["concepts"], inserted)})
+        self.runtime.terminology_identity_snapshot = Mock(return_value=expected)
+        with patch.object(harness, "emit"):
+            self.runtime.assert_terminology_identity("owned-db", expected, "upgrade")
+            self.runtime.assert_terminology_identity("owned-db", expected, "restart")
+        cases = [
+            {**expected, "concepts": (*expected["concepts"], "521\tsynthetic-extra\t1\t7\t0\t0")},
+            {**expected, "concepts": (baseline["concepts"][0].replace("510\t", "509\t"), inserted)},
+            {**expected, "concepts": (baseline["concepts"][0].replace("\t1\t7\t", "\t2\t7\t"), inserted)},
+            {**expected, "concepts": (*expected["concepts"], inserted.replace("520\t", "521\t"))},
+            {**expected, "answers": (baseline["answers"][0].rsplit("\t", 1)[0] + "\tNULL",)},
+            baseline,
+        ]
+        for key, (_table, columns) in harness.TERMINOLOGY_TABLES.items():
+            if key != "concepts":
+                extra = "\t".join(["900", "synthetic-extra-edge", *["0"] * (len(columns.split(",")) - 2)])
+                cases.append({**expected, key: (*expected[key], extra)})
+        for changed in cases:
+            for phase in ("upgrade", "restart"):
+                with self.subTest(changed=changed, phase=phase):
+                    self.runtime.terminology_identity_snapshot.return_value = changed
+                    with patch.object(harness, "emit"), self.assertRaises(HarnessFailure):
+                        self.runtime.assert_terminology_identity("owned-db", expected, phase)
+        for invalid_baseline in (
+                expected,
+                {**baseline, "concepts": ("520\tsynthetic-existing-concept\t1\t7\t0\t0",)}):
+            with self.subTest(baseline=invalid_baseline), self.assertRaises(HarnessFailure):
+                self.runtime.expected_vitamin_a_insertion("owned-db", invalid_baseline)
 
     def test_clinical_form_updates_preserve_history_and_require_loaded_criteria(self):
         self.runtime.candidate_config = self.root
