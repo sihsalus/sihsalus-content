@@ -4,8 +4,9 @@
 
 El selector institucional utiliza el conjunto OpenMRS
 `25b4e8e6-0781-5c04-bc76-888402f3f505` (`PROCEDURE-BODY-SITES`).
-Su fuente de verdad es OCL `SIHSALUS/anatomia-procedimientos`, release
-`2026-10-11-02`. Contiene 133 sitios anatómicos humanos: 120 conceptos nuevos
+Su fuente de verdad es OCL `SIHSALUS/anatomia-procedimientos`. El candidato
+institucional `2026-10-16-1`, todavía sin publicar, conserva íntegramente el
+contenido clínico de la release `2026-10-11-02`. Contiene 133 sitios anatómicos humanos: 120 conceptos nuevos
 y 13 conceptos existentes reutilizados, unidos mediante `CONCEPT-SET` y con
 una equivalencia `SAME-AS` por sitio.
 
@@ -60,16 +61,19 @@ rehidratan desde el procedimiento guardado; no se migran ni se filtran al leer.
 
 ## Distribución y mantenimiento
 
-La release oficial se divide con `.github/scripts/split_ocl_export.py` en
+El export oficial se divide con `.github/scripts/split_ocl_export.py` en
 los slots `17_` (121 conceptos, incluido el conjunto) y `67_` (266 mappings).
 El ZIP oficial tiene SHA-256
-`d5d90e67ef6eb4968c39e74248892ee21073d5a939387565c8db32eeaf19a6e8`;
+`f9fe22e1e4545da70cb3a9e892c143885a88c7b20594719e313896571cdf8259`;
 su JSON canónico recombinado tiene SHA-256
-`26dd43fb00dc098741742a7cbfe86f247b42aa229390d5ed4f7a687b74d928a7`, fijado por
+`99bd81040322494699852ed7c192566be5596611a3989e2a1bec64f491175aa8`, fijado por
 el validador. Estos exports son la única definición operativa del catálogo; no
 hay otra lista de sitios en CSV ni migración SQL.
-La propiedad histórica `openconceptlab.subscriptionUrl` permanece intacta:
-su namespace es necesario para resolver los conceptos importados existentes.
+La [transición institucional](../audits/2026-10-16-ocl-institutional-transition.md)
+actualiza conjuntamente el host de `openconceptlab.subscriptionUrl` y los
+34 exports. Esta versión de anatomía registra esa transición sin alterar los
+sitios ni sus relaciones; conserva las identidades al importar bajo el nuevo
+namespace. No se borran checksums ni se modifica la historia de migraciones.
 
 La versión upstream `4.0.0` y el hash de su distribución se conservan en la
 metadata OCL. El campo opcional `to_source_version` puede estar vacío, pero

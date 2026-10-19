@@ -109,6 +109,28 @@ No se incluyen cuentas personales, contraseñas, hashes, identificadores de
 pacientes ni exportaciones de usuarios. La provisión de credenciales sigue el
 mecanismo de cada entorno; este contenido no cambia contraseñas.
 
+### Inscripciones de CRED — reporte #387
+
+La decisión del 16/10/2026 permite registrar, editar y anular inscripciones con
+el perfil CRED. Se reutiliza `SIH SALUS Hoja Clinica Programas editar`, ya
+provisionado por `roles-core.csv` (UUID `d80bc4fd-7781-4eca-9404-4d9dc061a800`).
+El contrato del perfil añade ese rol y cuatro permisos efectivos:
+`app:hoja.clinica.programas.editar`, `Add Patient Programs`,
+`Edit Patient Programs` y `Delete Patient Programs`. `Get Programs` ya estaba
+incluido. No se añade purga de inscripciones ni administración de usuarios.
+
+Estos privilegios nativos permiten operar inscripciones de programas en general;
+no tienen un alcance exclusivo a Control de Niño Sano. El frontend conserva las
+reglas de elegibilidad y los controles de acceso registrados.
+
+**Aplicación pendiente:** el contrato no asigna roles a usuarios y publicar
+content no modifica el rol local de pruebas. Un administrador autorizado debe
+respaldar las asignaciones de la cuenta CRED y añadir únicamente el rol existente,
+sin sustituir sus otros roles. Esta tarea no ejecuta esa operación ni modifica
+cuentas en DEV/QLTY. Validar después con una sesión nueva de CRED: creación,
+edición y anulación de una inscripción sintética, además de denegación para un
+perfil de consulta. Revertir retirando solo la asignación añadida.
+
 ## Propiedad de los metadatos y aplicación
 
 Initializer carga los dos roles de `roles_hospital_operations.csv` y las cinco

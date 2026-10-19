@@ -52,8 +52,8 @@ Los flujos no programables quedan fuera de citas:
 
 Los CSV de `configuration/appointmentspecialities/` forman un solo catálogo de
 `AppointmentSpeciality`; cada UUID y nombre aparece una sola vez entre archivos.
-La distribución conserva los 16 UUID históricos y añade 19 identidades de especialidades
-de enfermería y una categoría local general de Enfermería:
+Las 36 categorías conservan los 16 UUID históricos y añaden 19 identidades de especialidades
+de enfermería y una categoría local general de Enfermería; cinco categorías son locales:
 
 | Archivo | Contenido |
 | --- | --- |

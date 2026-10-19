@@ -94,6 +94,85 @@ registro describe una presentación, no existencias, indicación, pauta ni
 autorización de dispensación. El buscador del frontend espera un medicamento
 activo con concepto `Drug`, concentración y forma farmacéutica; no acepta texto libre.
 
+### Procedencia y mantenimiento de medicamentos
+
+`minsa-drugs.csv` conserva 494 identidades procedentes del archivo local
+`peruHCE-drugs.csv` de noviembre de 2025: 493 activas y una retirada. Su cambio
+de nombre en marzo de 2026 no incorporó otro catálogo. `clinical-drugs.csv`
+añade una presentación activa documentada arriba. No se ha identificado el
+archivo oficial original que justificaría todas las filas ni el petitorio
+institucional aprobado de Santa Clotilde; el nombre del CSV no acredita vigencia
+del PNUME ni autorización de uso hospitalario.
+
+Los códigos `00143` y `00145`, por ejemplo, corresponden a SISMED en
+[documentos oficiales de DIGEMID](https://www.digemid.minsa.gob.pe/Archivos/MedicamentosFarmacia/SanMiguel-Diciembre.pdf).
+La identidad debe contrastarse por presentación:
+aciclovir de 200 y 400 mg comparte concepto en OCL, pero tiene dos `Drug` y códigos
+SISMED distintos. `extras.COD_MED` del concepto no identifica ambas presentaciones.
+
+| Fuente | Actualización y límite |
+| --- | --- |
+| [Catalogación SISMED](https://www.digemid.minsa.gob.pe/catalogacionSismed/assets/documentos/Manual_Usuario_MRV.pdf) | El manual documenta Excel, paquetes ZIP y comunicados de códigos inactivos/equivalentes. Conservar el archivo recibido, fecha, versión y SHA-256; el acceso público devolvió 403 en esta revisión. No quedó verificado un feed automatizable. |
+| [PNUME y sus anexos](https://repositorio-digemid.minsa.gob.pe/items/ea629572-1ea9-47e6-95d7-dd2e529db307) | Contrastar la base y las listas complementarias publicadas con el petitorio institucional aprobado. SISMED, pertenencia al PNUME y autorización institucional son datos diferentes. |
+| [Registro sanitario y fichas DIGEMID](https://www.digemid.minsa.gob.pe/webDigemid/registro-sanitario/productos-farmaceuticos/) | Son consultas documentales oficiales. No se ha verificado un contrato de API o descarga integral que permita sincronizarlas con este paquete. |
+| OCL `SIHSALUS/medicamentos` | Usar versiones publicadas y exports oficiales. La consulta autenticada de solo lectura del 19 de octubre de 2026 confirmó `2026-06-30` como última release publicada; HEAD no es una release aprobada. |
+| [RxNorm/NLM](https://lhncbc.nlm.nih.gov/RxNav/APIs/api-RxNorm.getRxcuiHistoryStatus.html) | Comprobar estado de los identificadores existentes y registrar la versión NLM consultada. Un identificador activo no acredita equivalencia clínica exacta ni cobertura de todas las presentaciones. |
+| ViDAL Integrated | No hay conector ni acceso verificado en el código revisado. Su mantenimiento requiere confirmar acceso, cobertura para Perú y condiciones del proveedor. |
+
+#### Revisión reproducible de RxNorm
+
+```sh
+python3 .github/scripts/check_rxnorm_mappings.py > /tmp/rxnorm-review.json
+```
+
+El comando descubre los mappings activos de medicamentos en los ZIP publicados
+del paquete y consulta por GET los identificadores RxNorm correspondientes.
+Comprueba la versión NLM antes y después para detectar un cambio durante la
+lectura. Devuelve `0` (`CURRENT`) si todos siguen activos, `1` (`REVIEW`) si algún
+identificador necesita revisión y `2` (`ERROR`) si no pudo completar la
+comprobación. Un fallo de red, una respuesta incompleta o un inventario vacío
+impiden el resultado `CURRENT`. No cambia mappings, importa datos ni publica
+versiones.
+
+Este comando nuevo cubre la consulta de vigencia upstream que no realizan el
+validador estático, el separador de exports o el migrador inicial de OCL. Sus
+pruebas usan respuestas sintéticas; el build del paquete sigue siendo reproducible
+sin NLM. El [workflow de revisión](../.github/workflows/review-rxnorm-mappings.yml)
+permite ejecución manual y semanal, los lunes a las 12:00 UTC (07:00 en Lima),
+con un informe conservado 30 días. Sólo queda activo al integrar el workflow en
+la rama predeterminada. Este control no comprueba la vigencia de SISMED, PNUME,
+fichas o petitorio institucional.
+
+La [evidencia técnica del 19 de octubre de 2026](audits/2026-10-19-medication-maintenance.json)
+registra la versión NLM `05-Oct-2026`, API `3.1.356`, y los cuatro identificadores
+activos comprobados. Son ingredientes o combinaciones (`IN`/`MIN`), no
+presentaciones clínicas (`SCD`). Conserva pendientes las decisiones de Farmacia.
+Este control tampoco evalúa interacciones: NLM
+[retiró esa API el 2 de enero de 2024](https://lhncbc.nlm.nih.gov/RxNav/information/FAQs.html).
+
+#### Incorporación de cambios
+
+1. Obtener la descarga oficial y el petitorio aprobado, con sus versiones y hash.
+2. Comparar las presentaciones y clasificar altas, cambios, ausencias o fusiones;
+   cada decisión conserva los UUID históricos y requiere revisión del dominio.
+   Una ausencia o una fusión no autoriza retirar ni sustituir datos automáticamente.
+3. Revisar concentración, composición, forma y vía antes de aprobar equivalencias.
+   [Initializer admite](https://github.com/sihsalus/openmrs-module-initializer/blob/806aec0a11fbb6b582629ecb2c89992e2e46107e/readme/drugs.md)
+   `DrugReferenceMap` e ingredientes mediante los encabezados nativos del CSV
+   existente. [Al recargar reconstruye los mappings](https://github.com/sihsalus/openmrs-module-initializer/blob/806aec0a11fbb6b582629ecb2c89992e2e46107e/api/src/main/java/org/openmrs/module/initializer/api/drugs/MappingsDrugLineProcessor.java#L34): conservar el
+   conjunto completo aprobado por `Drug` en su fuente declarativa, sin overlays
+   ni modificaciones sólo por REST que una recarga pueda borrar.
+4. Incorporar la versión OCL publicada con `split_ocl_export.py` y los CSV
+   correspondientes, ejecutar los validadores y ensayos existentes y presentar
+   el diff en un PR. El migrador inicial de terminología no es un actualizador
+   recurrente de fuentes ya pobladas.
+
+Farmacia debe revisar también el alcance del catálogo seleccionable: permanece
+activa una entrada denominada «VACUNA ANTIRRABICA DE USO VETERINARIO». Esta revisión
+no la retira ni reasigna sus referencias; su presencia necesita una decisión
+explícita del responsable del catálogo para atención humana (código SISMED
+`30602`, UUID `931d8199-6316-4624-b940-e77022c30602`).
+
 ## Base reproducible de Stock Management
 
 El paquete provisiona los catálogos controlados de unidades de empaque y
@@ -209,6 +288,39 @@ válida y un mínimo exacto de 48 horas, y una lectura incompleta o fallida no
 habilita el control. El segundo control incluye el día 14 y conserva siete días
 mínimos desde el control anterior. La reanudación del mismo control conserva su
 número.
+
+La corrección de los reportes #389 y #390 mantiene la identidad del formulario
+`(CRED) Detalles de Nacimiento` `1.2`. El alta no puede preceder al día de
+nacimiento ni estar en el futuro; se permite el mismo día sin inferir una hora
+de nacimiento que el dato demográfico no contiene. Si se introduce un alta y
+no se dispone de una fecha de nacimiento válida, pide revisar la demografía.
+
+El tiempo de hospitalización solo se edita con «Sí». Al cambiar a «No» se
+conserva el valor introducido, pero se bloquea el guardado contradictorio y se
+pide volver a «Sí» para corregirlo o borrarlo. No se eliminan observaciones por
+ocultación ni se sustituye una respuesta ausente por cero. La regla se aplica
+también al editar; no modifica registros históricos automáticamente.
+
+**Talla al nacer (#391):** el candidato institucional `sihsalus/2026-10-16-1`
+declara `extras.allow_decimal: true` para el concepto `382`
+(`bf82beb1-d3b8-400e-8160-90869cad8136`). Conserva tipo numérico, unidad `cm`,
+nombres y mappings. El formulario mantiene sus pasos de `0.1`, sin redondear
+la medición. La corrección canónica y su snapshot están preparados; **la
+publicación OCL y la aplicación en ambientes siguen pendientes**.
+
+La [transición institucional](audits/2026-10-16-ocl-institutional-transition.md)
+coordina los 34 exports con el host de la suscripción. Conserva las exclusiones
+históricas de barrios y verifica las identidades en las 18 fuentes. Los ZIP se
+generan desde exports oficiales con el splitter existente; no se editan registros
+a mano ni se duplican conceptos en CSV/SQL.
+
+El token institucional solo autentica en ese servidor. El secret de GitHub
+no cambia `OMRS_OCL_TOKEN` en DEV/QLTY. La importación local de los ZIP por
+Initializer no descarga el catálogo ni usa ese token; una futura importación
+remota requiere verificar la credencial del entorno mediante una aprobación
+operativa separada. La tarea no modifica credenciales ni controles del backend.
+La aceptación requiere verificar `allowDecimal: true` y guardar/reabrir una
+talla sintética de `30.1 cm` tras la actualización autorizada de content.
 
 `CRED-001` `1.2.1` conserva la hemoglobina medida y la clasificación confirmada
 por el profesional; incluye 500 m en la advertencia de ajuste por altitud y

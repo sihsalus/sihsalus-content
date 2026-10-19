@@ -12,15 +12,16 @@ Related: [admission contract](../../../docs/contracts/admission-role-reconciliat
 
 ## Invocation
 
-`admission-initializer.yml` (called from `main.yml`) runs the three scenarios
+`admission-initializer.yml` (called from `main.yml`) runs the five scenarios
 as a matrix with `fail-fast: false`; all must pass on the same candidate SHA.
 The checkout must be the exact `GITHUB_SHA` with a clean tracked worktree, plus
-the two pinned source commits:
+the three pinned source commits:
 
 ```sh
 git fetch --no-tags --depth=1 origin \
   8000b27f48bf124fe9a553d4ba41c678e9acc231 \
-  762920145a806f989fd8876ab2938ef217f57aab
+  762920145a806f989fd8876ab2938ef217f57aab \
+  b9e93638fd7ed9c8dffe8b48f2be868f3d9b1a10
 python3 -B .github/integration/admission-initializer/test_harness.py   # no Docker
 ADMISSION_INITIALIZER_DISPOSABLE=github-runner-only \
   ADMISSION_INITIALIZER_SCENARIO=upgrade \
@@ -30,7 +31,7 @@ ADMISSION_INITIALIZER_DISPOSABLE=github-runner-only \
 Use `ADMISSION_INITIALIZER_SCENARIO=fresh` for the independent fresh-candidate
 scenario, or `ADMISSION_INITIALIZER_SCENARIO=operational` for the additional
 55-permission legacy alias upgrade from a real 1.25.15 baseline. CI runs all
-three jobs with `fail-fast: false`; all must pass on the same candidate SHA.
+five jobs with `fail-fast: false`; all must pass on the same candidate SHA.
 The operational case uses synthetic accounts and a random alias UUID, transfers
 references to the existing canonical role, and checks the full RBAC snapshot,
 unchanged/current CSV loading, idempotence, and native allowed/denied access.
@@ -58,6 +59,9 @@ within a newly created run directory; database and application data volumes
 must match both a random resource prefix and its ownership label.
 
 ## Immutable inputs and content ownership
+
+The following inputs remain unchanged for `upgrade`, `fresh` and `operational`.
+The additional OCL scenarios use the separately pinned current runtime below.
 
 - Backend: `ghcr.io/sihsalus/sihsalus-backend@sha256:ae9afe41f7632f25268203772ec74266fd0a5495ad7b9ab5e09c9e6a6df6fcd8`.
 - Distro source label: `fb11da724dced859d00974c9ff2928aae135e704`.
@@ -114,6 +118,86 @@ directories and each file set's includes/excludes, so a source-tree cleanup
 cannot silently change the overlay.
 
 ## Required runtime evidence
+
+### Institutional OCL transition on the current runtime
+
+`ocl-fresh` and `ocl-upgrade` reuse the same runner guards, native Initializer,
+owned container/volume lifecycle, configuration assembly and strict startup
+checks. They do not build or modify a backend image and do not contact OCL or
+any deployed environment. Their immutable inputs are:
+
+- Backend: `ghcr.io/sihsalus/sihsalus-backend@sha256:72c0c4cedfd5ba4b3eb1a3fabd8d1f4e9222548ce49ba06dd7ac2c3a00282414`.
+- Distro source label: `bdfa1bb78095e59fc24eb655bb39aa352fdf5681`;
+  [successful build](https://github.com/sihsalus/sihsalus/actions/runs/38807577878).
+- Core: `2.8.10-sihsalus.4`; OCL: `4.0.0`; Initializer: `2.13.0-sihsalus.2`.
+  Image properties must match; REST must report the expected started OCL and
+  Initializer modules. The digest, revision label and platform remain mandatory.
+- Embedded and upgrade baseline content: published `1.25.34`, commit
+  `b9e93638fd7ed9c8dffe8b48f2be868f3d9b1a10`. Every owned configuration file must
+  match the image before overlay. The Maven Central ZIP has SHA-256
+  `6f1fdcf430d6d0cac6e5f71ff9e337c8af8f5c81384cfc0f20e6e62231093b45`.
+  Later commit `78178494` kept version `1.25.34` but changed two roles/privileges
+  CSV files; it is not byte-equivalent to this published release.
+
+The fresh scenario loads the full candidate into an empty owned database.
+The upgrade scenario first loads the complete published baseline, records all
+Initializer checksum files and Liquibase history, and creates one synthetic
+person and an integer birth-length observation through native REST. It then
+loads the candidate using the same database and application-data volumes.
+No checksum is removed or reset: unchanged and retired-file checksum records
+must survive byte-identically, changed files must receive their actual new
+checksum, and all 34 candidate OCL ZIP checksums must be present.
+
+After verifying baseline startup, checksums and integer-only birth-length
+metadata, `ocl-upgrade` also saves `ocl-baseline-order-{sha}.json` as a separate
+seven-day CI artifact. This happens **before creating synthetic people or
+observations and before loading the candidate**. Neither `ocl-fresh` nor the
+historical scenarios produce it. The artifact records the pinned baseline
+version/source SHA and backend digest, plus only the 17,404 active OCL catalog
+relationships declared by the published baseline exports: 3,270 `Q-AND-A` and
+14,134 `CONCEPT-SET` mappings. Each entry contains its type, mapping UUID,
+parent/target concept UUIDs, `drug_uuid: null`, and the actual numeric sort weight
+(or JSON `null` for SQL NULL). The OCL edges point to concepts; an unexpected
+drug reference fails validation. No database IDs, concept names, accounts,
+clinical records, SQL dumps or raw responses are included.
+
+The database edges must match the allowlisted UUIDs and endpoints exactly;
+missing, duplicate or mismatched entries fail. Canonical UUIDs and the published
+36-character CIEL identifiers (digits followed by `A`) are validated, and
+malformed/non-finite weights are rejected. CSV-owned relationships outside the
+OCL allowlist are omitted. The complete projection is validated before the
+artifact becomes visible; an existing destination or symlink is not overwritten.
+The JSON is **review evidence, not a migration or OCL update payload**. Its
+presence proves only that baseline metadata was captured: the candidate may
+still fail the unchanged complete graph/weight, checksum and restart assertions.
+It does not establish the ordering of an existing DEV/QLTY/production database.
+
+Both scenarios require the exact birth-length UUID
+`bf82beb1-d3b8-400e-8160-90869cad8136`, the existing numeric concept ID, unit `cm`,
+and `allow_decimal=true` in SQL and REST. A native REST submission of `30.1`
+must persist exactly; it must not be rounded. The baseline observation remains
+byte-identical. All concept identities, set/answer edges, reference-map
+identities/types and reference-term source/codes are compared across upgrade;
+native metadata audit timestamps are not mistaken for identifier changes.
+
+For every one of the 32,551 concepts and 20,552 mappings in the candidate ZIPs,
+the latest native OCL item must carry its unchanged external identifier, the
+institutional namespace `https://api.gidis-terminology.duckdns.org`, its expected
+concept version URL and a successful native state. All 18 sources are required,
+including `anatomia-procedimientos`; a source skipped because its ZIP checksum
+did not change fails this assertion. Older OCL Cloud import history may remain.
+The file importer records a local startup path as `import.subscription_url`;
+that field is not used as proof of the HTTP namespace.
+
+Finally, both scenarios restart the candidate with the same volumes. Every
+checksum, normalized Liquibase history row, catalog identity/reference and
+synthetic observation must remain unchanged; the decimal metadata and complete
+institutional namespace are verified again. The existing 80-minute harness
+budget and 90-minute job timeout remain bounded. Local pure tests do not prove
+these runtime assertions; both CI jobs must pass before runtime compatibility
+is claimed. No DEV, QLTY or production operation is part of these tests.
+
+### Historical admission scenarios
 
 History snapshots retain every column and row. The pinned audit module at
 [`13712f1`](https://github.com/sihsalus/openmrs-module-sihsalus-audit/blob/13712f1f08839047a360e452d988ee361d2181a0/api/src/main/resources/liquibase.xml)
@@ -327,10 +411,12 @@ activity proves readiness: completion and the real started module are still
 required. Exhausting either budget remains a failed validation.
 
 Stdout contains only sanitized JSON phase results, public source identifiers,
-checksums and fixed diagnostic codes. Preserve only that JSONL in the separate
+checksums and fixed diagnostic codes. Preserve that JSONL in the separate
 `admission-initializer-{scenario}-{sha}` CI artifacts,
 never raw application logs, Docker inspections, HTTP bodies, SQL dumps or the
-private run directory. A failed RBAC snapshot comparison identifies only the
+private run directory. The OCL baseline ordering artifact described above is
+the only additional metadata projection; it is not copied from raw diagnostics.
+A failed RBAC snapshot comparison identifies only the
 fixed table name, table presence and counts of added/removed whole rows; it never
 prints roles, privileges, users or row contents. Repeated rows remain significant.
 Cleanup validates resource ownership before removal;
@@ -343,53 +429,24 @@ workspace, broad directory or unlabelled resource.
 
 ### Bounded progress diagnostics
 
-During lifecycle waits, a sanitized `WAITING` record appears initially and at
-most once per minute, plus a final record immediately before an unexpected
-loader abort. The final record preserves the same bounded observations when
-the failure happens between progress intervals; it does not expose raw errors
-or change the rejection criteria. It contains only the observed HTTP code (or `null` for
-transport unavailability), running state, and boolean completion/abort/candidate
-marker/CSV-error signals from the current container. At the same bounded
-interval, an anonymous, no-redirect, no-retry GET to the fixed internal
-`/openmrs/initialsetup?page=progress.vm.ajaxRequest` reads Core's installer
-progress. Strictly boolean `hasErrors` and `initializationComplete` values
-are exposed as `installation_has_errors` and `installation_complete`.
-Nonnegative integer `actionCounter` and `completedPercentage` values are exposed
-as `installation_action_counter` and `installation_completed_percentage`;
-booleans, strings, fractions and negative counters become `null`. Missing,
-malformed or unavailable values also produce `null`, not a healthy state.
-Core's percentage is per task, can reset or exceed 100, and is omitted after
-installation completes. It is not an overall progress or readiness assertion.
-`initializer_log_present` distinguishes a missing attempt log from an empty
-one; `initializer_log_bytes` counts the bytes read from that file, or is `null`
-when absent. These observations reuse the existing log read and contain no path.
-`hasErrors=true` fails with the static code `installation_reported_errors`.
-Neither `hasErrors=false`, `initializationComplete=true`, nor an HTTP code can
-replace the Initializer lifecycle assertions. Installer messages, error pages,
-log lines, response bodies, credentials and exception text are never emitted.
-The loader observations also expose the last loading and last completed domain,
-plus `initializer_aborted_domains` from actual abort markers, all restricted to
-names in the pinned Initializer's `Domain` enum. The last loading domain is not
-necessarily the one that failed; loading and completion records may refer to
-other files. Unknown last-domain names are reported as `null`; unknown aborted
-domains are omitted. Filenames, paths and values are never copied. A bounded list
-of fixed failure hints identifies memory exhaustion, connection timeout/refusal,
-DNS failure, database lock/deadlock messages and Core's missing retirement-reason
-validation code. It contains category names only,
-without raw exception text, SQL or values. This lets a stalled run distinguish
-where loading stopped without publishing application logs. These hints do not
-prove the root cause, and their absence does not prove that startup is healthy.
+During lifecycle waits, a `WAITING` record appears initially and at most once
+per minute with `elapsed_seconds`, `completion_seen` and `last_loading_domain`.
+The last observed loading domain does not establish which domain failed.
+Core's installer `hasErrors=true` still fails with `installation_reported_errors`;
+its absence or a false value cannot replace the Initializer lifecycle assertions.
 
-These diagnostics are not passing test results.
-
-At a lifecycle timeout, one native `jcmd 0 Thread.print` sample is attempted
-inside the already verified, owned backend, with a ten-second diagnostic limit.
-Only stacks containing an Initializer method are selected: at most three stacks
-and 24 method names per stack, restricted to Java/OpenMRS/database/framework
-namespaces. Thread names, source locations, arguments, exception text, raw dumps
-and command errors are discarded. Unavailable diagnostics report a boolean and
-an empty list; the lifecycle timeout still fails. This does not extend the
-startup acceptance deadline or treat an incomplete load as successful.
+Immediately before `unexpected_initializer_abort`, a `FAILED` record reports
+`csv_error_summary` and a sorted, deduplicated `aborted_domains` list. A domain
+is emitted only if its directory exists both in the public checked-out
+`configuration/` and in the assembled candidate configuration. Unknown or absent
+domains are omitted. No filenames, paths, URLs, raw log lines, SQL, credentials
+or exception text are copied. These observations do not identify the underlying
+exception or prove a root cause; an empty domain list does not imply success.
+The abort remains a failure, including a CSV error summary without an abort
+marker or a separate loader failure during the expected Liquibase rejection.
+An expected Liquibase rejection alone keeps its existing acceptance checks.
+No resource hints, installer progress counters or thread dumps are produced.
+These diagnostics do not change startup deadlines or establish readiness.
 
 Pure tests exercise safety and assertion contracts without Docker. Only a
 successful run on the exact candidate SHA supplies the integration evidence

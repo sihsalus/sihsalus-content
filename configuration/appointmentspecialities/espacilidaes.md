@@ -18,7 +18,8 @@ asociaciones por UUID.
 | [specialities_odontologia.csv](specialities_odontologia.csv) | Especialidad odontológica de Cirugía Bucal y Maxilofacial. |
 | [specialities_categorias_locales.csv](specialities_categorias_locales.csv) | Categorías operativas de agenda, identificadas como locales en el contrato. |
 
-Los archivos forman un solo catálogo. Cada identidad se declara una sola vez;
+Los archivos forman un solo catálogo de 36 categorías, cinco de ellas locales.
+Cada identidad se declara una sola vez;
 los UUID existentes y las referencias a ellos se conservan. Estos UUID son
 identidades de OpenMRS: no son códigos oficiales MINSA ni números de registro
 profesional. La separación utiliza el
