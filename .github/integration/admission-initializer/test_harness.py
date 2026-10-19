@@ -190,6 +190,55 @@ class HarnessContracts(unittest.TestCase):
         self.runtime = object.__new__(harness.Harness)
         self.runtime.hospital_roles = []
 
+    def test_unexpected_initializer_abort_reports_only_public_candidate_domains_and_still_fails(self):
+        public_root = self.root / "public-source"
+        self.runtime.candidate_config = self.root / "candidate"
+        for name in ("locations", "roles", "liquibase", "ampathforms"):
+            (public_root / "configuration" / name).mkdir(parents=True)
+        for name in ("locations", "roles", "liquibase", "private-secret"):
+            (self.runtime.candidate_config / name).mkdir(parents=True)
+        self.runtime.remaining = Mock(return_value=30)
+        self.runtime.owned = Mock(return_value={"State": {"Running": True}})
+        self.runtime.bootstrap = Mock()
+        self.runtime.lifecycle_logs = Mock()
+        marker = "BEGINNING OF CSV FILE ERROR SUMMARY"
+        private = "https://private.invalid/?token=synthetic-secret SELECT private_clinical_value"
+        aborts = "\n".join("The loading of the '" + name + "' configuration file was aborted: " + private
+                           for name in ("roles", "locations", "roles", "ampathforms", "private-secret", "../private-secret"))
+        cases = ((aborts, False, False, ["locations", "roles"]),
+                 (aborts + marker, False, True, ["locations", "roles"]),
+                 (marker + private + harness.COMPLETION, False, True, []),
+                 (harness.ABORT + harness.CHANGESET + aborts, True, False, ["liquibase", "locations", "roles"]))
+        for logs, reject, csv_error, domains in cases:
+            with self.subTest(csv_error=csv_error, reject=reject, domains=domains):
+                self.runtime.lifecycle_logs.return_value = logs
+                output = io.StringIO()
+                with patch.object(harness, "ROOT", public_root), \
+                     patch.object(harness.time, "monotonic", return_value=0), redirect_stdout(output), \
+                     self.assertRaisesRegex(HarnessFailure, "^unexpected_initializer_abort$"):
+                    self.runtime.wait_initializer("owned", "fresh_candidate", reject=reject)
+                self.assertEqual(json.loads(output.getvalue()), {
+                    "stage": "fresh_candidate", "status": "FAILED",
+                    "csv_error_summary": csv_error, "aborted_domains": domains,
+                })
+                for forbidden in ("private", "synthetic-secret", "SELECT", "http", "ampathforms"):
+                    self.assertNotIn(forbidden, output.getvalue())
+
+    def test_expected_liquibase_rejection_does_not_emit_unexpected_abort_diagnostics(self):
+        self.runtime.remaining = Mock(return_value=30)
+        self.runtime.owned = Mock(return_value={"State": {"Running": True}})
+        self.runtime.bootstrap = Mock()
+        self.runtime.lifecycle_logs = Mock(return_value=harness.ABORT + harness.CHANGESET
+            + "\nDisposing of ModuleClassLoader: {ModuleClassLoader: uid=1; initializer}")
+        self.runtime.installation_has_errors = Mock(return_value=False)
+        output = io.StringIO()
+        with patch.object(harness.time, "monotonic", return_value=0), redirect_stdout(output):
+            self.runtime.wait_initializer("owned", "reject", reject=True)
+        records = [json.loads(line) for line in output.getvalue().splitlines()]
+        self.assertEqual([record["status"] for record in records], ["WAITING", "PASSED"])
+        self.assertTrue(all("aborted_domains" not in record for record in records))
+        self.assertEqual(records[-1]["initializer_started"], False)
+
     def test_institutional_namespace_requires_every_source_and_the_candidate_versions(self):
         source = "/orgs/SIHSALUS/sources/anatomia-procedimientos/"
         url = guards.OCL_API_URL + source + "concepts/SYNTHETIC/"

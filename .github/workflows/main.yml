@@ -101,6 +101,8 @@ jobs:
         run: python3 .github/scripts/test_admission_role_reconciliation.py
       - name: Validate appointment visit queue integrity
         run: python3 .github/scripts/validate_appointment_queue_integrity.py
+      - name: Test appointment speciality catalog integrity
+        run: python3 .github/scripts/test_appointment_queue_integrity.py
       - name: Validate Stock Management foundation
         run: python3 .github/scripts/validate_stock_foundation.py
       - name: Validate OCL exports

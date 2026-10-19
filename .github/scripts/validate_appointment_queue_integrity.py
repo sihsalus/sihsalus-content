@@ -16,7 +16,7 @@ SERVICE_DEFINITIONS_PATH = (
     CONFIG_DIR / "appointmentservicedefinitions" / "servicedefinitions.csv"
 )
 SERVICE_TYPES_PATH = CONFIG_DIR / "appointmentservicetypes" / "servicetypes.csv"
-SPECIALITIES_PATH = CONFIG_DIR / "appointmentspecialities" / "specialities.csv"
+SPECIALITIES_DIR = CONFIG_DIR / "appointmentspecialities"
 LOCATIONS_PATH = CONFIG_DIR / "locations" / "sihsalus-locations.csv"
 QUEUES_PATH = CONFIG_DIR / "queues" / "sihsalus-queues.csv"
 VISIT_TYPES_PATH = CONFIG_DIR / "visittypes" / "sihsalus-visittypes.csv"
@@ -829,11 +829,13 @@ def validate_service_durations(errors):
     return len(definitions), len(service_types)
 
 
-def _index_unique(rows, key, path, errors):
+def _index_unique(rows, key, path, errors, normalize=None):
     indexed = {}
     duplicates = set()
     for row in rows:
         value = row.get(key, "")
+        if normalize:
+            value = normalize(value)
         if value in indexed:
             duplicates.add(value)
         indexed[value] = row
@@ -849,9 +851,18 @@ def validate_canonical_care_routing(errors):
     definitions = _index_unique(
         definition_rows, "Uuid", SERVICE_DEFINITIONS_PATH, errors
     )
+    speciality_rows = [
+        row
+        for path in sorted(SPECIALITIES_DIR.glob("*.csv"))
+        for row in read_csv(path)
+    ]
+    if not speciality_rows:
+        errors.append(f"{SPECIALITIES_DIR}: appointment speciality catalog is empty")
     specialities = _index_unique(
-        read_csv(SPECIALITIES_PATH), "Uuid", SPECIALITIES_PATH, errors
+        speciality_rows, "Uuid", SPECIALITIES_DIR, errors
     )
+    # Initializer falls back to a case-insensitive name lookup when a UUID is new.
+    _index_unique(speciality_rows, "Name", SPECIALITIES_DIR, errors, normalize=str.casefold)
     locations = _index_unique(read_csv(LOCATIONS_PATH), "Uuid", LOCATIONS_PATH, errors)
     queue_rows = read_csv(QUEUES_PATH)
     queues = _index_unique(queue_rows, "Uuid", QUEUES_PATH, errors)

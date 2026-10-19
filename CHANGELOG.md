@@ -8,6 +8,20 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Categoría local de Enfermería (candidata 1.25.38)
+
+- Asocia la atención ambulatoria por enfermería a la categoría local «Enfermería», conservando su UUID de servicio y la cola compartida de Consulta Externa.
+- Mantiene separadas la categoría general y las especialidades de CRED/Pediatría; no asigna categorías a profesionales ni concede permisos o habilitación clínica.
+- Documenta el cambio de agenda y añade regresiones de referencias y enrutamiento. Requiere aceptación del responsable de cartera y revisión del modo off/warn/strict antes del despliegue.
+
+### Especialidades y categorías de agenda (candidata 1.25.36)
+
+- Distribuye el catálogo de citas en medicina, enfermería, odontología y categorías locales mediante CSV nativos de Initializer.
+- Conserva los 16 UUID históricos y normaliza cinco denominaciones médicas contra la publicación oficial de MINSA.
+- Añade 19 especialidades de CONAREN con identidades propias, incluida la denominación específica de CRED e Inmunizaciones.
+- Mantiene el contrato de servicios y enrutamiento; valida referencias y duplicados entre todos los CSV del dominio, incluidos nombres que solo difieren por mayúsculas.
+- La versión evita la `1.25.35` propuesta por los PR de CRED abiertos; la habilitación de cartera, aceptación clínica y despliegue siguen pendientes de sus responsables.
+
 ### Validaciones de nacimiento, catálogo institucional y acceso CRED (candidata 1.25.35)
 
 - El formulario de nacimiento `1.2` rechaza altas anteriores al día de nacimiento y conserva la validación de fechas futuras (#389).

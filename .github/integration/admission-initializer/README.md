@@ -320,8 +320,9 @@ never proves rejection, and all abort, checksum, journal and canary checks remai
 The file-abort detector recognizes both loading and pre-loading failures from
 any domain using the exact message shape in the pinned
 [BaseFileLoader](https://github.com/mekomsolutions/openmrs-module-initializer/blob/3077975fb4f58c91ff3113d7fed1e3df88829476/api/src/main/java/org/openmrs/module/initializer/api/loaders/BaseFileLoader.java).
-It emits an abort boolean and a deduplicated list of domains restricted to the
-pinned enum, never a filename or raw message. Only the exact
+Before an unexpected abort it reports the CSV-summary boolean and deduplicated
+domains present in both the public source and the candidate configuration, as
+described under bounded progress diagnostics. Only the exact
 Liquibase loading abort together with the candidate changeSet marker qualifies
 as the expected rejection, still requiring no completion and the actual stopped
 module. Any other domain abort, pre-loading abort, or CSV error summary fails
@@ -429,53 +430,24 @@ workspace, broad directory or unlabelled resource.
 
 ### Bounded progress diagnostics
 
-During lifecycle waits, a sanitized `WAITING` record appears initially and at
-most once per minute, plus a final record immediately before an unexpected
-loader abort. The final record preserves the same bounded observations when
-the failure happens between progress intervals; it does not expose raw errors
-or change the rejection criteria. It contains only the observed HTTP code (or `null` for
-transport unavailability), running state, and boolean completion/abort/candidate
-marker/CSV-error signals from the current container. At the same bounded
-interval, an anonymous, no-redirect, no-retry GET to the fixed internal
-`/openmrs/initialsetup?page=progress.vm.ajaxRequest` reads Core's installer
-progress. Strictly boolean `hasErrors` and `initializationComplete` values
-are exposed as `installation_has_errors` and `installation_complete`.
-Nonnegative integer `actionCounter` and `completedPercentage` values are exposed
-as `installation_action_counter` and `installation_completed_percentage`;
-booleans, strings, fractions and negative counters become `null`. Missing,
-malformed or unavailable values also produce `null`, not a healthy state.
-Core's percentage is per task, can reset or exceed 100, and is omitted after
-installation completes. It is not an overall progress or readiness assertion.
-`initializer_log_present` distinguishes a missing attempt log from an empty
-one; `initializer_log_bytes` counts the bytes read from that file, or is `null`
-when absent. These observations reuse the existing log read and contain no path.
-`hasErrors=true` fails with the static code `installation_reported_errors`.
-Neither `hasErrors=false`, `initializationComplete=true`, nor an HTTP code can
-replace the Initializer lifecycle assertions. Installer messages, error pages,
-log lines, response bodies, credentials and exception text are never emitted.
-The loader observations also expose the last loading and last completed domain,
-plus `initializer_aborted_domains` from actual abort markers, all restricted to
-names in the pinned Initializer's `Domain` enum. The last loading domain is not
-necessarily the one that failed; loading and completion records may refer to
-other files. Unknown last-domain names are reported as `null`; unknown aborted
-domains are omitted. Filenames, paths and values are never copied. A bounded list
-of fixed failure hints identifies memory exhaustion, connection timeout/refusal,
-DNS failure, database lock/deadlock messages and Core's missing retirement-reason
-validation code. It contains category names only,
-without raw exception text, SQL or values. This lets a stalled run distinguish
-where loading stopped without publishing application logs. These hints do not
-prove the root cause, and their absence does not prove that startup is healthy.
+During lifecycle waits, a `WAITING` record appears initially and at most once
+per minute with `elapsed_seconds`, `completion_seen` and `last_loading_domain`.
+The last observed loading domain does not establish which domain failed.
+Core's installer `hasErrors=true` still fails with `installation_reported_errors`;
+its absence or a false value cannot replace the Initializer lifecycle assertions.
 
-These diagnostics are not passing test results.
-
-At a lifecycle timeout, one native `jcmd 0 Thread.print` sample is attempted
-inside the already verified, owned backend, with a ten-second diagnostic limit.
-Only stacks containing an Initializer method are selected: at most three stacks
-and 24 method names per stack, restricted to Java/OpenMRS/database/framework
-namespaces. Thread names, source locations, arguments, exception text, raw dumps
-and command errors are discarded. Unavailable diagnostics report a boolean and
-an empty list; the lifecycle timeout still fails. This does not extend the
-startup acceptance deadline or treat an incomplete load as successful.
+Immediately before `unexpected_initializer_abort`, a `FAILED` record reports
+`csv_error_summary` and a sorted, deduplicated `aborted_domains` list. A domain
+is emitted only if its directory exists both in the public checked-out
+`configuration/` and in the assembled candidate configuration. Unknown or absent
+domains are omitted. No filenames, paths, URLs, raw log lines, SQL, credentials
+or exception text are copied. These observations do not identify the underlying
+exception or prove a root cause; an empty domain list does not imply success.
+The abort remains a failure, including a CSV error summary without an abort
+marker or a separate loader failure during the expected Liquibase rejection.
+An expected Liquibase rejection alone keeps its existing acceptance checks.
+No resource hints, installer progress counters or thread dumps are produced.
+These diagnostics do not change startup deadlines or establish readiness.
 
 Pure tests exercise safety and assertion contracts without Docker. Only a
 successful run on the exact candidate SHA supplies the integration evidence
