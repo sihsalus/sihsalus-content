@@ -8,6 +8,14 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Especialidades y categorías de agenda (candidata 1.25.36)
+
+- Distribuye el catálogo de citas en medicina, enfermería, odontología y categorías locales mediante CSV nativos de Initializer.
+- Conserva los 16 UUID históricos y normaliza cinco denominaciones médicas contra la publicación oficial de MINSA.
+- Añade 19 especialidades de CONAREN con identidades propias, incluida la denominación específica de CRED e Inmunizaciones.
+- Mantiene el contrato de servicios y enrutamiento; valida referencias y duplicados entre todos los CSV del dominio.
+- La versión evita la `1.25.35` propuesta por los PR de CRED abiertos; la habilitación de cartera, aceptación clínica y despliegue siguen pendientes de sus responsables.
+
 ### Roles de atención CRED (candidata 1.25.34)
 
 - Publicación pendiente de los cambios integrados en #265: añade `Enfermería Responsable` y precarga el selector de rol

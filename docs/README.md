@@ -31,6 +31,7 @@ Consultar [AGENTS.md](../AGENTS.md) antes de contribuir.
 | Signos vitales | [Contrato de encuentros](contracts/chart-vitals-encounter-contract.md) |
 | Triaje | [Rangos de referencia](contracts/triage-reference-ranges.md) |
 | Enrutamiento de atención | [Catálogo canónico](contracts/hsc-care-routing.csv), [contrato](contracts/hsc-care-routing.md) |
+| Especialidades y categorías de agenda | [Catálogos profesionales, CRED y fuentes oficiales](contracts/hsc-care-routing.md#catálogo-de-categorías-y-especialidades) |
 | Export OCL principal | [Exclusiones reproducibles](contracts/ocl-sihsalus-2026-09-09-1-exclusions.json), [auditoría de actualización](audits/2026-09-12-ocl-refresh.md) |
 
 ## Historia
