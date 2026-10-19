@@ -210,6 +210,39 @@ habilita el control. El segundo control incluye el día 14 y conserva siete día
 mínimos desde el control anterior. La reanudación del mismo control conserva su
 número.
 
+La corrección de los reportes #389 y #390 mantiene la identidad del formulario
+`(CRED) Detalles de Nacimiento` `1.2`. El alta no puede preceder al día de
+nacimiento ni estar en el futuro; se permite el mismo día sin inferir una hora
+de nacimiento que el dato demográfico no contiene. Si se introduce un alta y
+no se dispone de una fecha de nacimiento válida, pide revisar la demografía.
+
+El tiempo de hospitalización solo se edita con «Sí». Al cambiar a «No» se
+conserva el valor introducido, pero se bloquea el guardado contradictorio y se
+pide volver a «Sí» para corregirlo o borrarlo. No se eliminan observaciones por
+ocultación ni se sustituye una respuesta ausente por cero. La regla se aplica
+también al editar; no modifica registros históricos automáticamente.
+
+**Talla al nacer (#391):** el candidato institucional `sihsalus/2026-10-16-1`
+declara `extras.allow_decimal: true` para el concepto `382`
+(`bf82beb1-d3b8-400e-8160-90869cad8136`). Conserva tipo numérico, unidad `cm`,
+nombres y mappings. El formulario mantiene sus pasos de `0.1`, sin redondear
+la medición. La corrección canónica y su snapshot están preparados; **la
+publicación OCL y la aplicación en ambientes siguen pendientes**.
+
+La [transición institucional](audits/2026-10-16-ocl-institutional-transition.md)
+coordina los 34 exports con el host de la suscripción. Conserva las exclusiones
+históricas de barrios y verifica las identidades en las 18 fuentes. Los ZIP se
+generan desde exports oficiales con el splitter existente; no se editan registros
+a mano ni se duplican conceptos en CSV/SQL.
+
+El token institucional solo autentica en ese servidor. El secret de GitHub
+no cambia `OMRS_OCL_TOKEN` en DEV/QLTY. La importación local de los ZIP por
+Initializer no descarga el catálogo ni usa ese token; una futura importación
+remota requiere verificar la credencial del entorno mediante una aprobación
+operativa separada. La tarea no modifica credenciales ni controles del backend.
+La aceptación requiere verificar `allowDecimal: true` y guardar/reabrir una
+talla sintética de `30.1 cm` tras la actualización autorizada de content.
+
 `CRED-001` `1.2.1` conserva la hemoglobina medida y la clasificación confirmada
 por el profesional; incluye 500 m en la advertencia de ajuste por altitud y
 admite captura hasta 5500 m, según la tabla 1 de la

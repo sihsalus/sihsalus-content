@@ -7,9 +7,11 @@ leer [AGENTS.md](../AGENTS.md) y el [contrato correspondiente](README.md#contrat
 
 - Python 3.9 o superior para los validadores y pruebas de biblioteca estándar.
 - Bash para las comprobaciones de rangos, terminología y publicación.
-- Node 24 y npm para ejecutar las expresiones JavaScript de formularios con la
-  misma biblioteca de fechas del motor. Esta prueba usa el runner nativo de Node;
-  los validadores Python no ejecutan JavaScript.
+- Node 24 y npm para ejecutar las expresiones JavaScript de formularios. Las
+  regresiones neonatales requieren además el evaluador compilado del frontend
+  fijado, instalado con su propio Yarn/lockfile; véase el
+  [ensayo de expresiones](../.github/integration/form-expressions/README.md).
+  Los validadores Python no ejecutan JavaScript.
 - Maven Wrapper fija Maven 3.10.0 para el paquete y su publicación; descarga la
   distribución oficial y comprueba su SHA-256.
 - Java: CI usa Java 21 LTS para el paquete, publicación y MariaDB/Liquibase,
@@ -35,6 +37,8 @@ for regression in .github/scripts/test_*.sh; do
 done
 python3 -B .github/integration/admission-initializer/test_harness.py
 npm ci --prefix .github/integration/form-expressions --ignore-scripts
+# Preparar el evaluador según .github/integration/form-expressions/README.md.
+export SIHSALUS_EXPRESSION_EVALUATOR=/ruta/al/frontend/packages/libs/esm-expression-evaluator/dist/index.js
 npm test --prefix .github/integration/form-expressions
 TZ=America/New_York npm test --prefix .github/integration/form-expressions
 ```
@@ -72,7 +76,8 @@ identidades/checksums de Liquibase.
 | --- | --- |
 | [Autorización de rangos](../.github/integration/reference-range-access/README.md) | Core real con datos sintéticos, sin base de datos ni servidor; Java 17. |
 | [MariaDB/Liquibase](../.github/integration/admission-role-reconciliation/README.md) | Migración completa contra MariaDB efímero; Java 21. |
-| [Initializer](../.github/integration/admission-initializer/README.md) | Backend fijado, instalación nueva y dos escenarios de actualización; runner desechable de GitHub. |
+| [Expresiones de formularios](../.github/integration/form-expressions/README.md) | Expresiones distribuidas y regresión neonatal con el evaluador real del frontend fijado. |
+| [Initializer](../.github/integration/admission-initializer/README.md) | Tres escenarios históricos y dos de transición OCL con runtime actual fijado; runner desechable de GitHub. |
 
 La autorización de rangos se puede ejecutar sin base de datos ni Docker:
 
@@ -88,8 +93,9 @@ mediante sus workflows existentes.
 ## Validación y publicación
 
 El CI ejecuta en paralelo la validación del paquete, la integración
-MariaDB/Liquibase, la autorización nativa de rangos y los tres escenarios de
-Initializer: actualización, instalación nueva y alias operativo. Un fallo de
+MariaDB/Liquibase, la autorización nativa de rangos y los cinco escenarios de
+Initializer: actualización histórica, instalación nueva, alias operativo,
+instalación nueva OCL y actualización OCL desde `1.25.34`. Un fallo de
 integración no oculta los resultados del build ni cancela los otros escenarios.
 La publicación en Maven Central exige que todas estas comprobaciones pasen en
 el mismo commit de `main` o `pre-release`; los PR solo validan.
