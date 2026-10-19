@@ -8,7 +8,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
-### Correcciones del contrato clínico (candidata 1.25.37)
+### Correcciones del contrato clínico (candidata 1.25.39)
 
 - CRED-013 `1.1.0` registra dosis de vitamina A en el nuevo concepto local Numeric/UI, sin reinterpretar el Puntaje histórico; ambos validadores reutilizan el índice de metadata OCL y CSV nativo.
 - INMU-001 `1.1.0` separa la fecha de administración de la fecha/hora del registro; CE-001 `1.0.4` conserva intacta la versión anterior al corregir su descripción normativa.
@@ -17,7 +17,21 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - CRED-024 `1.1.0` reutiliza la prioridad de referencia y sus respuestas OCL; deja de guardar severidad ESAVI como prioridad. Conserva historia mediante Initializer.
 - Declara roles funcionales de responsable del registro de inmunización y ESAVI para el frontend coordinado, sin inferir profesión ni otorgar permisos.
 - Corrige referencias normativas impropias de encuentros/roles y la descripción de CE-001; conserva la metadata del tipo mixto histórico `Triaje`.
-- La versión se reserva separada de #269/#270 (`1.25.35`) y #271 (`1.25.36`); no acredita publicación, carga ni aceptación clínica.
+- La candidata `1.25.39` parte de `main` `1.25.38`, que ya integra agenda y la categoría local de Enfermería; sustituye la reserva `1.25.37` de #273 sin reutilizar ni reducir la versión de la base. No acredita publicación, carga ni aceptación clínica.
+
+### Categoría local de Enfermería (candidata 1.25.38)
+
+- Asocia la atención ambulatoria por enfermería a la categoría local «Enfermería», conservando su UUID de servicio y la cola compartida de Consulta Externa.
+- Mantiene separadas la categoría general y las especialidades de CRED/Pediatría; no asigna categorías a profesionales ni concede permisos o habilitación clínica.
+- Documenta el cambio de agenda y añade regresiones de referencias y enrutamiento. Requiere aceptación del responsable de cartera y revisión del modo off/warn/strict antes del despliegue.
+
+### Especialidades y categorías de agenda (candidata 1.25.36)
+
+- Distribuye el catálogo de citas en medicina, enfermería, odontología y categorías locales mediante CSV nativos de Initializer.
+- Conserva los 16 UUID históricos y normaliza cinco denominaciones médicas contra la publicación oficial de MINSA.
+- Añade 19 especialidades de CONAREN con identidades propias, incluida la denominación específica de CRED e Inmunizaciones.
+- Mantiene el contrato de servicios y enrutamiento; valida referencias y duplicados entre todos los CSV del dominio, incluidos nombres que solo difieren por mayúsculas.
+- La versión evita la `1.25.35` propuesta por los PR de CRED abiertos; la habilitación de cartera, aceptación clínica y despliegue siguen pendientes de sus responsables.
 
 ### Validaciones de nacimiento, catálogo institucional y acceso CRED (candidata 1.25.35)
 

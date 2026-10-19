@@ -406,6 +406,7 @@ módulos del distro y la norma vigente en fuentes oficiales.
 
 | Área | Contenido y límites |
 | --- | --- |
+| Cartera y agenda | Servicios y enrutamiento de la [cartera HSC](contracts/hsc-care-routing.md), referidos a NTS 249; especialidades profesionales y categorías locales declaradas en CSV nativos, con fuentes oficiales y alcance CRED diferenciado. |
 | Consulta externa y salud mental | `CE-*` y `PSIC-001` a `PSIC-004`. Los diagnósticos se registran mediante Visit Notes. |
 | Signos vitales y emergencia | Metadata separada para el chart, triaje y atención posterior; el [contrato de encuentros](contracts/chart-vitals-encounter-contract.md) requiere captura embebida en el frontend. No hay un JSON AMPATH adicional. |
 | Obstetricia y neonatal | `OBST-*`, partograma, recién nacido y puerperio. |
@@ -422,6 +423,7 @@ módulos del distro y la norma vigente en fuentes oficiales.
 - [NTS 139-MINSA/2018/DGAIN: gestión de historia clínica](https://spij.minjus.gob.pe/Graficos/Peru/2018/Marzo/15/RM-214-2018-MINSA.pdf).
 - [NTS 238-MINSA/DGIESP-2025: crecimiento y desarrollo del niño](https://www.gob.pe/institucion/minsa/informes-publicaciones/7857089-norma-tecnica-de-salud-para-el-control-de-crecimiento-y-desarrollo-del-nino-nts-n-238-minsa-dgiesp-2025).
 - [NTS 246-MINSA/DGIESP-2026: esquema nacional de inmunizaciones](https://www.gob.pe/institucion/minsa/normas-legales/8265031-561-2026-minsa).
+- [NTS 249-MINSA/DGAIN-2026: cartera de servicios de salud](https://www.gob.pe/institucion/minsa/normas-legales/8389687-625-2026-minsa).
 - [Guía de Vigilancia del Neurodesarrollo de Huanca Payehuanca](https://repositorio.essalud.gob.pe/handle/20.500.12959/5846).
 
 

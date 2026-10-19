@@ -6,7 +6,8 @@ historial de versiones en el [changelog](../../CHANGELOG.md).
 
 | Fecha | Revisión | Propósito |
 | --- | --- | --- |
-| 2026-10-19 | [Seguimiento de alineación normativa](2026-10-19-normative-alignment-followup.md) | Correcciones coordinadas de formularios y frontend, curación OCL pendiente y compatibilidad histórica. |
+| 2026-10-19 | [Seguimiento de alineación normativa](2026-10-19-normative-alignment-followup.md) | Correcciones coordinadas, pendientes por componente y flujos integrados por probar, curación OCL e historia clínica. |
+| 2026-10-19 | [Normativa de content y frontend](2026-10-19-content-frontend-normative-review.md) | Contratos de agenda, CRED, inmunizaciones y vitales; hallazgos actuales, fuentes oficiales y componentes responsables. |
 | 2026-10-19 | [Mantenimiento de medicamentos](2026-10-19-medication-maintenance.json) | Inventario y hashes de CSV, última release OCL consultada y vigencia NLM de los cuatro RxCUI incluidos; aceptación clínica y fuentes institucionales pendientes. |
 | 2026-10-16 | [Transición institucional de OCL](2026-10-16-ocl-institutional-transition.md) | Exports oficiales de 18 fuentes, decimales de talla al nacer y evidencia de compatibilidad pendiente de publicación. |
 | 2026-10-09 | [Revisión semántica de CRED](2026-10-09-cred-semantic-review.md) | Fuentes normativas de CRED-001, 002, 003 y 005 y reutilización de conceptos genéricos en formularios CRED. |

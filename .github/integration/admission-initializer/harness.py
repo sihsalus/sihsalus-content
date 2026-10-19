@@ -782,6 +782,14 @@ class Harness:
             # A separate failure cannot be masked by the expected Liquibase rejection.
             unexpected_abort = csv_error or any(message != ABORT for message in abort_messages) or (
                 bool(abort_messages) and not expected_rejection)
+            if unexpected_abort:
+                public_domains = {
+                    path.name for path in (ROOT / "configuration").iterdir()
+                    if path.is_dir() and (self.candidate_config / path.name).is_dir()
+                }
+                aborted_domains = sorted({match.group("domain") for match in FILE_ABORT.finditer(logs)}
+                                         & public_domains)
+                emit(stage, "FAILED", csv_error_summary=csv_error, aborted_domains=aborted_domains)
             require(not unexpected_abort, "unexpected_initializer_abort")
             now = time.monotonic()
             if now >= next_progress:
