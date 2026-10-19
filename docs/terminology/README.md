@@ -1,7 +1,7 @@
 # Curación pendiente de inmunizaciones
 
-El [borrador JSONL](2026-10-19-immunization-curation.draft.jsonl) contiene dos
-conceptos propuestos y dos Q-AND-A de `sihsalus:4121`, en el formato del
+El [borrador JSONL](2026-10-19-immunization-curation.draft.jsonl) contiene tres
+conceptos propuestos y tres Q-AND-A de `sihsalus:4121`, en el formato del
 importador masivo nativo de OCL. Es una propuesta revisable: no es un export
 oficial, no está en `configuration/`, no se empaqueta ni se importa automáticamente.
 No hay una segunda definición operativa del catálogo.
@@ -23,12 +23,28 @@ norma regulan la transición de pentavalente/IPV; el primer refuerzo cambia en
 2027. Incorporar el producto no vuelve universal su pauta ni completa esa
 transición automáticamente.
 
+## Formulaciones verificadas
+
+La [parte 1 oficial de la NTS 246](https://cdn.www.gob.pe/uploads/document/file/10154198/8265031-nts-n-246-minsa-digiesp-2026-parte-1.pdf)
+se revisó visualmente, incluyendo estos cuadros:
+
+| Producto propuesto | Evidencia |
+| --- | --- |
+| Hexavalente con componente pertussis de células enteras | Numeral 6.1.1.3, página 16: DPT-HvB-Hib-IPV. |
+| Hexavalente acelular | Numeral 6.1.1.22, páginas 40–41: DTaP-HvB-Hib-IPV, con indicaciones específicas. |
+| Meningocócica conjugada tetravalente A, C, W, Y | Numeral 6.1.1.23, páginas 42–43; numeral 6.3.1, páginas 48–49, para población infantil con VIH. |
+
+Las dos formulaciones hexavalentes tienen identidades propuestas distintas;
+el borrador inicial genérico se precisó antes de importar. Se conservan los
+UUIDs propuestos previos y se añade uno para la formulación acelular. No se
+codifican indicaciones ni intercambios de productos como reglas de frontend.
+
 ## Revisión y cierre
 
-1. El responsable clínico y de terminología revisa nombre, formulación,
-   serogrupos, clase, UUIDs propuestos y sus equivalencias en HEAD actualizado.
-   La definición meningocócica queda deliberadamente sin serogrupos atribuidos:
-   **no importar hasta completar esa decisión**.
+1. El responsable clínico y de terminología revisa los tres productos, clase,
+   UUIDs propuestos y equivalencias en HEAD actualizado antes de importar.
+   La revisión de los cuadros oficiales reduce la ambigüedad terminológica;
+   la aceptación clínica y la publicación siguen pendientes.
 2. Con autorización expresa, importar primero conceptos y luego mappings en las
    fuentes existentes. Reconciliar códigos, UUIDs y Q-AND-A mediante el mecanismo
    nativo; no crear otra fuente o un CSV operativo paralelo.
