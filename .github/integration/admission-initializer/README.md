@@ -320,8 +320,9 @@ never proves rejection, and all abort, checksum, journal and canary checks remai
 The file-abort detector recognizes both loading and pre-loading failures from
 any domain using the exact message shape in the pinned
 [BaseFileLoader](https://github.com/mekomsolutions/openmrs-module-initializer/blob/3077975fb4f58c91ff3113d7fed1e3df88829476/api/src/main/java/org/openmrs/module/initializer/api/loaders/BaseFileLoader.java).
-It emits an abort boolean and a deduplicated list of domains restricted to the
-pinned enum, never a filename or raw message. Only the exact
+Before an unexpected abort it reports the CSV-summary boolean and deduplicated
+domains present in both the public source and the candidate configuration, as
+described under bounded progress diagnostics. Only the exact
 Liquibase loading abort together with the candidate changeSet marker qualifies
 as the expected rejection, still requiring no completion and the actual stopped
 module. Any other domain abort, pre-loading abort, or CSV error summary fails
