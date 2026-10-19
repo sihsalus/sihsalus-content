@@ -1,0 +1,178 @@
+{
+  "purpose": "Technical source review; not clinical acceptance or a second operational catalog",
+  "checked_at": "2026-10-19T22:47:22.247059+00:00",
+  "content_base_commit": "822d24b41e8366f60fa710f3cbcdd89534dfd8a4",
+  "local_drugs": [
+    {
+      "path": "configuration/drugs/clinical-drugs.csv",
+      "sha256": "1069f6aed73c7be84ef2b792f8a3203f9b6ab94aaa1fc9a6f4b131150007f8be",
+      "total": 1,
+      "active": 1,
+      "retired": 0
+    },
+    {
+      "path": "configuration/drugs/minsa-drugs.csv",
+      "sha256": "08e116a6804337eb8628dea0e2a91c6c966223b5976583dd1a3a2b644e2951d3",
+      "total": 494,
+      "active": 493,
+      "retired": 1
+    }
+  ],
+  "ocl_medications": {
+    "method": "Authenticated GET; no remote writes",
+    "base_url": "https://api.gidis-terminology.duckdns.org",
+    "source": "/orgs/SIHSALUS/sources/medicamentos/",
+    "bundled_release": "2026-06-30",
+    "latest_released_version_observed": "2026-06-30",
+    "other_version_observed": "HEAD (unreleased)",
+    "bundled_exports": [
+      {
+        "path": "configuration/ocl/00_SIHSALUS_medicamentos_concepts_2026-06-30.zip",
+        "sha256": "621bfaaa0ce0686b3b38996617bf3052a14cdde1bc699d65d1535a8a446cedc8"
+      },
+      {
+        "path": "configuration/ocl/50_SIHSALUS_medicamentos_mappings_2026-06-30.zip",
+        "sha256": "ff24b5d2149043b4a578a083cab971529732e1479aace21a770f253f4873f727"
+      }
+    ]
+  },
+  "nlm": {
+    "version": {
+      "url": "https://rxnav.nlm.nih.gov/REST/version.json",
+      "sha256": "f8155f29c123d26e71c9e4aed23750e5df462150440e29b43b9b148c09dd3445",
+      "response": {
+        "version": "05-Oct-2026",
+        "apiVersion": "3.1.356"
+      }
+    },
+    "1008065": {
+      "url": "https://rxnav.nlm.nih.gov/REST/rxcui/1008065/historystatus.json",
+      "sha256": "0945271359649b0dce9323890731e6e019391e4e5705e50aa760e3a03b2996cc",
+      "response": {
+        "rxcuiStatusHistory": {
+          "metaData": {
+            "status": "Active",
+            "source": "RXNORM",
+            "releaseStartDate": "092010",
+            "releaseEndDate": "",
+            "isCurrent": "YES",
+            "activeStartDate": "092010",
+            "activeEndDate": "",
+            "remappedDate": ""
+          },
+          "attributes": {
+            "rxcui": "1008065",
+            "name": "ferrous sulfate / folic acid",
+            "tty": "MIN",
+            "isMultipleIngredient": "YES",
+            "isBranded": "NO"
+          },
+          "definitionalFeatures": {},
+          "pack": {},
+          "derivedConcepts": {
+            "ingredientConcept": [
+              {
+                "ingredientRxcui": "24947",
+                "ingredientName": "ferrous sulfate"
+              },
+              {
+                "ingredientRxcui": "4511",
+                "ingredientName": "folic acid"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "24947": {
+      "url": "https://rxnav.nlm.nih.gov/REST/rxcui/24947/historystatus.json",
+      "sha256": "2af3ea48ccc97ea8b055947d22acb77c93661c70ab1b3bbacb81eb2c3b0ec241",
+      "response": {
+        "rxcuiStatusHistory": {
+          "metaData": {
+            "status": "Active",
+            "source": "RXNORM",
+            "releaseStartDate": "042005",
+            "releaseEndDate": "",
+            "isCurrent": "YES",
+            "activeStartDate": "042005",
+            "activeEndDate": "",
+            "remappedDate": ""
+          },
+          "attributes": {
+            "rxcui": "24947",
+            "name": "ferrous sulfate",
+            "tty": "IN",
+            "isMultipleIngredient": "NO",
+            "isBranded": "NO"
+          },
+          "definitionalFeatures": {},
+          "pack": {},
+          "derivedConcepts": {}
+        }
+      }
+    },
+    "11246": {
+      "url": "https://rxnav.nlm.nih.gov/REST/rxcui/11246/historystatus.json",
+      "sha256": "154b8723e2fd13be6552e78907c9e2f7c7d6de31eab4828c8ea21c9e4b178b99",
+      "response": {
+        "rxcuiStatusHistory": {
+          "metaData": {
+            "status": "Active",
+            "source": "RXNORM",
+            "releaseStartDate": "042005",
+            "releaseEndDate": "",
+            "isCurrent": "YES",
+            "activeStartDate": "042005",
+            "activeEndDate": "",
+            "remappedDate": ""
+          },
+          "attributes": {
+            "rxcui": "11246",
+            "name": "vitamin A",
+            "tty": "IN",
+            "isMultipleIngredient": "NO",
+            "isBranded": "NO"
+          },
+          "definitionalFeatures": {},
+          "pack": {},
+          "derivedConcepts": {}
+        }
+      }
+    },
+    "11258": {
+      "url": "https://rxnav.nlm.nih.gov/REST/rxcui/11258/historystatus.json",
+      "sha256": "b34714390cc4532d2749a5c628d773eddcbfbe2b33d0faa7d666a60a230ad42b",
+      "response": {
+        "rxcuiStatusHistory": {
+          "metaData": {
+            "status": "Active",
+            "source": "RXNORM",
+            "releaseStartDate": "042005",
+            "releaseEndDate": "",
+            "isCurrent": "YES",
+            "activeStartDate": "042005",
+            "activeEndDate": "",
+            "remappedDate": ""
+          },
+          "attributes": {
+            "rxcui": "11258",
+            "name": "vitamin K",
+            "tty": "IN",
+            "isMultipleIngredient": "NO",
+            "isBranded": "NO"
+          },
+          "definitionalFeatures": {},
+          "pack": {},
+          "derivedConcepts": {}
+        }
+      }
+    }
+  },
+  "pending": [
+    "Approved Hospital Santa Clotilde formulary and original national source file for all existing rows",
+    "Current SISMED export and merged-code file; public download blocked by HTTP 403 in this environment",
+    "Pharmacy acceptance of clinical equivalence, product scope and human-use catalog",
+    "ViDAL access, country coverage and integration not verified"
+  ]
+}
