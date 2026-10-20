@@ -64,7 +64,7 @@ class ProcedureAnatomyCatalogValidationTest(unittest.TestCase):
         errors = self.errors()
         self.assertTrue(any(diagnostic in error for error in errors), errors)
 
-    def test_accepts_shipped_unpublished_candidate_and_historical_reuse(self):
+    def test_accepts_shipped_released_catalog_and_historical_reuse(self):
         self.assertEqual([], self.errors())
 
     def test_rejects_replaced_membership_even_when_count_is_unchanged(self):
@@ -176,9 +176,9 @@ class ProcedureAnatomyCatalogValidationTest(unittest.TestCase):
         self.exports[VALIDATOR.PROCEDURE_ANATOMY_CONCEPTS_EXPORT]["description"] = "Changed release"
         self.assert_rejected("canonical official release hash mismatch")
 
-    def test_rejects_publication_state_change_or_wrong_candidate_version(self):
+    def test_rejects_unreleased_or_wrong_version_export(self):
         export = self.exports[VALIDATOR.PROCEDURE_ANATOMY_CONCEPTS_EXPORT]
-        for field, bad_value in (("released", True), ("version", "HEAD"), ("version", "2026-10-11-02")):
+        for field, bad_value in (("released", False), ("version", "HEAD")):
             with self.subTest(field=field):
                 original = export[field]
                 export[field] = bad_value

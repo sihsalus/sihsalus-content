@@ -25,7 +25,7 @@ from guards import (
     OWNER_LABEL, CANONICAL_ROLE, LEGACY_ROLE, CANONICAL_UUID, EMRAPI_ROLES, CHANGESET,
     INITIALIZER_VERSION, ROLES_FILE, CURRENT_ADMISSION_ADDITIONS, CURRENT_EMRAPI_ADDITIONS, CURRENT_CORE_ROLE_ADDITIONS,
     ROLES_CHECKSUM, LIQUIBASE_CHECKSUM, UUID_PATTERN, STRICT_JAVA, HarnessFailure,
-    require, checked, validate_runner, properties, extract_archive, ocl_order_rows,
+    require, checked, validate_runner, properties, extract_archive,
     single_file_archive, assemble, validate_assembly, sql_string, admission_privileges,
     OCL_BACKEND, OCL_DISTRO_SHA, OCL_BASELINE_SHA, OCL_BASELINE_VERSION,
     OCL_CORE_VERSION, OCL_MODULE_VERSION, OCL_API_URL, BIRTH_LENGTH_UUID,
@@ -435,61 +435,6 @@ class Harness:
                                      + " ORDER BY " + columns.split(",")[0]))
                 for key, (table, columns) in TERMINOLOGY_TABLES.items()}
 
-    @staticmethod
-    def ocl_order_contract(configuration):
-        """Allow only active relationships in the published catalog exports."""
-        exports = []
-        for path in sorted((configuration / "ocl").glob("*.zip")):
-            with zipfile.ZipFile(path) as archive:
-                exports.append(json.loads(archive.read("export.json")))
-        require(len(exports) == 34, "ocl_order_published_archive_count_changed")
-        concepts = {}
-        for export in exports:
-            for concept in export["concepts"]:
-                require(concept["url"] not in concepts, "ocl_order_duplicate_catalog_concept")
-                concepts[concept["url"]] = concept["external_id"]
-        expected = {}
-        for export in exports:
-            for mapping in export["mappings"]:
-                kind = mapping["map_type"]
-                if kind not in ("Q-AND-A", "CONCEPT-SET") or mapping["retired"]:
-                    continue
-                identifier = mapping["external_id"]
-                require(identifier not in expected, "ocl_order_duplicate_catalog_mapping")
-                require(mapping["from_concept_url"] in concepts and mapping["to_concept_url"] in concepts,
-                        "ocl_order_catalog_reference_missing")
-                expected[identifier] = (kind, concepts[mapping["from_concept_url"]],
-                                       concepts[mapping["to_concept_url"]])
-        require(Counter(edge[0] for edge in expected.values()) == {"Q-AND-A": 3270, "CONCEPT-SET": 14134},
-                "ocl_order_published_catalog_size_changed")
-        return expected
-
-    def preserve_ocl_baseline_order(self, db):
-        """Review evidence from the pinned synthetic baseline, never an import payload."""
-        require(self.scenario == "ocl-upgrade" and self.backend_image == OCL_BACKEND
-                and self.image_content_sha == OCL_BASELINE_SHA
-                and self.image_content_version == OCL_BASELINE_VERSION,
-                "ocl_order_requires_published_baseline")
-        expected = self.ocl_order_contract(self.directory / "source-34")
-        rows = self.query(db, "SELECT 'Q-AND-A',a.uuid,p.uuid,c.uuid,d.uuid,a.sort_weight "
-            "FROM concept_answer a LEFT JOIN concept p ON p.concept_id=a.concept_id "
-            "LEFT JOIN concept c ON c.concept_id=a.answer_concept LEFT JOIN drug d ON d.drug_id=a.answer_drug "
-            "UNION ALL SELECT 'CONCEPT-SET',s.uuid,p.uuid,c.uuid,NULL,s.sort_weight "
-            "FROM concept_set s LEFT JOIN concept p ON p.concept_id=s.concept_set "
-            "LEFT JOIN concept c ON c.concept_id=s.concept_id")
-        payload = {"schema_version": 1, "baseline_version": OCL_BASELINE_VERSION,
-            "baseline_sha": OCL_BASELINE_SHA, "backend_digest": OCL_BACKEND.split("@")[1],
-            "mappings": ocl_order_rows(expected, rows)}
-        # Validate and serialize completely before atomically exposing a separate
-        # artifact. Exclusive linking rejects existing files and symlink targets.
-        output = self.directory.parent / ("ocl-baseline-order-" + self.candidate_sha + ".json")
-        private = self.private("ocl-baseline-order.json", json.dumps(payload, indent=2, allow_nan=False) + "\n")
-        try:
-            os.link(private, output)
-        except OSError:
-            raise HarnessFailure("ocl_order_artifact_not_created") from None
-        emit("ocl_baseline_order", "PASSED", mappings=len(payload["mappings"]))
-
     def assert_terminology_identity(self, db, expected, phase):
         """Keep the strict oracle; diagnose drift without emitting row values."""
         require(phase in ("upgrade", "restart"), "invalid_terminology_snapshot_phase")
@@ -571,9 +516,7 @@ class Harness:
         backend, volume = self.start_backend("ocl-baseline" if upgrade else "ocl-fresh", configuration)
         self.wait_initializer(backend, "ocl_baseline" if upgrade else "ocl_fresh")
         self.assert_checksums(backend, self.role_md5 if upgrade else self.candidate_role_md5)
-        concept_id = self.check_birth_length(backend, db, decimal=not upgrade)
-        if upgrade:
-            self.preserve_ocl_baseline_order(db)
+        concept_id = self.check_birth_length(backend, db, decimal=False)
         code, person = self.request(backend, "POST", "/person", {
             "names": [{"givenName": "Synthetic", "familyName": "OCL CI " + self.nonce[:8]}],
             "gender": "F", "birthdate": "2026-10-01"})
@@ -588,9 +531,9 @@ class Harness:
             backend, _ = self.start_backend("ocl-upgrade", self.candidate_config, data_volume=volume)
             self.wait_initializer(backend, "ocl_upgrade")
             self.assert_checksums(backend, self.candidate_role_md5)
-            candidate_concept_id = self.check_birth_length(backend, db, decimal=True)
+            candidate_concept_id = self.check_birth_length(backend, db, decimal=False)
             emit("birth_length", "PASSED" if candidate_concept_id == concept_id else "FAILED",
-                 phase="upgrade", concept_id_preserved=candidate_concept_id == concept_id, allow_decimal=True)
+                 phase="upgrade", concept_id_preserved=candidate_concept_id == concept_id, allow_decimal=False)
             require(candidate_concept_id == concept_id, "birth_length_concept_id_changed")
             require(self.history(db) == history, "ocl_upgrade_changed_liquibase_history")
             identities = self.expected_vitamin_a_insertion(db, identities)
@@ -599,7 +542,7 @@ class Harness:
         else:
             self.check_vitamin_a_measurement(db)
         self.check_ocl_namespace(db, "upgrade" if upgrade else "fresh")
-        self.create_birth_length_observation(backend, db, person["uuid"], 30.1)
+        self.create_birth_length_observation(backend, db, person["uuid"], 31)
         observations = self.query(db, "SELECT * FROM obs ORDER BY obs_id")
         require(all(row in observations for row in original_obs), "ocl_upgrade_changed_existing_observation")
         identities, history, checksums = self.terminology_identity_snapshot(db), self.history(db), self.checksum_snapshot(backend)
@@ -612,12 +555,12 @@ class Harness:
         require(self.history(db) == history, "ocl_restart_changed_liquibase_history")
         self.assert_terminology_identity(db, identities, "restart")
         require(self.query(db, "SELECT * FROM obs ORDER BY obs_id") == observations, "ocl_restart_changed_observations")
-        require(self.check_birth_length(backend, db, decimal=True) == concept_id, "birth_length_concept_id_changed_on_restart")
+        require(self.check_birth_length(backend, db, decimal=False) == concept_id, "birth_length_concept_id_changed_on_restart")
         self.check_vitamin_a_measurement(db)
         self.check_ocl_namespace(db, "restart")
         emit("ocl_transition", "PASSED", scenario="upgrade" if upgrade else "fresh",
              restart_verified=True, prior_checksums_preserved=True, clinical_observations=2,
-             concept_id_preserved=True, cross_references_preserved=True, decimal_value=30.1)
+             concept_id_preserved=True, cross_references_preserved=True, allow_decimal=False)
 
     def start_database(self, suffix):
         volume = self.volume(suffix + "-db")

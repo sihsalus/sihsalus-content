@@ -70,9 +70,10 @@ de las especialidades profesionales. La base de cada categoría usada por un ser
 explícita en el contrato CSV. Renombrar o separar un archivo no cambia esa base, los servicios,
 la habilitación de profesionales ni el registro de especialidad de una persona.
 
-`specialities_enfermeria.csv` contiene las 19 denominaciones del Anexo 6 del Reglamento de
-Admisión de CONAREN de 2018, con UUID locales nuevos e independientes de medicina. Solo se
-normalizan las tildes y se omite el punto final de «Enfermería en Gestión y Políticas de Salud».
+`specialities_enfermeria.csv` representa las 19 especialidades del Anexo 6 del Reglamento de
+Admisión de CONAREN de 2018, con UUID propios. Los nombres de agenda tienen un máximo de
+50 caracteres por el esquema nativo; las cuatro abreviaturas y sus denominaciones oficiales
+se documentan en [el catálogo](../../configuration/appointmentspecialities/espacilidaes.md#etiquetas-de-agenda).
 La publicación del MINSA del 13 de marzo de 2026 confirma 19 especialidades aprobadas y ocho
 en funcionamiento. El Anexo 10 de las disposiciones de CONAREN para la admisión 2026 enumera
 esas ocho; el catálogo incluye también las otras once denominaciones aprobadas, sin afirmar

@@ -77,7 +77,7 @@ identidades/checksums de Liquibase.
 | [Autorización de rangos](../.github/integration/reference-range-access/README.md) | Core real con datos sintéticos, sin base de datos ni servidor; Java 17. |
 | [MariaDB/Liquibase](../.github/integration/admission-role-reconciliation/README.md) | Migración completa contra MariaDB efímero; Java 21. |
 | [Expresiones de formularios](../.github/integration/form-expressions/README.md) | Expresiones distribuidas y regresión neonatal con el evaluador real del frontend fijado. |
-| [Initializer](../.github/integration/admission-initializer/README.md) | Tres escenarios históricos y dos de transición OCL con runtime actual fijado; runner desechable de GitHub. |
+| [Initializer](../.github/integration/admission-initializer/README.md) | Tres escenarios históricos y dos de compatibilidad del catálogo con runtime actual fijado; runner desechable de GitHub. |
 
 La autorización de rangos se puede ejecutar sin base de datos ni Docker:
 
@@ -95,7 +95,7 @@ mediante sus workflows existentes.
 El CI ejecuta en paralelo la validación del paquete, la integración
 MariaDB/Liquibase, la autorización nativa de rangos y los cinco escenarios de
 Initializer: actualización histórica, instalación nueva, alias operativo,
-instalación nueva OCL y actualización OCL desde `1.25.34`. Un fallo de
+instalación nueva OCL y actualización desde el catálogo publicado `1.25.34`. Un fallo de
 integración no oculta los resultados del build ni cancela los otros escenarios.
 La publicación en Maven Central exige que todas estas comprobaciones pasen en
 el mismo commit de `main` o `pre-release`; los PR solo validan.

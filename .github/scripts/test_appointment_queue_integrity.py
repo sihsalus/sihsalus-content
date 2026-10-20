@@ -132,6 +132,18 @@ class AppointmentSpecialityCatalogTest(unittest.TestCase):
             path.unlink()
         self.assertTrue(any("catalog is empty" in error for error in self.validate()))
 
+    def test_speciality_names_fit_the_native_column(self):
+        for name, valid in (("á" * 50, True), ("á" * 51, False), (" ", False)):
+            with self.subTest(name_length=len(name)):
+                self.write_rows(self.catalog / "length.csv", [{
+                    "Uuid": "00000000-0000-4000-8000-000000000001",
+                    "Void/Retire": "", "Name": name,
+                }])
+                errors = self.validate()
+                self.assertEqual(not errors, valid)
+                if not valid:
+                    self.assertTrue(any("1–50 characters" in error for error in errors))
+
 
 if __name__ == "__main__":
     unittest.main()

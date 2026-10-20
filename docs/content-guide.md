@@ -301,26 +301,17 @@ pide volver a «Sí» para corregirlo o borrarlo. No se eliminan observaciones p
 ocultación ni se sustituye una respuesta ausente por cero. La regla se aplica
 también al editar; no modifica registros históricos automáticamente.
 
-**Talla al nacer (#391):** el candidato institucional `sihsalus/2026-10-16-1`
-declara `extras.allow_decimal: true` para el concepto `382`
-(`bf82beb1-d3b8-400e-8160-90869cad8136`). Conserva tipo numérico, unidad `cm`,
-nombres y mappings. El formulario mantiene sus pasos de `0.1`, sin redondear
-la medición. La corrección canónica y su snapshot están preparados; **la
-publicación OCL y la aplicación en ambientes siguen pendientes**.
+**Talla al nacer (#391): pendiente.** El paquete conserva el catálogo publicado
+con `allow_decimal: false`, UUID `bf82beb1-d3b8-400e-8160-90869cad8136` y unidad
+`cm`. El formulario mantiene su paso de `0.1`; no redondear mediciones para
+sortear la restricción de la metadata.
 
 La [transición institucional](audits/2026-10-16-ocl-institutional-transition.md)
-coordina los 34 exports con el host de la suscripción. Conserva las exclusiones
-históricas de barrios y verifica las identidades en las 18 fuentes. Los ZIP se
-generan desde exports oficiales con el splitter existente; no se editan registros
-a mano ni se duplican conceptos en CSV/SQL.
-
-El token institucional solo autentica en ese servidor. El secret de GitHub
-no cambia `OMRS_OCL_TOKEN` en DEV/QLTY. La importación local de los ZIP por
-Initializer no descarga el catálogo ni usa ese token; una futura importación
-remota requiere verificar la credencial del entorno mediante una aprobación
-operativa separada. La tarea no modifica credenciales ni controles del backend.
-La aceptación requiere verificar `allowDecimal: true` y guardar/reabrir una
-talla sintética de `30.1 cm` tras la actualización autorizada de content.
+y el borrador que permite decimales se retiraron del paquete operativo: la
+actualización alteraba el orden de respuestas y conjuntos. Antes de reintroducirlos,
+corregir la fuente oficial, publicar sus versiones y demostrar conservación del
+catálogo y persistencia de `30.1 cm` en instalación nueva, actualización y reinicio.
+La credencial institucional y el acceso remoto se verifican al adoptar ese servidor.
 
 `CRED-001` `1.2.1` conserva la hemoglobina medida y la clasificación confirmada
 por el profesional; incluye 500 m en la advertencia de ajuste por altitud y

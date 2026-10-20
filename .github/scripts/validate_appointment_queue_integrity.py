@@ -863,6 +863,10 @@ def validate_canonical_care_routing(errors):
     )
     # Initializer falls back to a case-insensitive name lookup when a UUID is new.
     _index_unique(speciality_rows, "Name", SPECIALITIES_DIR, errors, normalize=str.casefold)
+    # Appointments stores appointment_speciality.name in VARCHAR(50).
+    for row in speciality_rows:
+        if not row["Name"].strip() or len(row["Name"]) > 50:
+            errors.append(f"{SPECIALITIES_DIR}: speciality {row['Uuid']} Name must contain 1–50 characters")
     locations = _index_unique(read_csv(LOCATIONS_PATH), "Uuid", LOCATIONS_PATH, errors)
     queue_rows = read_csv(QUEUES_PATH)
     queues = _index_unique(queue_rows, "Uuid", QUEUES_PATH, errors)

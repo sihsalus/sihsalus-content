@@ -67,25 +67,19 @@ automáticamente el frontend coordinado.
 
 ## Pendientes al integrar content #273
 
-La integración técnica solicitada corresponde a content `1.25.39`, sobre la
-base `1.25.38` de #271 ya integrada. No acredita
-aceptación clínica, publicación OCL ni despliegue. La revisión de código de
-content `7e12c3cbf46abab69ce5a0e440f939849fa2d976` conserva 168 pruebas Python,
-48 pruebas puras del harness, validadores, expresiones en tres zonas horarias
-y Maven correctos. En la consulta del 19 de octubre, build, MariaDB, rangos y
-`ocl-fresh` habían pasado; los otros escenarios nativos seguían en curso en
-[CI del candidato](https://github.com/sihsalus/sihsalus-content/actions/runs/39340566387).
-La candidata conjunta `1.25.39`, tras incorporar #271, pasó Maven, los 13
-validadores, 176 pruebas Python, 50 pruebas puras del harness, cuatro regresiones
-Bash y la validación de rangos. Consultar el resultado final de ese run y el del
-commit integrado; una prueba pura del harness no sustituye la ejecución del backend.
+Content #273 se integró como `1.25.39`. La corrección `1.25.40` ajusta las
+etiquetas de agenda al límite nativo y retira la transición OCL que perdía el
+orden del catálogo. El [seguimiento de OCL](2026-10-16-ocl-institutional-transition.md)
+explica el fallo y las condiciones para retomarla. Los resultados de CI se
+consultan en el PR del cambio; esta matriz registra aceptación integrada pendiente.
 
 | Pendiente | Responsable y condición de cierre |
 | --- | --- |
-| Frontend coordinado [#1241](https://github.com/sihsalus/sihsalus-frontend/pull/1241) | Frontend: cambios de inmunizaciones conciliados localmente con `main`; 151 pruebas del dominio, TypeScript, lint y build correctos. Gate existente `verify:changed --base origin/main` correcto: 223/223 tareas, 42 desde caché, sobre árbol local `b906dbe7e82a3ca08e5cb93a47f2206ff5860434`. Actualización todavía sin commit/push; PR en borrador. Completar revisión del SHA y smoke integrado antes de habilitarlo. |
+| Frontend coordinado [#1241](https://github.com/sihsalus/sihsalus-frontend/pull/1241) | Frontend: conciliar e integrar el PR coordinado y completar los flujos de persistencia/reapertura. Las pruebas locales anteriores no acreditan el despliegue ni la compatibilidad del módulo FHIR2. |
 | Lectura y edición del legado FHIR | Módulo FHIR2: el release `4.3.0` y el código upstream revisado rechazan la lectura sin administrante y pueden reasignar el grupo al último encuentro de la visita al editar. Hay candidato local en el módulo responsable; faltan ejecutar sus seis regresiones, contribuir el PR, aprobar una versión y verificar su consumo en el distro. La ejecución se detuvo durante la resolución de dependencias Maven; las seis regresiones siguen sin ejecutar. |
 | Interoperabilidad de capturas nuevas | Módulo FHIR2 y consumidores: las observaciones REST simples no se traducen a `Immunization` en FHIR2 `4.3.0`. Definir y probar su lectura/exportación en el componente responsable antes de afirmar interoperabilidad; las correcciones locales del legado no agregan esa cobertura. |
 | Cartera operativa de agenda | Responsable de cartera y frontend: el catálogo de [#271](https://github.com/sihsalus/sihsalus-content/pull/271) ya está integrado en la base `1.25.38`, con 36 categorías y cinco locales. Faltan aceptación de la cartera y smoke del roster antes del modo `strict`; no asignar especialidades por inferencia. |
+| Talla decimal y servidor OCL institucional | Terminología y módulo OCL: corregir la pérdida de pesos antes de publicar/adoptar el catálogo. El paquete conserva los exports publicados de 1.25.34 y talla entera; #391 sigue pendiente. |
 | Vacunas todavía sin catálogo publicado | Terminología y responsable clínico: aprobar la [curación OCL](../terminology/README.md), incorporar/publicar en el servicio responsable y obtener exports oficiales. El borrador no forma parte del paquete operativo. |
 | Medicamentos y fuentes institucionales | Farmacia: obtener export SISMED vigente y petitorio aprobado, revisar equivalencias y la entrada veterinaria activa. Acceso/cobertura ViDAL sin confirmar; el control RxNorm sólo revisa vigencia de identificadores. Véase [mantenimiento de fuentes](../content-guide.md#procedencia-y-mantenimiento-de-medicamentos). |
 | Aceptación de instrumentos, pautas y permisos | Responsables clínicos y de acceso: validar los flujos siguientes con datos sintéticos y dejar la evidencia por versión/ambiente. Los roles nuevos describen responsabilidad del registro; no conceden permisos ni acreditan profesión. |
@@ -127,7 +121,7 @@ No deducir estos resultados de CI ni usar pacientes reales para el ensayo.
 
 | Flujo | Comprobación de aceptación |
 | --- | --- |
-| Instalación y actualización soportada | Ejecutar los cinco escenarios nativos, incluida la transición OCL desde `1.25.34`; comprobar historia de formularios, UUIDs, relaciones, checksums y observaciones previas sin recargas forzadas. |
+| Instalación y actualización soportada | Ejecutar los cinco escenarios nativos, incluida la compatibilidad del catálogo publicado desde `1.25.34`; comprobar historia de formularios, UUIDs, relaciones, checksums y observaciones previas sin recargas forzadas. |
 | CRED-013, vitamina A | Registrar cantidad entera en UI, reabrirla y verificar concepto/unidad. Rechazar texto o decimales; conservar las observaciones históricas de Puntaje y sus esquemas. |
 | CRED-024, referencia | Guardar y reabrir cada prioridad con su pregunta y Q-AND-A correctos. No reutilizar severidad ESAVI ni recodificar automáticamente observaciones antiguas. |
 | Inmunización nueva REST | Resolver INMU-001 `1.1.0`; registrar una administración anterior al inicio de visita sin retroceder el encuentro. Fecha/hora de registro dentro de visita, fecha de administración separada, una sola escritura y rol de responsable del registro, sin administrante inferido. Formulario/configuración ausente bloquea la escritura. |
