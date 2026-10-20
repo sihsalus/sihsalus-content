@@ -8,6 +8,13 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Corrección de carga y limpieza (1.25.40)
+
+- Abrevia cuatro etiquetas de enfermería a 50 caracteres, límite de Appointments, conservando UUIDs y las denominaciones oficiales en la documentación. El validador detecta nombres incompatibles antes de iniciar OpenMRS.
+- Recupera los 34 ZIP OCL publicados de 1.25.34 y su namespace: la transición institucional de #269 perdía el orden de 2.922 respuestas y dos miembros de conjuntos. La transición y talla decimal (#391) quedan pendientes fuera del paquete; se conservan las correcciones de formularios y metadata posteriores.
+- Rechaza exports OCL sin publicar. Conserva los cinco escenarios nativos y la comparación completa de identidades, pesos e historia.
+- Retira la extracción temporal de pesos y sus pruebas auxiliares; reduce la documentación de CI y elimina estados de validación obsoletos.
+
 ### Correcciones del contrato clínico (candidata 1.25.39)
 
 - CRED-013 `1.1.0` registra dosis de vitamina A en el nuevo concepto local Numeric/UI, sin reinterpretar el Puntaje histórico; ambos validadores reutilizan el índice de metadata OCL y CSV nativo.

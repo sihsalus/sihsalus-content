@@ -14,7 +14,7 @@ asociaciones por UUID.
 | Archivo | Alcance |
 | --- | --- |
 | [specialities_medicina.csv](specialities_medicina.csv) | Especialidades médicas del catálogo existente; denominaciones contrastadas con la publicación oficial MINSA. |
-| [specialities_enfermeria.csv](specialities_enfermeria.csv) | Las 19 denominaciones de especialidades de enfermería del Anexo 6 de CONAREN. |
+| [specialities_enfermeria.csv](specialities_enfermeria.csv) | Las 19 especialidades de enfermería del Anexo 6 de CONAREN, con etiquetas compatibles con el módulo. |
 | [specialities_odontologia.csv](specialities_odontologia.csv) | Especialidad odontológica de Cirugía Bucal y Maxilofacial. |
 | [specialities_categorias_locales.csv](specialities_categorias_locales.csv) | Categorías operativas de agenda, identificadas como locales en el contrato. |
 
@@ -25,6 +25,22 @@ identidades de OpenMRS: no son códigos oficiales MINSA ni números de registro
 profesional. La separación utiliza el
 [loader nativo de Initializer fijado por la distribución](https://github.com/sihsalus/openmrs-module-initializer/blob/806aec0a11fbb6b582629ecb2c89992e2e46107e/readme/appointmentspecialities.md).
 
+## Etiquetas de agenda
+
+Appointments almacena `appointment_speciality.name` en `VARCHAR(50)`;
+[esquema del módulo](https://github.com/Bahmni/openmrs-module-appointments/blob/2.2.0/api/src/main/resources/liquibase.xml#L15).
+Cuatro denominaciones oficiales necesitan una etiqueta abreviada. Los UUID y
+la especialidad que identifican se conservan:
+
+| Etiqueta en el CSV | Denominación completa de CONAREN |
+| --- | --- |
+| Enfermería Infantil: CRED e Inmunizaciones | Enfermería en Salud y Desarrollo Integral Infantil: CRED e Inmunizaciones |
+| Enfermería en Salud Escolar y Adolescente | Enfermería en Salud y Desarrollo Integral del Escolar y del Adolescente |
+| Enfermería en Nutrición y Accesos Vasculares | Enfermería en Soporte Nutricional y Accesos Vasculares |
+| Enfermería en Cuidado Alternativo y Complementario | Enfermería en el Cuidado Alternativo y Complementario |
+
+El validador comprueba el límite de 50 caracteres antes del ensayo nativo.
+
 ## CRED y enfermería pediátrica
 
 El Anexo 6 de CONAREN distingue estas dos entradas:
@@ -34,8 +50,8 @@ El Anexo 6 de CONAREN distingue estas dos entradas:
 | Enfermería en Salud y Desarrollo Integral Infantil: CRED e Inmunizaciones | `84525bee-4d9a-4f80-9762-4667735a4ad1` |
 | Enfermería en Pediatría | `0cd6df08-e8a1-4c4c-8fae-ee4cbd496b1d` |
 
-Para identificar la especialidad relacionada específicamente con CRED se usa
-la primera denominación. Ambas conservan identidades distintas. La
+La primera especialidad aparece en agenda como «Enfermería Infantil: CRED e
+Inmunizaciones». Ambas conservan identidades distintas. La
 [NTS 238, aprobada mediante RM 682-2025/MINSA](https://www.gob.pe/institucion/minsa/normas-legales/7281593-682-2025-minsa),
 regula la prestación CRED; el catálogo de especialidades no establece por sí
 solo un requisito de titulación para realizar esa prestación.

@@ -107,7 +107,7 @@ jobs:
         run: python3 .github/scripts/validate_stock_foundation.py
       - name: Validate OCL exports
         run: python3 .github/scripts/validate_ocl_exports.py
-      - name: Test institutional OCL transition and birth length metadata
+      - name: Test published OCL export requirements
         run: python3 .github/scripts/test_ocl_exports.py
       - name: Test laboratory capture compatibility
         run: python3 .github/scripts/test_laboratory_capture_validation.py

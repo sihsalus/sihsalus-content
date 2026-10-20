@@ -52,11 +52,3 @@ jobs:
           path: admission-initializer-result.jsonl
           if-no-files-found: warn
           retention-days: 7
-      - name: Preserve allowlisted catalog ordering from the published synthetic baseline
-        if: always() && matrix.scenario == 'ocl-upgrade'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ocl-baseline-order-${{ github.sha }}
-          path: ${{ runner.temp }}/ocl-baseline-order-${{ github.sha }}.json
-          if-no-files-found: warn
-          retention-days: 7
