@@ -34,6 +34,7 @@ Consultar [AGENTS.md](../AGENTS.md) antes de contribuir.
 | Enrutamiento de atención | [Catálogo canónico](contracts/hsc-care-routing.csv), [contrato](contracts/hsc-care-routing.md) |
 | Especialidades y categorías de agenda | [Catálogos profesionales, CRED y fuentes oficiales](contracts/hsc-care-routing.md#catálogo-de-categorías-y-especialidades) |
 | Catálogos OCL | [Transición institucional](audits/2026-10-16-ocl-institutional-transition.md), [exclusiones históricas](contracts/ocl-sihsalus-2026-09-09-1-exclusions.json) |
+| Pertenencia étnica | [Equivalencias MINSA, identidades y carga](contracts/etnias-minsa.md) |
 
 ## Historia
 

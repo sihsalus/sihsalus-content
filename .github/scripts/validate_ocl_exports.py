@@ -35,6 +35,10 @@ EXPECTED_SIHSALUS_MAPPINGS_EXPORT = (
 EXPECTED_SIHSALUS_CANONICAL_SHA256 = (
     "cae14cffdce3d5ed882e97cc3ca6030d798788526b3baded304f472f7779e195"
 )
+ETNIAS_VERSION = "2026-10-21-01"
+ETNIAS_CONCEPTS_EXPORT = OCL_DIR / f"07_SIHSALUS_etnias_concepts_{ETNIAS_VERSION}.zip"
+ETNIAS_MAPPINGS_EXPORT = OCL_DIR / f"57_SIHSALUS_etnias_mappings_{ETNIAS_VERSION}.zip"
+ETNIAS_CANONICAL_SHA256 = "de970dad05398ca1e85fadf1627944143e4a67be836d603235cf938c845e1738"
 OCCUPATIONS_SOURCE = "ocupaciones"
 OCCUPATIONS_ROOT_URL = "/orgs/SIHSALUS/sources/ocupaciones/concepts/1/"
 OCCUPATIONS_CONCEPT_URL_PREFIX = "/orgs/SIHSALUS/sources/ocupaciones/concepts/"
@@ -431,7 +435,10 @@ def main():
     validate_mapping_integrity(concepts_by_url, mapping_records, errors)
     validate_default_name_collision_safety(concept_records, errors)
     validate_laboratory_capture(concept_records, errors)
-    validate_sihsalus_export(exports_by_path, errors)
+    validate_split_export(exports_by_path, errors, "sihsalus", EXPECTED_SIHSALUS_CONCEPTS_EXPORT,
+                          EXPECTED_SIHSALUS_MAPPINGS_EXPORT, EXPECTED_SIHSALUS_CANONICAL_SHA256)
+    validate_split_export(exports_by_path, errors, "etnias", ETNIAS_CONCEPTS_EXPORT,
+                          ETNIAS_MAPPINGS_EXPORT, ETNIAS_CANONICAL_SHA256)
 
     validate_development_instruments(
         concepts_by_source[SIHSALUS_SOURCE], mappings_by_source[SIHSALUS_SOURCE], errors
@@ -489,27 +496,27 @@ def validate_laboratory_capture(concept_records, errors):
                 errors.append(f"laboratorio:{code}: {uuid} must declare mg/24h consistently in units/Units")
 
 
-def validate_sihsalus_export(exports_by_path, errors):
-    concepts = exports_by_path.get(EXPECTED_SIHSALUS_CONCEPTS_EXPORT)
-    mappings = exports_by_path.get(EXPECTED_SIHSALUS_MAPPINGS_EXPORT)
+def validate_split_export(exports_by_path, errors, source, concepts_path, mappings_path, canonical_sha256):
+    concepts = exports_by_path.get(concepts_path)
+    mappings = exports_by_path.get(mappings_path)
     if concepts is None or mappings is None:
-        errors.append("missing pinned sihsalus concepts/mappings exports")
+        errors.append(f"missing pinned {source} concepts/mappings exports")
         return
     if concepts.get("mappings") != [] or mappings.get("concepts") != []:
-        errors.append("sihsalus exports must separate concepts from mappings")
+        errors.append(f"{source} exports must separate concepts from mappings")
     if {
         key: value for key, value in concepts.items() if key not in {"concepts", "mappings"}
     } != {
         key: value for key, value in mappings.items() if key not in {"concepts", "mappings"}
     }:
-        errors.append("sihsalus concepts/mappings release metadata differs")
+        errors.append(f"{source} concepts/mappings release metadata differs")
     combined = dict(concepts)
     combined["mappings"] = mappings.get("mappings")
     canonical = json.dumps(
         combined, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
     ).encode("utf-8")
-    if hashlib.sha256(canonical).hexdigest() != EXPECTED_SIHSALUS_CANONICAL_SHA256:
-        errors.append("sihsalus exports differ from the reviewed release with explicit neighborhood exclusions")
+    if hashlib.sha256(canonical).hexdigest() != canonical_sha256:
+        errors.append(f"{source} exports differ from the reviewed release")
 
 
 def normalize_ocl_url(url):

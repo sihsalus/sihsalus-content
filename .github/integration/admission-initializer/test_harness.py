@@ -9,6 +9,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from unittest.mock import Mock, patch
 from contextlib import redirect_stdout
+from urllib.parse import parse_qs, urlsplit
 
 import guards
 import harness
@@ -166,6 +167,66 @@ class HarnessContracts(unittest.TestCase):
             with self.subTest(changed=key), self.assertRaises(HarnessFailure):
                 self.runtime.check_retained_checksums(before, {**after, key: b"0" * 32})
 
+    def test_etnias_checks_native_reference_identity_names_and_searches(self):
+        self.runtime.candidate_config = harness.ROOT / "configuration"
+        concepts, mappings = self.runtime.etnias_contract()
+        rows = []
+        for index, mapping in enumerate(mappings):
+            concept = concepts[mapping["from_concept_url"]]
+            rows.append("\t".join([str(1000 + index), mapping["external_id"], str(2000 + index),
+                str(3000 + index), "1", str(3000 + index), f"10000000-0000-4000-8000-{index:012d}",
+                "4000", mapping["to_concept_code"], "0", "4000", "20000000-0000-4000-8000-000000000000",
+                "MINSA-ETNIAS", "0", concept["external_id"], "SAME_AS"]))
+        names = ["\t".join([c["external_id"], n["external_id"], n["name"], n["locale"],
+                           str(int(n["locale_preferred"])), (n.get("name_type") or "NULL").upper().replace("-", "_")])
+                 for c in concepts.values() for n in c["names"] if not n.get("retired")]
+        by_code = {m["to_concept_code"]: concepts[m["from_concept_url"]]["external_id"] for m in mappings}
+        by_name = {n["name"]: c["external_id"] for c in concepts.values() for n in c["names"]}
+
+        def search(_backend, method, resource):
+            self.assertEqual(method, "GET")
+            query = parse_qs(urlsplit(resource).query)
+            if "code" in query:
+                self.assertEqual(query["source"], ["MINSA-ETNIAS"])
+                identifier = by_code.get(query["code"][0])
+            else:
+                identifier = by_name.get(query["q"][0])
+            return 200, {"results": [{"uuid": identifier}] if identifier else []}
+
+        self.runtime.query = Mock(side_effect=[rows, names])
+        self.runtime.request = Mock(side_effect=search)
+        with patch.object(harness, "emit"):
+            additions = self.runtime.check_etnias("owned", "db", "fresh")
+        self.assertEqual({key: len(value) for key, value in additions.items()},
+                         {"mappings": 58, "terms": 58, "sources": 1})
+        self.assertEqual(self.runtime.request.call_count, 11)
+        for kind in ("duplicate", "code", "retired", "uuid", "name", "search"):
+            invalid_rows, invalid_names = list(rows), list(names)
+            fields = invalid_rows[0].split("\t")
+            if kind == "duplicate":
+                invalid_rows.append(invalid_rows[0])
+            elif kind in ("code", "retired", "uuid"):
+                position, value = {"code": (8, "99999"), "retired": (9, "1"), "uuid": (11, "invalid")}[kind]
+                fields[position] = value
+                invalid_rows[0] = "\t".join(fields)
+            elif kind == "name":
+                invalid_names.pop()
+            self.runtime.query = Mock(side_effect=[invalid_rows, invalid_names])
+            self.runtime.request = Mock(return_value=(200, {"results": []}))
+            with self.subTest(kind=kind), patch.object(harness, "emit"), self.assertRaises(HarnessFailure):
+                self.runtime.check_etnias("owned", "db", "upgrade")
+
+    def test_etnias_additions_cannot_replace_old_ids_uuids_or_answer_rows(self):
+        baseline = {key: ("1\told-uuid\tunchanged",) for key in harness.TERMINOLOGY_TABLES}
+        additions = {"mappings": ("2\tnew-uuid\tnew",)}
+        expected = self.runtime.expected_etnias_insertions(baseline, additions)
+        self.assertEqual(expected["mappings"], (*baseline["mappings"], *additions["mappings"]))
+        self.assertEqual(expected["answers"], baseline["answers"])
+        for invalid in ({"mappings": ("1\tnew-uuid\tnew",)}, {"mappings": ("2\told-uuid\tnew",)},
+                        {"answers": ("2\tnew-uuid\tnew",)}):
+            with self.subTest(invalid=invalid), self.assertRaises(HarnessFailure):
+                self.runtime.expected_etnias_insertions(baseline, invalid)
+
     def test_birth_length_requires_native_decimal_metadata_with_the_existing_identity_and_unit(self):
         identifier = guards.BIRTH_LENGTH_UUID
         for decimal in (False, True):
@@ -213,6 +274,7 @@ class HarnessContracts(unittest.TestCase):
         runtime.check_birth_length = Mock(return_value="510")
         vitamin_a = "\t".join(vitamin_a_result().split("\t")[:6])
         runtime.check_vitamin_a_measurement = Mock(return_value=vitamin_a)
+        runtime.check_etnias = Mock(return_value={})
         runtime.request = Mock(return_value=(201, {"uuid": "10000000-0000-4000-8000-000000000001"}))
         runtime.create_birth_length_observation = Mock(return_value=["original observation"])
         runtime.query = Mock(return_value=["original observation", "second observation"])

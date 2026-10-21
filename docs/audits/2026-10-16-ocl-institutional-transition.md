@@ -6,6 +6,11 @@ pero su actualización nativa alteraba el orden del catálogo. Se recuperan los
 34 ZIP publicados de content `1.25.34` y su namespace OCL Cloud, conservando
 las correcciones de formularios de #389/#390 y los cambios posteriores.
 
+La candidata `1.25.41` actualiza únicamente etnias a `2026-10-21-01`, con pesos
+explícitos contrastados por UUID en DEV/QLTY. Conserva las otras 32 exportaciones
+y el namespace existente; no completa esta transición. Ver el
+[contrato de etnias](../contracts/etnias-minsa.md).
+
 ## Fallo verificado
 
 [CI 39340566387](https://github.com/sihsalus/sihsalus-content/actions/runs/39340566387)
