@@ -176,7 +176,7 @@ class HarnessContracts(unittest.TestCase):
             rows.append("\t".join([str(1000 + index), mapping["external_id"], str(2000 + index),
                 str(3000 + index), "1", str(3000 + index), f"10000000-0000-4000-8000-{index:012d}",
                 "4000", mapping["to_concept_code"], "0", "4000", "20000000-0000-4000-8000-000000000000",
-                "MINSA-ETNIAS", "0", concept["external_id"], "SAME_AS"]))
+                "MINSA-ETNIAS", "0", concept["external_id"], "SAME-AS" if index % 2 else "SAME_AS"]))
         names = ["\t".join([c["external_id"], n["external_id"], n["name"], n["locale"],
                            str(int(n["locale_preferred"])), (n.get("name_type") or "NULL").upper().replace("-", "_")])
                  for c in concepts.values() for n in c["names"] if not n.get("retired")]
@@ -209,13 +209,14 @@ class HarnessContracts(unittest.TestCase):
         self.assertEqual({key: len(value) for key, value in additions.items()},
                          {"mappings": 58, "terms": 58, "sources": 1})
         self.assertEqual(self.runtime.request.call_count, 11)
-        for kind in ("duplicate", "code", "retired", "uuid", "name", "search", "foreign_search"):
+        for kind in ("duplicate", "code", "map_type", "retired", "uuid", "name", "search", "foreign_search"):
             invalid_rows, invalid_names = list(rows), list(names)
             fields = invalid_rows[0].split("\t")
             if kind == "duplicate":
                 invalid_rows.append(invalid_rows[0])
-            elif kind in ("code", "retired", "uuid"):
-                position, value = {"code": (8, "99999"), "retired": (9, "1"), "uuid": (11, "invalid")}[kind]
+            elif kind in ("code", "map_type", "retired", "uuid"):
+                position, value = {"code": (8, "99999"), "map_type": (15, "NARROWER-THAN"),
+                                   "retired": (9, "1"), "uuid": (11, "invalid")}[kind]
                 fields[position] = value
                 invalid_rows[0] = "\t".join(fields)
             elif kind == "name":

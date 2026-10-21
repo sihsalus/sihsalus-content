@@ -511,8 +511,15 @@ class Harness:
             "WHERE s.name='MINSA-ETNIAS'")]
         require(len(rows) == len(expected) == 58 and all(len(r) == 16 for r in rows),
                 "etnias_minsa_mappings_missing_or_duplicated")
-        require({(r[1], r[14], r[8], r[15]) for r in rows} == expected,
-                "etnias_minsa_mapping_identity_or_code_changed")
+        actual = {(r[1], r[14], r[8], r[15].replace("-", "_")) for r in rows}
+        if actual != expected:
+            before, after = ({r[0]: r[1:] for r in values} for values in (expected, actual))
+            common = before.keys() & after.keys()
+            emit("etnias_mappings", "FAILED", phase=phase,
+                 mapping_uuids_preserved=before.keys() == after.keys(),
+                 changed_columns={name: sum(before[key][index] != after[key][index] for key in common)
+                                  for index, name in enumerate(("concept_uuid", "code", "map_type"))})
+        require(actual == expected, "etnias_minsa_mapping_identity_or_code_changed")
         require(all(r[9] == r[13] == "0" and UUID_PATTERN.fullmatch(r[6])
                     and UUID_PATTERN.fullmatch(r[11]) for r in rows), "etnias_minsa_terms_invalid")
         additions = {key: tuple(sorted({"\t".join(r[start:end]) for r in rows},
