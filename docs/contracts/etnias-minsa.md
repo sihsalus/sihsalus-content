@@ -51,6 +51,9 @@ La referencia local publicada `MINSA-ETNIAS/2026-10-21-01` contiene los 60 códi
 Después de cargar content, la consulta nativa OpenMRS
 `GET /ws/rest/v1/concept?source=MINSA-ETNIAS&code=2` debe devolver Aimara.
 Una búsqueda de texto o un ID interno sin fuente no resuelve un código oficial.
+La búsqueda global de «Ticuna» también puede devolver el concepto de lengua;
+«Aguaruna» aparece igualmente en otro catálogo. El selector debe limitar la
+selección a las respuestas de la pregunta Etnia y conservar su UUID clínico.
 Frontend y cada integración deben utilizar la fuente y el código; este cambio
 de metadata no implementa sus selectores ni sus payloads.
 

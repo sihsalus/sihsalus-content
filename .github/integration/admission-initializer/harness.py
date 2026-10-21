@@ -530,16 +530,20 @@ class Harness:
         require(len(actual_names) == len(names) and {tuple(r.split("\t")) for r in actual_names} == names,
                 "etnias_names_or_synonyms_changed")
         searches = [(urlencode({"code": m["to_concept_code"], "source": "MINSA-ETNIAS"}),
-                     concepts[m["from_concept_url"]]["external_id"]) for m in mappings
+                     concepts[m["from_concept_url"]]["external_id"], True) for m in mappings
                     if m["to_concept_code"] in {"2", "41", "42", "56", "58"}]
-        searches.extend((urlencode({"q": n["name"]}), c["external_id"])
+        searches.extend((urlencode({"q": n["name"]}), c["external_id"], False)
                         for c in concepts.values() for n in c["names"]
                         if not n.get("retired") and not n.get("name_type"))
-        searches.append((urlencode({"code": "99999", "source": "MINSA-ETNIAS"}), None))
-        for query, identifier in searches:
+        searches.append((urlencode({"code": "99999", "source": "MINSA-ETNIAS"}), None, True))
+        for query, identifier, exact in searches:
             code, response = self.request(backend, "GET", "/concept?" + query + "&v=custom:(uuid)")
             require(code == 200 and isinstance(response, dict)
-                    and [c.get("uuid") for c in response.get("results", [])] == ([identifier] if identifier else []),
+                    and isinstance(response.get("results"), list), "etnias_native_search_invalid")
+            found = [c.get("uuid") for c in response["results"]]
+            # Global name searches can also return language concepts. Official
+            # code resolution is exact; text must include the intended ethnicity.
+            require(found == ([identifier] if identifier else []) if exact else identifier in found,
                     "etnias_native_search_invalid")
         emit("etnias", "PASSED", phase=phase, concepts=62, minsa_mappings=58, synonyms=5)
         return additions

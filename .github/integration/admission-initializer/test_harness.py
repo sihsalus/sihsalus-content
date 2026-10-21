@@ -191,7 +191,16 @@ class HarnessContracts(unittest.TestCase):
                 identifier = by_code.get(query["code"][0])
             else:
                 identifier = by_name.get(query["q"][0])
-            return 200, {"results": [{"uuid": identifier}] if identifier else []}
+            results = [{"uuid": identifier}] if identifier else []
+            if query.get("q") == ["Ticuna"]:
+                results.append({"uuid": "90000000-0000-4000-8000-000000000000"})  # Separate language concept.
+            return 200, {"results": results}
+
+        def foreign_search(backend, method, resource):
+            status, response = search(backend, method, resource)
+            if parse_qs(urlsplit(resource).query).get("q") == ["Ticuna"]:
+                response["results"] = response["results"][1:]
+            return status, response
 
         self.runtime.query = Mock(side_effect=[rows, names])
         self.runtime.request = Mock(side_effect=search)
@@ -200,7 +209,7 @@ class HarnessContracts(unittest.TestCase):
         self.assertEqual({key: len(value) for key, value in additions.items()},
                          {"mappings": 58, "terms": 58, "sources": 1})
         self.assertEqual(self.runtime.request.call_count, 11)
-        for kind in ("duplicate", "code", "retired", "uuid", "name", "search"):
+        for kind in ("duplicate", "code", "retired", "uuid", "name", "search", "foreign_search"):
             invalid_rows, invalid_names = list(rows), list(names)
             fields = invalid_rows[0].split("\t")
             if kind == "duplicate":
@@ -213,6 +222,8 @@ class HarnessContracts(unittest.TestCase):
                 invalid_names.pop()
             self.runtime.query = Mock(side_effect=[invalid_rows, invalid_names])
             self.runtime.request = Mock(return_value=(200, {"results": []}))
+            if kind == "foreign_search":
+                self.runtime.request = Mock(side_effect=foreign_search)
             with self.subTest(kind=kind), patch.object(harness, "emit"), self.assertRaises(HarnessFailure):
                 self.runtime.check_etnias("owned", "db", "upgrade")
 
