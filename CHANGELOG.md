@@ -8,6 +8,13 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Equivalencias de etnias con MINSA (candidata 1.25.41)
+
+- Incorpora el export nativo publicado `etnias/2026-10-21-01`: 58 mappings MINSA y cinco sinónimos, conservando 62 conceptos y sus UUID clínicos.
+- Declara en OCL los pesos de las 62 respuestas de Etnia, contrastados por UUID en DEV/QLTY, para conservar el orden al actualizar. Las otras 32 exportaciones y la suscripción mantienen sus pins.
+- Reutiliza el validador de exports divididos para fijar la huella de la versión; extiende los ensayos nativos de instalación, actualización y reinicio para comprobar las nuevas referencias, nombres y búsquedas sin aceptar cambios en las filas históricas.
+- Documenta las fuentes, identidades sin equivalencia y flujos pendientes. La publicación OCL solicitada no acredita aceptación clínica ni despliegue de content.
+
 ### Corrección de carga y limpieza (1.25.40)
 
 - Abrevia cuatro etiquetas de enfermería a 50 caracteres, límite de Appointments, conservando UUIDs y las denominaciones oficiales en la documentación. El validador detecta nombres incompatibles antes de iniciar OpenMRS.

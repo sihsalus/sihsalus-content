@@ -93,8 +93,10 @@ references must survive restart.
 
 ### Current-runtime catalog compatibility
 
-The operational catalog uses the published exports and OCL Cloud namespace from
-content 1.25.34. The institutional transition was withdrawn after its upgrade
+The catalog preserves the OCL Cloud loading namespace and 32 unchanged exports
+from content 1.25.34. Only etnias advances to the institutional published version
+`2026-10-21-01`; its 62 answer weights were recorded in OCL after comparison by
+UUID with DEV/QLTY. The complete institutional transition was withdrawn after its upgrade
 changed 2,922 answer weights and two set-member weights; see the
 [transition audit](../../../docs/audits/2026-10-16-ocl-institutional-transition.md).
 
@@ -103,7 +105,11 @@ Upgrade compares every concept identity, set/answer relationship including
 `sort_weight`, reference map, term and source. The only expected new concept is
 the native vitamin A dose UUID `9c0b51ef-0d4c-49a3-bdbb-2ee7083fe778`:
 it must be a new active Question/Numeric concept with UI, minimum zero and no
-decimals. It cannot reuse an existing ID or allow any other graph change.
+decimals. Etnias adds exactly 58 validated MINSA reference maps, 58 terms and one
+source, preserving every baseline row and primary key. Both scenarios check all
+etnia name identities and native searches by code/synonym, including unknown
+codes; restart repeats the checks. No other graph change is accepted. See the
+[etnia contract](../../../docs/contracts/etnias-minsa.md).
 
 Birth length retains the published integer-only metadata and `cm` unit;
 decimal support remains pending. Synthetic observations of 30 and 31 cm must

@@ -75,6 +75,7 @@ TERMINOLOGY_TABLES = {
     "sources": ("concept_reference_source", "concept_source_id,uuid,name,retired"),
 }
 VITAMIN_A_DOSE_UUID = "9c0b51ef-0d4c-49a3-bdbb-2ee7083fe778"
+ETHNICITY_VERSION = "2026-10-21-01"
 ADMISSION_SUPPLEMENT = "SIHSALUS Admision Hospitalaria"
 SUPPLEMENT_CHANGESET = "retire-admission-hospital-supplement-20260921"
 HOSPITAL_ROLES_FILE = "roles/roles_hospital_operations.csv"
@@ -369,7 +370,7 @@ class Harness:
                     key = (kind, url)
                     require(key not in expected, "ocl_transition_duplicate_item")
                     expected[key] = (identifier, version_url)
-        require(len(sources) == 18 and len(expected) == 32551 + 20552, "ocl_transition_catalog_size_changed")
+        require(len(sources) == 18 and len(expected) == 32551 + 20610, "ocl_transition_catalog_size_changed")
         return expected, sources
 
     def check_ocl_namespace(self, db, phase):
@@ -393,7 +394,7 @@ class Harness:
                     and record[2] in {"0", "1", "2", "3", "6"} and record[3] == "0",
                     "ocl_transition_item_not_successfully_loaded")
         emit("ocl_namespace", "PASSED", phase=phase, sources=len(self.ocl_sources),
-             concepts=32551, mappings=20552)
+             concepts=32551, mappings=20610)
 
     def checksum_snapshot(self, backend):
         target = self.directory / ("checksums-" + uuid.uuid4().hex)
@@ -478,6 +479,96 @@ class Harness:
         return {**baseline, "concepts": tuple(sorted((*baseline["concepts"], concept),
                                                      key=lambda row: int(row.split("\t")[0])))}
 
+    def etnias_contract(self):
+        exports = []
+        for kind in ("concepts", "mappings"):
+            paths = list((self.candidate_config / "ocl").glob(
+                f"*_SIHSALUS_etnias_{kind}_{ETHNICITY_VERSION}.zip"))
+            require(len(paths) == 1, "etnias_release_missing_or_duplicated")
+            with zipfile.ZipFile(paths[0]) as archive:
+                export = json.loads(archive.read("export.json"))
+            require(export.get("released") is True and export.get("version") == ETHNICITY_VERSION,
+                    "etnias_release_not_published")
+            exports.append(export)
+        concepts = {c["url"]: c for c in exports[0]["concepts"]}
+        mappings = [m for m in exports[1]["mappings"] if m.get("to_source_name") == "MINSA-ETNIAS"]
+        require(len(concepts) == 62 and len(mappings) == 58, "etnias_release_size_invalid")
+        return concepts, mappings
+
+    def check_etnias(self, backend, db, phase):
+        """Validate native reference maps, names and searches against the published export."""
+        concepts, mappings = self.etnias_contract()
+        expected = {(m["external_id"], concepts[m["from_concept_url"]]["external_id"],
+                     m["to_concept_code"], m["map_type"].replace("-", "_")) for m in mappings}
+        rows = [r.split("\t") for r in self.query(db,
+            "SELECT m.concept_map_id,m.uuid,m.concept_id,m.concept_reference_term_id,m.concept_map_type_id,"
+            "t.concept_reference_term_id,t.uuid,t.concept_source_id,t.code,t.retired,"
+            "s.concept_source_id,s.uuid,s.name,s.retired,c.uuid,mt.name "
+            "FROM concept_reference_map m JOIN concept c ON c.concept_id=m.concept_id "
+            "JOIN concept_reference_term t ON t.concept_reference_term_id=m.concept_reference_term_id "
+            "JOIN concept_reference_source s ON s.concept_source_id=t.concept_source_id "
+            "JOIN concept_map_type mt ON mt.concept_map_type_id=m.concept_map_type_id "
+            "WHERE s.name='MINSA-ETNIAS'")]
+        require(len(rows) == len(expected) == 58 and all(len(r) == 16 for r in rows),
+                "etnias_minsa_mappings_missing_or_duplicated")
+        actual = {(r[1], r[14], r[8], r[15].replace("-", "_")) for r in rows}
+        if actual != expected:
+            before, after = ({r[0]: r[1:] for r in values} for values in (expected, actual))
+            common = before.keys() & after.keys()
+            emit("etnias_mappings", "FAILED", phase=phase,
+                 mapping_uuids_preserved=before.keys() == after.keys(),
+                 changed_columns={name: sum(before[key][index] != after[key][index] for key in common)
+                                  for index, name in enumerate(("concept_uuid", "code", "map_type"))})
+        require(actual == expected, "etnias_minsa_mapping_identity_or_code_changed")
+        require(all(r[9] == r[13] == "0" and UUID_PATTERN.fullmatch(r[6])
+                    and UUID_PATTERN.fullmatch(r[11]) for r in rows), "etnias_minsa_terms_invalid")
+        additions = {key: tuple(sorted({"\t".join(r[start:end]) for r in rows},
+                                      key=lambda r: int(r.split("\t")[0])))
+                     for key, start, end in (("mappings", 0, 5), ("terms", 5, 10), ("sources", 10, 14))}
+        require([len(additions[k]) for k in ("mappings", "terms", "sources")] == [58, 58, 1],
+                "etnias_minsa_reference_graph_invalid")
+        names = {(c["external_id"], n["external_id"], n["name"], n["locale"],
+                  str(int(n["locale_preferred"])), (n.get("name_type") or "NULL").upper().replace("-", "_"))
+                 for c in concepts.values() for n in c["names"] if not n.get("retired")}
+        actual_names = self.query(db, "SELECT c.uuid,n.uuid,n.name,n.locale,n.locale_preferred,"
+            "IFNULL(n.concept_name_type,'NULL') FROM concept_name n JOIN concept c ON c.concept_id=n.concept_id "
+            "WHERE n.voided=0 AND c.uuid IN (" + ",".join(sql_string(c["external_id"])
+            for c in concepts.values()) + ")")
+        require(len(actual_names) == len(names) and {tuple(r.split("\t")) for r in actual_names} == names,
+                "etnias_names_or_synonyms_changed")
+        searches = [(urlencode({"code": m["to_concept_code"], "source": "MINSA-ETNIAS"}),
+                     concepts[m["from_concept_url"]]["external_id"], True) for m in mappings
+                    if m["to_concept_code"] in {"2", "41", "42", "56", "58"}]
+        searches.extend((urlencode({"q": n["name"]}), c["external_id"], False)
+                        for c in concepts.values() for n in c["names"]
+                        if not n.get("retired") and not n.get("name_type"))
+        searches.append((urlencode({"code": "99999", "source": "MINSA-ETNIAS"}), None, True))
+        for query, identifier, exact in searches:
+            code, response = self.request(backend, "GET", "/concept?" + query + "&v=custom:(uuid)")
+            require(code == 200 and isinstance(response, dict)
+                    and isinstance(response.get("results"), list), "etnias_native_search_invalid")
+            found = [c.get("uuid") for c in response["results"]]
+            # Global name searches can also return language concepts. Official
+            # code resolution is exact; text must include the intended ethnicity.
+            require(found == ([identifier] if identifier else []) if exact else identifier in found,
+                    "etnias_native_search_invalid")
+        emit("etnias", "PASSED", phase=phase, concepts=62, minsa_mappings=58, synonyms=5)
+        return additions
+
+    @staticmethod
+    def expected_etnias_insertions(baseline, additions):
+        """Append only validated new reference rows; preserve every existing row and primary key."""
+        result = dict(baseline)
+        for key, rows in additions.items():
+            require(key in {"mappings", "terms", "sources"}, "etnias_unexpected_table_addition")
+            previous = [r.split("\t") for r in baseline[key]]
+            for row in rows:
+                fields = row.split("\t")
+                require(all(fields[0] != old[0] and fields[1] != old[1] for old in previous),
+                        "etnias_existing_reference_identity_reused")
+            result[key] = tuple(sorted((*baseline[key], *rows), key=lambda r: int(r.split("\t")[0])))
+        return result
+
     def check_birth_length(self, backend, db, decimal):
         rows = self.query(db, "SELECT c.concept_id,c.uuid,c.retired,dt.name,n.units,n.allow_decimal "
             "FROM concept c JOIN concept_datatype dt ON dt.concept_datatype_id=c.datatype_id "
@@ -537,10 +628,12 @@ class Harness:
             require(candidate_concept_id == concept_id, "birth_length_concept_id_changed")
             require(self.history(db) == history, "ocl_upgrade_changed_liquibase_history")
             identities = self.expected_vitamin_a_insertion(db, identities)
+            identities = self.expected_etnias_insertions(identities, self.check_etnias(backend, db, "upgrade"))
             self.assert_terminology_identity(db, identities, "upgrade")
             self.check_retained_checksums(checksums, self.checksum_snapshot(backend))
         else:
             self.check_vitamin_a_measurement(db)
+            self.check_etnias(backend, db, "fresh")
         self.check_ocl_namespace(db, "upgrade" if upgrade else "fresh")
         self.create_birth_length_observation(backend, db, person["uuid"], 31)
         observations = self.query(db, "SELECT * FROM obs ORDER BY obs_id")
@@ -557,6 +650,7 @@ class Harness:
         require(self.query(db, "SELECT * FROM obs ORDER BY obs_id") == observations, "ocl_restart_changed_observations")
         require(self.check_birth_length(backend, db, decimal=False) == concept_id, "birth_length_concept_id_changed_on_restart")
         self.check_vitamin_a_measurement(db)
+        self.check_etnias(backend, db, "restart")
         self.check_ocl_namespace(db, "restart")
         emit("ocl_transition", "PASSED", scenario="upgrade" if upgrade else "fresh",
              restart_verified=True, prior_checksums_preserved=True, clinical_observations=2,
