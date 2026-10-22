@@ -64,16 +64,17 @@ corrección como disponible ni redondear mediciones para eludirla.
 ### Revisión de la fuente institucional: 22 de octubre
 
 La descarga autenticada del candidato `sihsalus/2026-10-16-1` sigue teniendo
-la huella indicada arriba y `released: false`. QLTY todavía devuelve
-`allowDecimal: false` para talla al nacer; el paso `0.1` del formulario no
-cambia esa restricción del concepto. #391 continúa pendiente.
+la huella indicada arriba y `released: false`. La lectura de QLTY previa al
+despliegue de content 1.25.41 devolvió `allowDecimal: false` para talla al nacer;
+el paso `0.1` del formulario no cambia esa restricción del concepto. #391
+continúa pendiente de adopción y aceptación clínica.
 
 Se recuperó el [artefacto de orden del baseline publicado](https://github.com/sihsalus/sihsalus-content/actions/runs/38976229948/artifacts/12079867361)
 y se contrastó su descarga con el digest de GitHub:
 `a7d018dc762b99b294fa82c412cfccf721be56c8a78c5caa22d0ff72a625b9c2`.
 Contiene 17.404 relaciones de `1.25.34`, sin pacientes. Las lecturas nativas de
 HEAD confirman que los 62 pesos de etnias ya son explícitos y coinciden con
-esa referencia. Quedan **2.862 propiedades `sort_weight` ausentes**:
+esa referencia. Se identificaron **2.862 propiedades `sort_weight` ausentes**:
 
 | Fuente | Respuestas | Miembros de conjuntos |
 | --- | ---: | ---: |
@@ -91,25 +92,56 @@ Se comprobaron UUID, tipo y extremos contra el baseline y content
 `0b9dd4fd6aeb07f8329cc79c925d71186ff137fc`; no contiene sustituciones de
 identidad ni otros cambios clínicos. Cada entrada identifica la versión
 nativa esperada y propone exclusivamente el peso, mediante el API existente
-de mappings. **No se aplicó ni se publicaron versiones.**
+de mappings.
 
-Antes de aplicar, el responsable de terminología debe revisar esa propuesta;
-releer cada registro y detenerse ante cualquier cambio de versión, identidad,
-extremos, retiro o peso. Conservar la evidencia anterior y posterior y
-contrastar los exports oficiales completos. Los pesos por defecto compatibles
-no necesitan materializarse. La aplicación en la fuente, publicación OCL y
-adopción por content/distro requieren decisiones separadas. Las diferencias
-históricas de QLTY descritas en #269 requieren una revisión propia antes de
-promover el catálogo; esta comparación no autoriza sobrescribirlas.
+**Aplicación autorizada y verificada:** el usuario aprobó esa propuesta concreta
+y se aplicaron los 2.862 pesos mediante PUT nativo. Cada escritura comprobó
+previamente versión, identidad, extremos, retiro y peso; la lectura posterior
+verificó el resultado y la conservación de los demás campos estables. El
+manifiesto de finalización tiene SHA-256
+`1b8dfaa9483fffc9f514c371ba6af7d91fea95929b5989ba8d0886f9b876a323`:
+2.862 registros verificados, cero errores. El operador conserva privadamente
+las lecturas anteriores y posteriores y una copia local comprobada de los
+journals; no contienen pacientes ni credenciales.
+
+Los seis exports oficiales de HEAD conservan **4.741 conceptos y 6.807 mappings**.
+La comparación completa reutiliza el comparador de catálogos de terminology:
+coinciden con content publicado, incorporando exclusivamente esos pesos y el
+cambio decimal de `sihsalus:382` ya preparado. La configuración de las fuentes
+coincide mediante GET de SourceDetail; el export HEAD omite las opciones de
+generación de IDs y no permite verificarlas por sí solo.
+
+| Fuente | SHA-256 del export HEAD verificado |
+| --- | --- |
+| educacion | `e58e41d632678d1218933d65c826e5e95aa0004c34c42a349093ba8358a1aa4e` |
+| estado-civil | `71b109ae842b4b0d9939bf2b882c9381e8adad9588dae45554145b8a8f9c7460` |
+| laboratorio | `db65ea05784aae88f2b9089437d6921484bf0e0e5fd155ad3c89dcfdf62c5a9a` |
+| religiones | `a3b1b766ee7ccb3b2ff4c461ba02b0c86df3cfd26bd378b660935a8c3f2739e7` |
+| seguros | `82035160f1230585e7e31c0d046f760ac95ae9136f7aa1f870f97be304b4ef5a` |
+| sihsalus | `c038346003fb9f096e99c3a949285babe13641ba97be2f1a17f34c93a7c714d7` |
+
+**Publicación pendiente:** la propuesta `ocl-publication-proposal-20261022.json`,
+SHA-256 `e1502074c599a65901b36db2a8cbe462c8d08373adb3f3d3b5ec3a432a60c31f`,
+propone crear seis versiones `2026-10-22-01` y publicar el snapshot existente
+`anatomia-procedimientos/2026-10-16-1`. Este último conserva sus 121 conceptos,
+266 mappings y configuración, sin cambios clínicos. La propuesta exige comprobar
+los exports congelados y la configuración antes de marcar cada versión como
+publicada; aún requiere revisión y aprobación humana del responsable del dominio.
+
+La aplicación en HEAD no actualizó el paquete ni publicó versiones. Los pesos
+por defecto compatibles se conservaron. La publicación OCL y adopción por
+content/distro requieren decisiones separadas. Las diferencias históricas de
+QLTY descritas en #269 requieren una revisión propia antes de promover el
+catálogo; esta comparación no autoriza sobrescribirlas.
 
 Para cerrar el pendiente:
 
-1. Resolver la pérdida de pesos con el responsable de terminología. Contrastar
-   por UUID la propuesta con la línea publicada y con los ambientes soportados.
+1. Revisar y aprobar la propuesta de publicación con el responsable de terminología.
 2. Publicar versiones oficiales y descargar sus exports; actualizar juntos los
    ZIP y la suscripción, preservando las identidades y exclusiones históricas.
 3. Pasar instalación nueva, actualización desde una versión publicada y reinicio:
    conservar pesos, observaciones y checksums, y guardar/reabrir `30.1 cm`.
+   Contrastar el estado real de QLTY y resolver sus divergencias antes de promover.
 4. Verificar acceso autenticado al servidor institucional y aceptación clínica
    antes de desplegar. El secret de CI no cambia `OMRS_OCL_TOKEN` del backend.
 
