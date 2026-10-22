@@ -61,6 +61,47 @@ La corrección de talla al nacer (#391) está preparada en el concepto
 El catálogo operativo aún mantiene `allow_decimal: false`; no anunciar esa
 corrección como disponible ni redondear mediciones para eludirla.
 
+### Revisión de la fuente institucional: 22 de octubre
+
+La descarga autenticada del candidato `sihsalus/2026-10-16-1` sigue teniendo
+la huella indicada arriba y `released: false`. QLTY todavía devuelve
+`allowDecimal: false` para talla al nacer; el paso `0.1` del formulario no
+cambia esa restricción del concepto. #391 continúa pendiente.
+
+Se recuperó el [artefacto de orden del baseline publicado](https://github.com/sihsalus/sihsalus-content/actions/runs/38976229948/artifacts/12079867361)
+y se contrastó su descarga con el digest de GitHub:
+`a7d018dc762b99b294fa82c412cfccf721be56c8a78c5caa22d0ff72a625b9c2`.
+Contiene 17.404 relaciones de `1.25.34`, sin pacientes. Las lecturas nativas de
+HEAD confirman que los 62 pesos de etnias ya son explícitos y coinciden con
+esa referencia. Quedan **2.862 propiedades `sort_weight` ausentes**:
+
+| Fuente | Respuestas | Miembros de conjuntos |
+| --- | ---: | ---: |
+| sihsalus | 2.451 | 2 |
+| laboratorio | 358 | 0 |
+| educacion | 13 | 0 |
+| seguros | 19 | 0 |
+| religiones | 12 | 0 |
+| estado-civil | 7 | 0 |
+
+La propuesta offline `ocl-order-native-proposal-20261022.json`, retenida por
+el operador, tiene SHA-256
+`effc7b31b91e571ea0444f7a15fe5ab0db1d6efcf084572c9b66bf4230a16416`.
+Se comprobaron UUID, tipo y extremos contra el baseline y content
+`0b9dd4fd6aeb07f8329cc79c925d71186ff137fc`; no contiene sustituciones de
+identidad ni otros cambios clínicos. Cada entrada identifica la versión
+nativa esperada y propone exclusivamente el peso, mediante el API existente
+de mappings. **No se aplicó ni se publicaron versiones.**
+
+Antes de aplicar, el responsable de terminología debe revisar esa propuesta;
+releer cada registro y detenerse ante cualquier cambio de versión, identidad,
+extremos, retiro o peso. Conservar la evidencia anterior y posterior y
+contrastar los exports oficiales completos. Los pesos por defecto compatibles
+no necesitan materializarse. La aplicación en la fuente, publicación OCL y
+adopción por content/distro requieren decisiones separadas. Las diferencias
+históricas de QLTY descritas en #269 requieren una revisión propia antes de
+promover el catálogo; esta comparación no autoriza sobrescribirlas.
+
 Para cerrar el pendiente:
 
 1. Resolver la pérdida de pesos con el responsable de terminología. Contrastar
