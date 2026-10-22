@@ -7,7 +7,7 @@ It runs only on disposable GitHub-hosted runners with synthetic data.
 ## Run
 
 [admission-initializer.yml](../../workflows/admission-initializer.yml) runs all
-five scenarios. A manual dispatch can select one scenario for diagnosis.
+six scenarios. A manual dispatch can select one scenario for diagnosis.
 
 ```sh
 python3 -B .github/integration/admission-initializer/test_harness.py
@@ -24,8 +24,9 @@ Do not spoof runner variables to run it on a persistent machine.
 | `operational` | Content 1.25.15 with the recognized 55-permission admission alias and supplement; preserve assignments during reconciliation. |
 | `ocl-fresh` | Current pinned runtime with empty database; catalog, numeric metadata, observations and restart. |
 | `ocl-upgrade` | Published content 1.25.34 on the current pinned runtime; preserve catalog identities, relationships, ordering, observations and checksums through upgrade/restart. |
+| `ocl-latest-upgrade` | Published content 1.25.41 on the same pinned runtime; preserve existing vitamin A and MINSA references, unchanged-file checksums and every catalog row through upgrade/restart. |
 
-All five must pass on the candidate commit. Matrix failures do not cancel the
+All six must pass on the candidate commit. Matrix failures do not cancel the
 other scenarios. These checks do not replace clinical acceptance or DEV/QLTY
 smoke tests listed in the [follow-up audit](../../../docs/audits/2026-10-19-normative-alignment-followup.md).
 
@@ -93,14 +94,23 @@ references must survive restart.
 
 ### Current-runtime catalog compatibility
 
-The catalog preserves the OCL Cloud loading namespace and 32 unchanged exports
-from content 1.25.34. Only etnias advances to the institutional published version
-`2026-10-21-01`; its 62 answer weights were recorded in OCL after comparison by
-UUID with DEV/QLTY. The complete institutional transition was withdrawn after its upgrade
-changed 2,922 answer weights and two set-member weights; see the
+The candidate uses the institutional loading namespace and 34 official published
+exports from all 18 sources. Six releases `2026-10-22-01` explicitly restore the
+2,862 weights absent from the first institutional import. Etnias keeps
+`2026-10-21-01` and its 62 explicit weights; anatomy uses the published snapshot
+`2026-10-16-1` without clinical changes. See the
 [transition audit](../../../docs/audits/2026-10-16-ocl-institutional-transition.md).
 
-Both catalog scenarios verify all 18 sources and their native OCL import items.
+All three catalog scenarios verify all 18 sources and their native OCL import items.
+The 1.25.41 scenario overlays its exact pinned configuration on the same runtime;
+it preserves the existing vitamin A concept and MINSA reference rows without
+allowing those insertions again. Initializer's
+[`BaseFileLoader`](https://github.com/sihsalus/openmrs-module-initializer/blob/806aec0a11fbb6b582629ecb2c89992e2e46107e/api/src/main/java/org/openmrs/module/initializer/api/loaders/BaseFileLoader.java)
+skips byte-identical files. Therefore etnias' unchanged 1.25.41 ZIPs retain their
+successful native item URLs under the old host. Expected URLs derive from the
+exact baseline files and subscription; a changed file still requires the new
+namespace, exact UUID/version and successful state. No checksum reset or forced
+reload is used.
 Upgrade compares every concept identity, set/answer relationship including
 `sort_weight`, reference map, term and source. The only expected new concept is
 the native vitamin A dose UUID `9c0b51ef-0d4c-49a3-bdbb-2ee7083fe778`:
@@ -111,10 +121,13 @@ etnia name identities and native searches by code/synonym, including unknown
 codes; restart repeats the checks. No other graph change is accepted. See the
 [etnia contract](../../../docs/contracts/etnias-minsa.md).
 
-Birth length retains the published integer-only metadata and `cm` unit;
-decimal support remains pending. Synthetic observations of 30 and 31 cm must
-persist. Restart compares the complete catalog, observations, journal and
-checksums, including the newly inserted vitamin A concept.
+Birth length changes only `allow_decimal:false` to `true`, preserving its Numeric
+UUID, internal identity and `cm` unit. Upgrade first creates a historical 30 cm
+observation on the published baseline, then saves 30.1 cm through native REST
+after loading the candidate. Fresh installation also saves both observations.
+Restart compares the complete catalog, observations, journal and checksums,
+including the newly inserted vitamin A concept. A graph, weight, old observation
+or historical checksum difference still fails the run.
 
 ## Resources and diagnostics
 

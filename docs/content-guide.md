@@ -301,17 +301,19 @@ pide volver a «Sí» para corregirlo o borrarlo. No se eliminan observaciones p
 ocultación ni se sustituye una respuesta ausente por cero. La regla se aplica
 también al editar; no modifica registros históricos automáticamente.
 
-**Talla al nacer (#391): pendiente.** El paquete conserva el catálogo publicado
-con `allow_decimal: false`, UUID `bf82beb1-d3b8-400e-8160-90869cad8136` y unidad
-`cm`. El formulario mantiene su paso de `0.1`; no redondear mediciones para
-sortear la restricción de la metadata.
+**Talla al nacer (#391): candidata 1.25.42.** El export publicado institucional
+`sihsalus/2026-10-22-01` declara `allow_decimal:true`, conservando el UUID
+`bf82beb1-d3b8-400e-8160-90869cad8136`, datatype Numeric y unidad `cm`.
+El formulario conserva su paso de `0.1`; la habilitación corresponde al concepto.
 
 La [transición institucional](audits/2026-10-16-ocl-institutional-transition.md)
-y el borrador que permite decimales se retiraron del paquete operativo: la
-actualización alteraba el orden de respuestas y conjuntos. Antes de reintroducirlos,
-corregir la fuente oficial, publicar sus versiones y demostrar conservación del
-catálogo y persistencia de `30.1 cm` en instalación nueva, actualización y reinicio.
-La credencial institucional y el acceso remoto se verifican al adoptar ese servidor.
+restaura en OCL los pesos ausentes y coordina los 34 exports con la suscripción.
+Los ensayos de instalación nueva, actualización y reinicio deben preservar
+identidades, orden e historia y comprobar la persistencia de `30.1 cm`.
+La publicación OCL no cambia DEV/QLTY: ambos seguían devolviendo
+`allowDecimal:false` después de adoptar content 1.25.41. El cierre requiere
+aprobar la candidata, coordinar credenciales y despliegue, y guardar/reabrir la
+medición en el flujo del frontend con una cuenta autorizada.
 
 `CRED-001` `1.2.1` conserva la hemoglobina medida y la clasificación confirmada
 por el profesional; incluye 500 m en la advertencia de ajuste por altitud y

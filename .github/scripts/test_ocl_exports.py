@@ -51,6 +51,27 @@ class PublishedOclExportTest(unittest.TestCase):
         VALIDATOR.validate_neighborhood_terminology(self.exports, concepts, errors)
         self.assertTrue(any("must not bundle neighborhood UUIDs" in error for error in errors))
 
+    def test_birth_length_preserves_identity_and_requires_decimal_centimeters(self):
+        original = next(c for c in self.exports[VALIDATOR.EXPECTED_SIHSALUS_CONCEPTS_EXPORT]["concepts"]
+                        if c["id"] == "382")
+        errors = []
+        VALIDATOR.validate_birth_length([(Path("native.zip"), "sihsalus", original)], errors)
+        self.assertEqual(errors, [])
+        for field, value in (("external_id", "different-uuid"), ("datatype", "Text"),
+                             ("retired", True), ("extras", {"units": "cm", "allow_decimal": False}),
+                             ("extras", {"units": "mm", "allow_decimal": True}),
+                             ("extras", {"units": "cm"})):
+            with self.subTest(field=field, value=value):
+                invalid = copy.deepcopy(original)
+                invalid[field] = value
+                errors = []
+                VALIDATOR.validate_birth_length([(Path("native.zip"), "sihsalus", invalid)], errors)
+                self.assertTrue(errors)
+        for records in ([], [(Path("native.zip"), "other", original)] * 2):
+            errors = []
+            VALIDATOR.validate_birth_length(records, errors)
+            self.assertTrue(errors)
+
     def test_etnias_release_preserves_internal_identity_and_resolves_official_codes(self):
         errors = []
         VALIDATOR.validate_split_export(self.exports, errors, "etnias", VALIDATOR.ETNIAS_CONCEPTS_EXPORT,

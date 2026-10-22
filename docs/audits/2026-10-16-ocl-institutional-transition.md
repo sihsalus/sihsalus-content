@@ -1,15 +1,17 @@
 # Transición institucional de OCL y talla al nacer
 
-**Estado tras la corrección de CI 1.25.40: pendiente y fuera del paquete
-operativo.** La propuesta de #269 se integró con la corrección de formularios,
-pero su actualización nativa alteraba el orden del catálogo. Se recuperan los
-34 ZIP publicados de content `1.25.34` y su namespace OCL Cloud, conservando
-las correcciones de formularios de #389/#390 y los cambios posteriores.
+**Estado: versiones OCL publicadas y verificadas; content 1.25.42 candidata,
+sin desplegar.** La primera transición de #269 alteraba el orden al importar y
+se retiró de la configuración en 1.25.40, conservando las correcciones de
+formularios. Content 1.25.41 incorporó únicamente las equivalencias MINSA y
+los pesos explícitos de etnias; sigue siendo la versión observada en DEV/QLTY.
 
-La candidata `1.25.41` actualiza únicamente etnias a `2026-10-21-01`, con pesos
-explícitos contrastados por UUID en DEV/QLTY. Conserva las otras 32 exportaciones
-y el namespace existente; no completa esta transición. Ver el
-[contrato de etnias](../contracts/etnias-minsa.md).
+La candidata 1.25.42 actualiza conjuntamente la suscripción y los 34 exports
+de las 18 fuentes al servidor institucional. Conserva los 32.551 conceptos y
+20.610 mappings de 1.25.41, las exclusiones históricas y los UUID. Reutiliza las
+versiones oficiales publicadas después de corregir los 2.862 pesos ausentes;
+la única modificación clínica adicional es habilitar decimales en talla al nacer.
+La [integración de etnias](../contracts/etnias-minsa.md) conserva su release.
 
 ## Fallo verificado
 
@@ -26,7 +28,7 @@ orden persistido. Reordenar los arrays del ZIP tampoco resuelve el problema.
 La corrección debe hacerse en la fuente o importador responsable, sin SQL de
 reparación ni un segundo loader en content.
 
-## Paquete operativo
+## Referencia histórica de compatibilidad
 
 La referencia es el artefacto publicado `1.25.34`, commit
 `b9e93638fd7ed9c8dffe8b48f2be868f3d9b1a10`, cuyo ZIP tiene SHA-256
@@ -34,21 +36,23 @@ La referencia es el artefacto publicado `1.25.34`, commit
 Se mantienen los 32.551 conceptos y 20.552 mappings de sus 18 fuentes, las
 exclusiones históricas de barrios y los checksums originales.
 
-La suscripción conserva el namespace de carga:
+El baseline publicado utiliza el namespace de carga:
 `https://api.openconceptlab.org/orgs/SIHSALUS/sources/sihsalus/2026-07-16-02`.
-Los ZIP se importan localmente mediante Initializer. La migración al servidor
-institucional no está habilitada y no se modificaron credenciales de ambientes.
+Los ZIP se importan localmente mediante Initializer. La candidata cambia el
+namespace conjuntamente con sus exports; no modifica credenciales de ambientes.
 
-Los cinco escenarios de CI permanecen activos. `ocl-fresh` y `ocl-upgrade`
+Los seis escenarios de CI permanecen activos. `ocl-fresh`, `ocl-upgrade` y
+`ocl-latest-upgrade`
 comprueban el catálogo operativo sobre el runtime actual fijado, incluyendo
 identidades, pesos, observaciones previas, historia y reinicio. El artefacto
 temporal de extracción de pesos ya cumplió su función diagnóstica y se retiró;
 las comparaciones completas siguen en el ensayo.
 
-## Propuesta que debe retomarse
+## Antecedente de la corrección decimal
 
 La API institucional es `https://api.gidis-terminology.duckdns.org`. Se prepararon
-estos snapshots con `released: false`; permanecen fuera de `configuration/`:
+estos snapshots con `released: false`; las huellas de esta tabla corresponden
+a sus descargas anteriores a la publicación:
 
 | Fuente | Candidato | SHA-256 del export oficial combinado descargado |
 | --- | --- | --- |
@@ -58,8 +62,10 @@ estos snapshots con `released: false`; permanecen fuera de `configuration/`:
 La corrección de talla al nacer (#391) está preparada en el concepto
 `SIHSALUS/sihsalus:382`, UUID `bf82beb1-d3b8-400e-8160-90869cad8136`:
 `allow_decimal: true`, conservando datatype Numeric, unidad cm e identidad.
-El catálogo operativo aún mantiene `allow_decimal: false`; no anunciar esa
-corrección como disponible ni redondear mediciones para eludirla.
+DEV y QLTY devolvían `allowDecimal:false` incluso después de adoptar content
+1.25.41 el 22 de octubre; no anunciar la corrección como disponible ni redondear
+mediciones para eludirla. La candidata consume `sihsalus/2026-10-22-01`; el
+snapshot de sihsalus del 16 de octubre permanece sin publicar y no se distribuye.
 
 ### Revisión de la fuente institucional: 22 de octubre
 
@@ -120,30 +126,70 @@ generación de IDs y no permite verificarlas por sí solo.
 | seguros | `82035160f1230585e7e31c0d046f760ac95ae9136f7aa1f870f97be304b4ef5a` |
 | sihsalus | `c038346003fb9f096e99c3a949285babe13641ba97be2f1a17f34c93a7c714d7` |
 
-**Publicación pendiente:** la propuesta `ocl-publication-proposal-20261022.json`,
-SHA-256 `e1502074c599a65901b36db2a8cbe462c8d08373adb3f3d3b5ec3a432a60c31f`,
-propone crear seis versiones `2026-10-22-01` y publicar el snapshot existente
-`anatomia-procedimientos/2026-10-16-1`. Este último conserva sus 121 conceptos,
-266 mappings y configuración, sin cambios clínicos. La propuesta exige comprobar
-los exports congelados y la configuración antes de marcar cada versión como
-publicada; aún requiere revisión y aprobación humana del responsable del dominio.
+**Publicación autorizada y verificada:** el usuario aprobó la propuesta
+`ocl-publication-proposal-20261022.json`, SHA-256
+`e1502074c599a65901b36db2a8cbe462c8d08373adb3f3d3b5ec3a432a60c31f`.
+Se crearon secuencialmente seis versiones `2026-10-22-01` y se publicó el
+snapshot existente `anatomia-procedimientos/2026-10-16-1`, sin modificar sus
+121 conceptos ni 266 mappings. Antes de publicar cada versión se comparó el
+export congelado completo y la configuración con la propuesta; después se
+volvió a descargar su export oficial con `released:true` y se repitió la comparación.
 
-La aplicación en HEAD no actualizó el paquete ni publicó versiones. Los pesos
-por defecto compatibles se conservaron. La publicación OCL y adopción por
-content/distro requieren decisiones separadas. Las diferencias históricas de
-QLTY descritas en #269 requieren una revisión propia antes de promover el
-catálogo; esta comparación no autoriza sobrescribirlas.
+El manifiesto de finalización tiene SHA-256
+`27a09723f08bd4b1dde564498efb94b5d9fda6f3f8bfe5b8b1423c1217c05d34`:
+siete versiones, 4.862 conceptos y 7.073 mappings verificados. Los journals
+privados preservan intención, respuesta, identidad y huellas por operación.
 
-Para cerrar el pendiente:
+| Fuente | Versión publicada | SHA-256 del export oficial publicado |
+| --- | --- | --- |
+| educacion | `2026-10-22-01` | `6b3c6b2303afc12ba448907fe6d01f8425f03839666dddc004a0f62e0e175376` |
+| estado-civil | `2026-10-22-01` | `8120c3a10302ce54d7258c3852442be1eab027c6ce134149ab358441884c51ec` |
+| laboratorio | `2026-10-22-01` | `e2d213a0c8851c113cff26f925f7258cda3bdb404f9e3a9acd3415ce9fda13d2` |
+| religiones | `2026-10-22-01` | `c2a12142f927cafde5ac167b9b6249b47b456ecad4236e06b25af509369da2ca` |
+| seguros | `2026-10-22-01` | `11bb4c5b9d503d2b000d4fad61a37ab74fd235d43aa9b9b8d866478777f41e67` |
+| sihsalus | `2026-10-22-01` | `229e14daad838ff81dbe53ca5a08ec85483b86d4fd2e5a0c83baee20cb86bb64` |
+| anatomia-procedimientos | `2026-10-16-1` | `8a382a84acb7b5f86fcc6589c9c9041f5d16cae9de56eb01a402e673b29767ee` |
 
-1. Revisar y aprobar la propuesta de publicación con el responsable de terminología.
-2. Publicar versiones oficiales y descargar sus exports; actualizar juntos los
-   ZIP y la suscripción, preservando las identidades y exclusiones históricas.
-3. Pasar instalación nueva, actualización desde una versión publicada y reinicio:
-   conservar pesos, observaciones y checksums, y guardar/reabrir `30.1 cm`.
-   Contrastar el estado real de QLTY y resolver sus divergencias antes de promover.
-4. Verificar acceso autenticado al servidor institucional y aceptación clínica
-   antes de desplegar. El secret de CI no cambia `OMRS_OCL_TOKEN` del backend.
+Para preparar content se descargaron también los otros once exports publicados.
+La comparación de las 18 fuentes con 1.25.41, mediante el reconciliador existente,
+conserva todos los registros y la configuración, salvo los pesos autorizados y
+`allow_decimal:true` de talla al nacer. El splitter existente produce los 34 ZIP;
+no se modifica manualmente el estado de publicación ni se incorporan exports HEAD.
+En la ruta desde 1.25.41, los dos ZIP de etnias tienen bytes idénticos y el loader
+los omite por su checksum. Sus items nativos ya cargados conservan el namespace
+anterior; el ensayo deriva esa expectativa de los archivos y la suscripción del
+baseline, conservando UUID, versión y estado de importación. Cada archivo que
+cambia debe cargar con el namespace nuevo. No se fuerza la recarga ni se altera
+el catálogo para provocar un checksum distinto.
+
+La suscripción candidata es
+`https://api.gidis-terminology.duckdns.org/orgs/SIHSALUS/sources/sihsalus/2026-10-22-01`.
+
+### Pendientes y flujos de aceptación
+
+1. Ejecutar CI del SHA final de content 1.25.42. Los escenarios de instalación,
+   actualización desde 1.25.34/1.25.41 y reinicio deben conservar el catálogo completo,
+   pesos, UUID, observaciones previas e historia/checksums; guardar 30.1 cm por
+   REST y recuperarlo sin redondeo tras reiniciar.
+2. Revisar la divergencia histórica de QLTY descrita en #269 antes de promover.
+   La comparación canónica no autoriza sobrescribir su estado persistido.
+3. Obtener revisión humana de la candidata y aprobación de su publicación.
+   Actualizar después el pin del distro y coordinar el artefacto y ambiente de
+   despliegue, la credencial institucional y el acceso remoto. El secret de CI
+   no cambia `OMRS_OCL_TOKEN` del backend. Publicación OCL, paquete y despliegue
+   son decisiones separadas.
+4. En CRED, con cuenta autorizada y paciente sintético propio: abrir Detalles de
+   Nacimiento, guardar 30.1 cm, recargar y editar para verificar el valor, el UUID
+   y la observación histórica; rechazar texto inválido y limpiar/verificar los
+   recursos creados. La aceptación clínica y el cierre de #391 siguen pendientes.
+5. Etnias (#400): buscar `2`/`Aimara` y `Aguaruna`/`Awajun`, seleccionar, guardar
+   y reabrir comprobando el UUID; verificar valor histórico, código desconocido
+   y etnias sin equivalencia. `Aymara` no es un sinónimo publicado en esta release.
+6. Permisos (#387/#402): tras una prueba positiva y negativa con una réplica
+   sintética del perfil aprobado, `cred` se modificó nuevamente el 22/10 a las
+   22:34 UTC. El usuario indicó conservar el acceso actual mientras se coordina.
+   Ambos issues permanecen reabiertos; no restaurar roles automáticamente ni
+   atribuir la validación anterior al perfil reducido posterior.
 
 Responsables: terminología para el catálogo, módulo OCL para su importación,
 distro para el runtime y responsable clínico para la aceptación de #391.

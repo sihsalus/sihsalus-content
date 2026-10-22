@@ -147,6 +147,32 @@ class HarnessContracts(unittest.TestCase):
                 with self.subTest(rows=rows), self.assertRaises(HarnessFailure):
                     self.runtime.check_ocl_namespace("owned", "upgrade")
 
+    def test_unchanged_exports_preserve_cached_namespace_but_changed_files_require_new_items(self):
+        baseline = self.root / "baseline"
+        (baseline / "ocl").mkdir(parents=True)
+        (baseline / "globalproperties").mkdir()
+        (baseline / "globalproperties/globalproperties-sihsalus.xml").write_text(
+            '<config><globalProperty><property>openconceptlab.subscriptionUrl</property>'
+            '<value>https://api.openconceptlab.org/orgs/SIHSALUS/sources/sihsalus/2026-07-16-02</value>'
+            '</globalProperty></config>')
+        configuration = harness.ROOT / "configuration"
+        for path in (configuration / "ocl").glob("*_SIHSALUS_etnias_*.zip"):
+            (baseline / "ocl" / path.name).write_bytes(path.read_bytes())
+        items, sources = harness.Harness.ocl_item_contract(configuration, baseline)
+        historical = [(kind, url) for kind, url in items if urlsplit(url).netloc == "api.openconceptlab.org"]
+        self.assertEqual(len(items), 32551 + 20610)
+        self.assertEqual(len(sources), 18)
+        self.assertEqual(len(historical), 62 + 122)
+        self.assertTrue(all("/sources/etnias/" in url for _, url in historical))
+        concepts = next((baseline / "ocl").glob("*_concepts_*.zip"))
+        concepts.write_bytes(concepts.read_bytes() + b"different file checksum")
+        changed, _ = harness.Harness.ocl_item_contract(configuration, baseline)
+        historical = [(kind, url) for kind, url in changed if urlsplit(url).netloc == "api.openconceptlab.org"]
+        self.assertEqual(len(historical), 122)
+        self.assertTrue(all(kind == "MAPPING" for kind, _ in historical))
+        fresh, _ = harness.Harness.ocl_item_contract(configuration)
+        self.assertTrue(all(urlsplit(url).netloc == urlsplit(guards.OCL_API_URL).netloc for _, url in fresh))
+
     def test_ocl_upgrade_keeps_prior_checksum_files_and_only_updates_changed_content(self):
         self.runtime.baseline_config, self.runtime.candidate_config = self.root / "old", self.root / "new"
         for directory in (self.runtime.baseline_config, self.runtime.candidate_config):
@@ -304,12 +330,19 @@ class HarnessContracts(unittest.TestCase):
         sequence.attach_mock(runtime.start_backend, "start")
         with patch.object(harness, "emit"):
             runtime.ocl_transition_run(upgrade=True)
+        self.assertEqual(runtime.check_birth_length.call_args_list,
+                         [unittest.mock.call("baseline", "owned-db", decimal=False),
+                          unittest.mock.call("upgrade", "owned-db", decimal=True),
+                          unittest.mock.call("restart", "owned-db", decimal=True)])
+        self.assertEqual([call.args[-1] for call in runtime.create_birth_length_observation.call_args_list],
+                         [30, 30.1])
         self.assertEqual([call[0] for call in sequence.mock_calls], ["start", "request", "start", "start"])
         for call in runtime.start_backend.call_args_list[1:]:
             self.assertEqual(call.kwargs, {"data_volume": "owned-volume"})
         runtime.check_retained_checksums.assert_called_once()
         self.assertEqual(runtime.check_vitamin_a_measurement.call_args_list,
                          [unittest.mock.call("owned-db"), unittest.mock.call("owned-db")])
+
         for method, changed, reason in (
                 ("terminology_identity_snapshot", changed_identities, "identities_or_cross_references"),
                 ("history", ["altered journal checksum"], "liquibase_history"),
@@ -335,16 +368,31 @@ class HarnessContracts(unittest.TestCase):
             runtime.ocl_transition_run(upgrade=True)
         self.assertEqual(emit.call_args_list[0].args, ("birth_length", "PASSED"))
         self.assertEqual(emit.call_args_list[0].kwargs,
-                         {"phase": "upgrade", "concept_id_preserved": True, "allow_decimal": False})
+                         {"phase": "upgrade", "concept_id_preserved": True, "allow_decimal": True})
         self.assertEqual(emit.call_args_list[1].args, ("terminology_snapshot", "FAILED"))
 
         runtime.check_vitamin_a_measurement.reset_mock()
+        runtime.check_birth_length.reset_mock()
         runtime.start_backend.side_effect = [("fresh", "owned-volume"), ("restart", "owned-volume")]
         runtime.terminology_identity_snapshot.side_effect = None
         with patch.object(harness, "emit"):
             runtime.ocl_transition_run(upgrade=False)
+        self.assertEqual(runtime.check_birth_length.call_args_list,
+                         [unittest.mock.call("fresh", "owned-db", decimal=True),
+                          unittest.mock.call("restart", "owned-db", decimal=True)])
         self.assertEqual(runtime.check_vitamin_a_measurement.call_args_list,
                          [unittest.mock.call("owned-db"), unittest.mock.call("owned-db")])
+
+        runtime.ocl_baseline_version = guards.OCL_LATEST_BASELINE_VERSION
+        runtime.start_backend.side_effect = [("baseline", "owned-volume"), ("upgrade", "owned-volume"),
+                                             ("restart", "owned-volume")]
+        runtime.terminology_identity_snapshot.side_effect = [identities] * 4
+        runtime.expected_vitamin_a_insertion = Mock(side_effect=AssertionError("existing concept must be preserved"))
+        runtime.expected_etnias_insertions = Mock(side_effect=AssertionError("existing references must be preserved"))
+        with patch.object(harness, "emit"):
+            runtime.ocl_transition_run(upgrade=True)
+        runtime.expected_vitamin_a_insertion.assert_not_called()
+        runtime.expected_etnias_insertions.assert_not_called()
 
     def test_terminology_drift_reports_only_fixed_columns_and_counts_without_accepting_changes(self):
         before = {key: () for key in harness.TERMINOLOGY_TABLES}

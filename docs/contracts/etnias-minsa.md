@@ -1,6 +1,6 @@
 # Etnias y códigos HIS MINSA
 
-Content candidata `1.25.41` incorpora la versión publicada
+Content `1.25.41` incorporó la versión publicada
 `SIHSALUS/etnias/2026-10-21-01` del OCL institucional. Seguimiento:
 [sihsalus/sihsalus#400](https://github.com/sihsalus/sihsalus/issues/400).
 La [documentación de terminología](https://github.com/sihsalus/sihsalus-terminology/pull/13)
@@ -25,11 +25,12 @@ existente `split_ocl_export.py`. Las equivalencias crean términos de referencia
 y mappings nativos de OpenMRS. Los 60 conceptos de la referencia MINSA no se
 añaden como otros conceptos clínicos ni como nuevas respuestas.
 
-Las otras 32 exportaciones y la suscripción remota conservan sus bytes y pins.
-El loader completa las URLs relativas con el namespace OCL Cloud configurado;
-la procedencia de esta nueva versión es el servidor institucional. La
+Content candidata `1.25.42` conserva los dos ZIP de etnias y actualiza las otras
+32 exportaciones y la suscripción al servidor institucional. El loader completa
+las URLs relativas con el namespace configurado. La
 [transición completa de host](../audits/2026-10-16-ocl-institutional-transition.md)
-sigue pendiente y requiere comprobar el orden de todos los catálogos.
+requiere CI de la candidata y comprobar el orden de todos los catálogos antes
+de aprobar su adopción.
 
 ## Fuente y artefactos
 
@@ -70,7 +71,11 @@ y los flujos del frontend siguen pendientes: buscar y seleccionar por código y
 sinónimo, guardar/reabrir una selección previa y presentar códigos desconocidos
 o sin equivalencia. Andino, Afro Descendiente e Indígena Amazónico no tienen
 mapping; Ashaninka y Otro aún requieren decidir su incorporación clínica.
-DEV/QLTY conservan content `1.25.40` hasta un despliegue aprobado.
+Las lecturas autenticadas posteriores a content 1.25.41 en DEV/QLTY confirmaron
+62 respuestas, 58 códigos activos, cuatro sin equivalencia y ninguna ambigua.
+El código `2` corresponde a Aimara; `Aguaruna` es un sinónimo activo de Awajun.
+`Aymara` no está publicado como sinónimo. La validación del selector y su
+persistencia no queda acreditada por estas lecturas de metadata.
 
 La versión OCL `2026-06-30` y los artefactos publicados anteriores permanecen
 disponibles. Retirar la candidata antes de desplegar no requiere modificar datos.

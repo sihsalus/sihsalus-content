@@ -5,11 +5,11 @@ on:
   workflow_dispatch:
     inputs:
       scenario:
-        description: Scenario to diagnose; PR checks always run all five
+        description: Scenario to diagnose; PR checks always run all six
         type: choice
         required: true
         default: all
-        options: [all, upgrade, fresh, operational, ocl-fresh, ocl-upgrade]
+        options: [all, upgrade, fresh, operational, ocl-fresh, ocl-upgrade, ocl-latest-upgrade]
 
 permissions:
   contents: read
@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scenario: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.scenario && inputs.scenario != 'all' && format('["{0}"]', inputs.scenario) || '["upgrade","fresh","operational","ocl-fresh","ocl-upgrade"]') }}
+        scenario: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.scenario && inputs.scenario != 'all' && format('["{0}"]', inputs.scenario) || '["upgrade","fresh","operational","ocl-fresh","ocl-upgrade","ocl-latest-upgrade"]') }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -32,7 +32,8 @@ jobs:
           git fetch --no-tags --depth=1 origin \
             8000b27f48bf124fe9a553d4ba41c678e9acc231 \
             762920145a806f989fd8876ab2938ef217f57aab \
-            b9e93638fd7ed9c8dffe8b48f2be868f3d9b1a10
+            b9e93638fd7ed9c8dffe8b48f2be868f3d9b1a10 \
+            0b9dd4fd6aeb07f8329cc79c925d71186ff137fc
       - name: Test the harness isolation and assertions without Docker
         run: python3 -B .github/integration/admission-initializer/test_harness.py
       - name: Exercise the pinned backend with exclusively synthetic data
