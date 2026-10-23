@@ -115,7 +115,7 @@ class HospitalAccessProfilesTest(unittest.TestCase):
                          contract["preservedTestProfiles"]["gestion"]["expectedPrivileges"])
 
     def test_each_maternal_child_reader_requires_native_metadata_read_access(self):
-        for reader in ("app:hoja.clinica.cred.neonatal", "app:hoja.clinica.partoPuerperio"):
+        for reader in ("app:hoja.clinica.atencionNeonatal", "app:hoja.clinica.partoPuerperio"):
             with self.subTest(reader=reader):
                 self.change_contract(lambda c: c["preservedTestProfiles"]["cred"].update(
                     expectedPrivileges=[reader]))
@@ -124,7 +124,7 @@ class HospitalAccessProfilesTest(unittest.TestCase):
 
     def test_metadata_administration_cannot_replace_native_read_dependency(self):
         self.change_contract(lambda c: c["preservedTestProfiles"]["cred"].update(
-            expectedPrivileges=["app:hoja.clinica.cred.neonatal", "Manage Metadata Mapping"]))
+            expectedPrivileges=["app:hoja.clinica.atencionNeonatal", "Manage Metadata Mapping"]))
         with self.assertRaisesRegex(ValueError, "Metadata mapping read required for cred"):
             validate(self.root)
 

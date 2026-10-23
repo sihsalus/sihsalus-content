@@ -135,7 +135,7 @@ def validate(root=ROOT):
         if set(profile["expectedPrivileges"]) & ADMIN_PRIVILEGES:
             raise ValueError("Administrative grants in preserved test profile: " + name)
         expected = set(profile["expectedPrivileges"])
-        if expected & {"app:hoja.clinica.cred.neonatal", "app:hoja.clinica.partoPuerperio"}:
+        if expected & {"app:hoja.clinica.atencionNeonatal", "app:hoja.clinica.partoPuerperio"}:
             if "View Metadata Via Mapping" not in expected:
                 raise ValueError("Metadata mapping read required for " + name)
     extensions = contract["environmentExtensions"]

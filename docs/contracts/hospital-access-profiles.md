@@ -13,7 +13,7 @@ La referencia son los permisos efectivos observados en el hospital el
 | `enfermeria.triaje` | `Provider` + `SIHSALUS Enfermero Triaje` + `SIHSALUS Login` | 66 |
 | `farmacia` | `Farmacia` + `Inventory Dispensing` + `Inventory Manager` + `Inventory Reporting` + `Provider` + `SIHSALUS Login` | 103 |
 | `laboratorio` | `Provider` + `SIHSALUS Laboratorio` + `SIHSALUS Login` | 70 |
-| `soporte` | `SIHSALUS Soporte` + `SIHSALUS Login` | 503 |
+| `soporte` | `SIHSALUS Soporte` + `SIHSALUS Login` | 489 |
 
 Los conjuntos incluyen la herencia y los permisos implícitos de `Anonymous` y
 `Authenticated`. La representación REST de `User.privileges` no incluye estos
@@ -54,7 +54,7 @@ de autorización al guardar temperatura: debe consultarse la inscripción antes
 de descartarla. No se conceden creación, edición o purga de inscripciones.
 La referencia hospitalaria tenía 69 permisos efectivos; el perfil tiene 70.
 
-Soporte es un perfil administrativo amplio: sus 503 permisos incluyen gestión
+Soporte es un perfil administrativo amplio: sus 489 permisos incluyen gestión
 de usuarios, roles, módulos, purgas y acceso clínico. Se asigna explícitamente al
 genérico `soporte`, nunca como base de admisión o de los perfiles clínicos. No
 hereda `System Developer`, `Privilege Level: Full` ni `Privilege Level: High`;
@@ -66,16 +66,23 @@ acceso clínico es una decisión de política institucional pendiente.
 ## Perfiles de pruebas y diferencias declaradas
 
 `gestion`, `obstetricia`, `cred` y `auditor` conservan sus perfiles de pruebas,
-con conjuntos base de 74, 129, 135 y 113 permisos respectivamente. No se encontró
+con conjuntos base de 74, 122, 121 y 106 permisos respectivamente. No se encontró
 una equivalencia de producción revisada para convertirlos en políticas del
 hospital. Se registran en `preservedTestProfiles` para poder detectar diferencias
 entre DEV y QLTY sin presentar esos perfiles como una política ya aprobada.
 
-La revisión del 12/10 añade únicamente `View Metadata Via Mapping` a los conjuntos
-de `obstetricia`, `cred` y `auditor`. Estos perfiles ya permiten leer neonatal
-(`app:hoja.clinica.cred.neonatal`) o parto/puerperio
-(`app:hoja.clinica.partoPuerperio`), donde el frontend consulta los vínculos
-madre–niño. EMRAPI `3.5.1-sihsalus.1` resuelve el tipo de relación mediante
+Esta revisión retira de los perfiles declarados los 14 permisos CRED obsoletos.
+Declara los cuatro reemplazos en el catálogo, pero no los concede a ningún rol
+funcional definido por content:
+la lectura y edición de Crecimiento y Desarrollo y de Atención neonatal deben
+asignarse después mediante roles aprobados. Los permisos generales de
+Inmunizaciones se conservan y siguen siendo obligatorios para esa sección dentro
+de CRED; no habilitan por sí solos las vistas CRED.
+
+La revisión del 12/10 añadió `View Metadata Via Mapping` a los conjuntos de
+`obstetricia`, `cred` y `auditor`. Se conserva porque parto/puerperio y la nueva
+vista neonatal, cuando se asigne, consultan vínculos madre–niño. EMRAPI
+`3.5.1-sihsalus.1` resuelve el tipo de relación mediante
 `getMetadataItem`; [Metadata Mapping 2.0.0 exige ese permiso de lectura](https://github.com/openmrs/openmrs-module-metadatamapping/blob/2.0.0/api/src/main/java/org/openmrs/module/metadatamapping/api/MetadataMappingService.java#L464).
 El permiso nativo permite resolver metadatos por mapping en general; no tiene
 alcance exclusivo al vínculo madre–niño. No concede `Manage Metadata Mapping`,

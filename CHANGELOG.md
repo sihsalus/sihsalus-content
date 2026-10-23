@@ -8,6 +8,12 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Reestructuración de privilegios CRED
+
+- Sustituye los 14 privilegios CRED obsoletos por lectura y edición de `Crecimiento y Desarrollo` y `Atención neonatal`.
+- Retira los privilegios anteriores de los roles y contratos existentes sin conceder los cuatro reemplazos a roles funcionales ni crear roles nuevos.
+- Mantiene Inmunizaciones como autorización independiente de la hoja clínica para las superficies de vacunación integradas en CRED.
+
 ### Equivalencias de etnias con MINSA (candidata 1.25.41)
 
 - Incorpora el export nativo publicado `etnias/2026-10-21-01`: 58 mappings MINSA y cinco sinónimos, conservando 62 conceptos y sus UUID clínicos.

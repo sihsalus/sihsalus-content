@@ -840,11 +840,25 @@ class HarnessContracts(unittest.TestCase):
                   "user_role": ["42\tOther"]}
         expected = self.runtime.expected_emrapi_refresh(before)
         self.assertEqual(expected["role_privilege"], ["Other\tKeep",
+            "Privilege Level: Full\tapp:hoja.clinica.atencionNeonatal",
+            "Privilege Level: Full\tapp:hoja.clinica.atencionNeonatal.editar",
+            "Privilege Level: Full\tapp:hoja.clinica.crecimientoDesarrollo",
+            "Privilege Level: Full\tapp:hoja.clinica.crecimientoDesarrollo.editar",
             "Privilege Level: Full\tapp:indicadores.editar",
+            "Privilege Level: High\tapp:hoja.clinica.atencionNeonatal",
+            "Privilege Level: High\tapp:hoja.clinica.atencionNeonatal.editar",
+            "Privilege Level: High\tapp:hoja.clinica.crecimientoDesarrollo",
+            "Privilege Level: High\tapp:hoja.clinica.crecimientoDesarrollo.editar",
             "Privilege Level: High\tapp:indicadores.editar"])
         self.assertEqual(expected["user_role"], before["user_role"])
         self.assertEqual(self.runtime.expected_emrapi_refresh(expected), expected)
-        self.assertEqual(harness.CURRENT_EMRAPI_ADDITIONS, frozenset({"app:indicadores.editar"}))
+        self.assertEqual(harness.CURRENT_EMRAPI_ADDITIONS, frozenset({
+            "app:hoja.clinica.atencionNeonatal",
+            "app:hoja.clinica.atencionNeonatal.editar",
+            "app:hoja.clinica.crecimientoDesarrollo",
+            "app:hoja.clinica.crecimientoDesarrollo.editar",
+            "app:indicadores.editar",
+        }))
 
     def test_state_comparison_distinguishes_missing_tables_and_ignores_row_order(self):
         self.runtime.state = Mock(return_value={"role": ["b", "a"]})

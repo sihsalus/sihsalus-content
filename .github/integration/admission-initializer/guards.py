@@ -47,7 +47,13 @@ CURRENT_ADMISSION_ADDITIONS = frozenset({"app:home.libroAtenciones"})
 # two module-owned privilege levels on the next startup, so each addition is
 # sanctioned here instead of letting the restart change the RBAC snapshot
 # unreviewed. An unsafe name would only reach "Privilege Level: Full".
-CURRENT_EMRAPI_ADDITIONS = frozenset({"app:indicadores.editar"})
+CURRENT_EMRAPI_ADDITIONS = frozenset({
+    "app:hoja.clinica.atencionNeonatal",
+    "app:hoja.clinica.atencionNeonatal.editar",
+    "app:hoja.clinica.crecimientoDesarrollo",
+    "app:hoja.clinica.crecimientoDesarrollo.editar",
+    "app:indicadores.editar",
+})
 CURRENT_CORE_ROLE_ADDITIONS = {
     "SIHSALUS Indicadores": {
         "uuid": "da21e37c-246e-4a1f-8ace-ca17b03ff4b5",
