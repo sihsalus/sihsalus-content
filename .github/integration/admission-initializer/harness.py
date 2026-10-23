@@ -28,6 +28,7 @@ from guards import (
     require, checked, validate_runner, properties, extract_archive,
     single_file_archive, assemble, validate_assembly, sql_string, admission_privileges,
     OCL_BACKEND, OCL_DISTRO_SHA, OCL_BASELINE_SHA, OCL_BASELINE_VERSION,
+    OCL_LATEST_BASELINE_SHA, OCL_LATEST_BASELINE_VERSION,
     OCL_CORE_VERSION, OCL_MODULE_VERSION, OCL_API_URL, BIRTH_LENGTH_UUID,
 )
 
@@ -100,11 +101,16 @@ class Harness:
     image_content_sha = IMAGE_CONTENT_SHA
     image_content_version = IMAGE_CONTENT_VERSION
     ocl_transition = False
+    ocl_baseline_sha = OCL_BASELINE_SHA
+    ocl_baseline_version = OCL_BASELINE_VERSION
 
     def __init__(self, env, scenario="upgrade"):
         runner_temp = validate_runner(env)
         self.scenario = scenario
-        self.ocl_transition = scenario in ("ocl-fresh", "ocl-upgrade")
+        self.ocl_transition = scenario in ("ocl-fresh", "ocl-upgrade", "ocl-latest-upgrade")
+        if scenario == "ocl-latest-upgrade":
+            self.ocl_baseline_sha = OCL_LATEST_BASELINE_SHA
+            self.ocl_baseline_version = OCL_LATEST_BASELINE_VERSION
         if self.ocl_transition:
             self.backend_image = OCL_BACKEND
             self.distro_sha = OCL_DISTRO_SHA
@@ -323,33 +329,53 @@ class Harness:
              candidate_version=self.candidate_version, backend_digest=BACKEND.split("@")[1], **receipt)
 
     def prepare_ocl_transition(self):
-        """Overlay the published 1.25.34 package, preserving the image remainder."""
-        baseline, candidate = self.directory / "source-34", self.directory / "source-candidate"
-        self.git_configuration(OCL_BASELINE_SHA, OCL_BASELINE_VERSION, baseline)
+        """Overlay a pinned published package, preserving the verified image remainder."""
+        original, baseline, candidate = [self.directory / name for name in
+                                         ("source-image", "source-baseline", "source-candidate")]
+        self.git_configuration(OCL_BASELINE_SHA, OCL_BASELINE_VERSION, original)
+        self.git_configuration(self.ocl_baseline_sha, self.ocl_baseline_version, baseline)
         self.git_configuration(self.candidate_sha, None, candidate)
-        require(tuple(map(int, self.candidate_version.split("."))) > (1, 25, 34),
+        require(tuple(map(int, self.candidate_version.split(".")))
+                > tuple(map(int, self.ocl_baseline_version.split("."))),
                 "ocl_candidate_reuses_baseline_version")
         self.baseline_config, self.candidate_config = self.directory / "config-baseline", self.directory / "config-candidate"
-        assemble(self.image_config, baseline, baseline, self.baseline_config)
-        receipt = assemble(self.image_config, baseline, candidate, self.candidate_config)
+        assemble(self.image_config, original, baseline, self.baseline_config)
+        receipt = assemble(self.image_config, original, candidate, self.candidate_config)
         self.role_md5 = hashlib.md5((baseline / ROLES_FILE).read_bytes()).hexdigest()
         self.candidate_role_md5 = hashlib.md5((candidate / ROLES_FILE).read_bytes()).hexdigest()
-        self.ocl_items, self.ocl_sources = self.ocl_item_contract(candidate)
+        self.ocl_items, self.ocl_sources = self.ocl_item_contract(
+            candidate, baseline if self.scenario != "ocl-fresh" else None)
         self.network = self.prefix + "-network"
         self.docker("network", "create", "--internal", "--label", OWNER_LABEL + "=" + self.nonce, self.network)
         require(self.owned("network", self.network).get("Internal") is True, "network_not_internal")
-        emit("prepare", "PASSED", source_sha=self.candidate_sha, baseline_sha=OCL_BASELINE_SHA,
-             baseline_version=OCL_BASELINE_VERSION, candidate_version=self.candidate_version,
+        emit("prepare", "PASSED", source_sha=self.candidate_sha, baseline_sha=self.ocl_baseline_sha,
+             baseline_version=self.ocl_baseline_version, candidate_version=self.candidate_version,
              backend_digest=self.backend_image.split("@")[1], core_version=OCL_CORE_VERSION,
              ocl_version=OCL_MODULE_VERSION, ocl_sources=len(self.ocl_sources), **receipt)
 
     @staticmethod
-    def ocl_item_contract(configuration):
+    def ocl_item_contract(configuration, baseline=None):
         """Expected native item URLs from the exact exports, without contacting OCL."""
         expected, sources = {}, set()
+        previous_origin = None
+        if baseline is not None:
+            properties = ET.parse(baseline / "globalproperties/globalproperties-sihsalus.xml")
+            subscriptions = [node.findtext("value", "").strip() for node in properties.findall(".//globalProperty")
+                             if node.findtext("property") == "openconceptlab.subscriptionUrl"]
+            require(len(subscriptions) == 1, "ocl_baseline_subscription_missing_or_duplicated")
+            subscription = urlsplit(subscriptions[0])
+            require(subscription.scheme == "https" and subscription.netloc == "api.openconceptlab.org",
+                    "ocl_baseline_namespace_invalid")
+            previous_origin = subscription.scheme + "://" + subscription.netloc
         archives = sorted((configuration / "ocl").glob("*.zip"))
         require(len(archives) == 34, "ocl_transition_archive_count_changed")
         for path in archives:
+            namespace = OCL_API_URL
+            previous = baseline / "ocl" / path.name if baseline is not None else None
+            # BaseFileLoader skips byte-identical files. Their successful native
+            # items remain under the old host; do not force reloads or checksums.
+            if previous is not None and previous.is_file() and previous.read_bytes() == path.read_bytes():
+                namespace = previous_origin
             with zipfile.ZipFile(path) as archive:
                 export = json.loads(archive.read("export.json"))
             source = export["source"]["url"]
@@ -364,8 +390,8 @@ class Harness:
                     require(relative.startswith(source) and version.startswith(relative)
                             and isinstance(identifier, str) and 0 < len(identifier) <= 38
                             and re.fullmatch(r"[A-Za-z0-9-]+", identifier), "ocl_transition_item_invalid")
-                    url, version_url = (urljoin(OCL_API_URL, value) for value in (relative, version))
-                    require(urlsplit(url).netloc == urlsplit(OCL_API_URL).netloc,
+                    url, version_url = (urljoin(namespace, value) for value in (relative, version))
+                    require(urlsplit(url).netloc == urlsplit(namespace).netloc,
                             "ocl_transition_item_host_invalid")
                     key = (kind, url)
                     require(key not in expected, "ocl_transition_duplicate_item")
@@ -376,10 +402,12 @@ class Harness:
     def check_ocl_namespace(self, db, phase):
         # History from the former host remains valid history. Inspect the latest
         # item for each candidate URL; every source, including anatomy, must load.
+        origins = {urlsplit(url).scheme + "://" + urlsplit(url).netloc for _, url in self.ocl_items}
+        predicates = " OR ".join("url LIKE " + sql_string(origin + "/%") for origin in sorted(origins))
         rows = self.query(db, "SELECT i.type,i.url,i.uuid,i.version_url,i.state,"
             "IF(i.error_message IS NULL OR i.error_message='',0,1) FROM openconceptlab_item i "
-            "JOIN (SELECT type,url,MAX(item_id) item_id FROM openconceptlab_item WHERE url LIKE "
-            + sql_string(OCL_API_URL + "/%") + " GROUP BY type,url) latest ON latest.item_id=i.item_id")
+            "JOIN (SELECT type,url,MAX(item_id) item_id FROM openconceptlab_item WHERE ("
+            + predicates + ") GROUP BY type,url) latest ON latest.item_id=i.item_id")
         actual = {}
         for row in rows:
             fields = row.split("\t")
@@ -421,13 +449,30 @@ class Harness:
     def check_retained_checksums(self, before, after):
         old = self.configuration_checksums(self.baseline_config)
         new = self.configuration_checksums(self.candidate_config)
+        loaded = self.runtime_configuration_checksums()
         require(before.keys() <= after.keys(), "ocl_upgrade_removed_prior_checksums")
         for key, value in before.items():
-            expected = new[key] if key in new and old.get(key) != new[key] else value
+            expected = loaded[key] if key in new and old.get(key) != new[key] else value
             require(after[key] == expected, "ocl_upgrade_changed_unapproved_checksum")
         for path in (self.candidate_config / "ocl").glob("*.zip"):
             key = "ocl/" + path.stem + ".checksum"
             require(after.get(key) == new[key], "ocl_candidate_checksum_missing_or_stale")
+
+    def runtime_configuration_checksums(self):
+        """Apply the pinned image's startup hook to a private copy, without secrets."""
+        directory = self.directory / ("checksum-input-" + uuid.uuid4().hex)
+        configuration = directory / "configuration"
+        shutil.copytree(self.candidate_config, configuration)
+        # The native hook removes the token property before Initializer hashes
+        # the XML. Reuse it rather than duplicating its rendering in the oracle.
+        helper = self.container("checksum-input",
+            ["--network", "none", "--user", str(os.getuid()) + ":" + str(os.getgid()),
+             "--env", "OMRS_OCL_TOKEN=", "--mount", "type=bind,src=" + str(directory) + ",dst=/fixture",
+             "--entrypoint", "/usr/local/bin/configure-ocl-token.sh"],
+            self.backend_image, ["/fixture/configuration", "/fixture/checksums"])
+        self.docker("start", "--attach", helper, timeout=self.remaining(60))
+        self.remove_container(helper)
+        return self.configuration_checksums(configuration)
 
     def terminology_identity_snapshot(self, db):
         # Compare identities and actual graph edges, not timestamps that native
@@ -607,7 +652,7 @@ class Harness:
         backend, volume = self.start_backend("ocl-baseline" if upgrade else "ocl-fresh", configuration)
         self.wait_initializer(backend, "ocl_baseline" if upgrade else "ocl_fresh")
         self.assert_checksums(backend, self.role_md5 if upgrade else self.candidate_role_md5)
-        concept_id = self.check_birth_length(backend, db, decimal=False)
+        concept_id = self.check_birth_length(backend, db, decimal=not upgrade)
         code, person = self.request(backend, "POST", "/person", {
             "names": [{"givenName": "Synthetic", "familyName": "OCL CI " + self.nonce[:8]}],
             "gender": "F", "birthdate": "2026-10-01"})
@@ -622,20 +667,24 @@ class Harness:
             backend, _ = self.start_backend("ocl-upgrade", self.candidate_config, data_volume=volume)
             self.wait_initializer(backend, "ocl_upgrade")
             self.assert_checksums(backend, self.candidate_role_md5)
-            candidate_concept_id = self.check_birth_length(backend, db, decimal=False)
+            candidate_concept_id = self.check_birth_length(backend, db, decimal=True)
             emit("birth_length", "PASSED" if candidate_concept_id == concept_id else "FAILED",
-                 phase="upgrade", concept_id_preserved=candidate_concept_id == concept_id, allow_decimal=False)
+                 phase="upgrade", concept_id_preserved=candidate_concept_id == concept_id, allow_decimal=True)
             require(candidate_concept_id == concept_id, "birth_length_concept_id_changed")
             require(self.history(db) == history, "ocl_upgrade_changed_liquibase_history")
-            identities = self.expected_vitamin_a_insertion(db, identities)
-            identities = self.expected_etnias_insertions(identities, self.check_etnias(backend, db, "upgrade"))
+            if self.ocl_baseline_version == OCL_BASELINE_VERSION:
+                identities = self.expected_vitamin_a_insertion(db, identities)
+                identities = self.expected_etnias_insertions(identities, self.check_etnias(backend, db, "upgrade"))
+            else:
+                self.check_vitamin_a_measurement(db)
+                self.check_etnias(backend, db, "upgrade")
             self.assert_terminology_identity(db, identities, "upgrade")
             self.check_retained_checksums(checksums, self.checksum_snapshot(backend))
         else:
             self.check_vitamin_a_measurement(db)
             self.check_etnias(backend, db, "fresh")
         self.check_ocl_namespace(db, "upgrade" if upgrade else "fresh")
-        self.create_birth_length_observation(backend, db, person["uuid"], 31)
+        self.create_birth_length_observation(backend, db, person["uuid"], 30.1)
         observations = self.query(db, "SELECT * FROM obs ORDER BY obs_id")
         require(all(row in observations for row in original_obs), "ocl_upgrade_changed_existing_observation")
         identities, history, checksums = self.terminology_identity_snapshot(db), self.history(db), self.checksum_snapshot(backend)
@@ -648,13 +697,13 @@ class Harness:
         require(self.history(db) == history, "ocl_restart_changed_liquibase_history")
         self.assert_terminology_identity(db, identities, "restart")
         require(self.query(db, "SELECT * FROM obs ORDER BY obs_id") == observations, "ocl_restart_changed_observations")
-        require(self.check_birth_length(backend, db, decimal=False) == concept_id, "birth_length_concept_id_changed_on_restart")
+        require(self.check_birth_length(backend, db, decimal=True) == concept_id, "birth_length_concept_id_changed_on_restart")
         self.check_vitamin_a_measurement(db)
         self.check_etnias(backend, db, "restart")
         self.check_ocl_namespace(db, "restart")
         emit("ocl_transition", "PASSED", scenario="upgrade" if upgrade else "fresh",
              restart_verified=True, prior_checksums_preserved=True, clinical_observations=2,
-             concept_id_preserved=True, cross_references_preserved=True, allow_decimal=False)
+             concept_id_preserved=True, cross_references_preserved=True, allow_decimal=True)
 
     def start_database(self, suffix):
         volume = self.volume(suffix + "-db")
@@ -1608,11 +1657,12 @@ def main(scenario="upgrade"):
     signal.signal(signal.SIGTERM, interrupted)
     signal.signal(signal.SIGINT, interrupted)
     try:
-        require(scenario in ("upgrade", "fresh", "operational", "ocl-fresh", "ocl-upgrade"), "invalid_initializer_scenario")
+        require(scenario in ("upgrade", "fresh", "operational", "ocl-fresh", "ocl-upgrade",
+                             "ocl-latest-upgrade"), "invalid_initializer_scenario")
         harness = Harness(os.environ, scenario)
         harness.prepare()
-        if scenario in ("ocl-fresh", "ocl-upgrade"):
-            harness.ocl_transition_run(upgrade=scenario == "ocl-upgrade")
+        if scenario in ("ocl-fresh", "ocl-upgrade", "ocl-latest-upgrade"):
+            harness.ocl_transition_run(upgrade=scenario != "ocl-fresh")
         elif scenario == "fresh":
             harness.fresh()
         else:

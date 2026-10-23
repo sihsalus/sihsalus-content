@@ -8,6 +8,13 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Transición OCL y talla decimal (candidata 1.25.42)
+
+- Consume exports institucionales publicados de las 18 fuentes y actualiza la suscripción conjuntamente; conserva los 32.551 conceptos y 20.610 mappings, sus UUID y las exclusiones históricas.
+- Reutiliza las seis versiones OCL `2026-10-22-01` con 2.862 pesos restaurados y el snapshot anatómico publicado `2026-10-16-1`, sin cambios clínicos en anatomía. Etnias conserva su release `2026-10-21-01`.
+- Habilita decimales en talla al nacer mediante la metadata Numeric canónica, conservando cm e identidad; el ensayo nativo exige guardar 30.1 y preservar la observación histórica y el orden tras actualización y reinicio.
+- Requiere CI del SHA candidato, revisión de la divergencia histórica de QLTY, aprobación del paquete y despliegue separado. No concede permisos a cuentas ni cierra los flujos pendientes del frontend.
+
 ### Equivalencias de etnias con MINSA (candidata 1.25.41)
 
 - Incorpora el export nativo publicado `etnias/2026-10-21-01`: 58 mappings MINSA y cinco sinónimos, conservando 62 conceptos y sus UUID clínicos.

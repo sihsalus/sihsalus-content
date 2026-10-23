@@ -54,20 +54,23 @@ class NeighborhoodCatalogValidationTest(unittest.TestCase):
             VALIDATOR.validate_ocl_global_properties(errors)
         return errors
 
-    def test_accepts_existing_zip_import_namespace(self):
+    def test_accepts_reviewed_institutional_zip_import_namespace(self):
         self.assertEqual(
             self.validate_subscription(
-                "https://api.openconceptlab.org/orgs/SIHSALUS/sources/sihsalus/2026-07-16-02"
+                VALIDATOR.EXPECTED_SIHSALUS_SUBSCRIPTION_URL
             ),
             [],
         )
 
-    def test_rejects_premature_institutional_host_transition(self):
-        errors = self.validate_subscription(
-            "https://api.gidis-terminology.duckdns.org/orgs/SIHSALUS/sources/sihsalus/2026-09-09-1"
-        )
-        self.assertEqual(len(errors), 1)
-        self.assertIn("openconceptlab.subscriptionUrl", errors[0])
+    def test_rejects_old_cloud_namespace_and_unreviewed_version(self):
+        for url in (
+            "https://api.openconceptlab.org/orgs/SIHSALUS/sources/sihsalus/2026-07-16-02",
+            "https://api.gidis-terminology.duckdns.org/orgs/SIHSALUS/sources/sihsalus/2026-09-09-1",
+        ):
+            with self.subTest(url=url):
+                errors = self.validate_subscription(url)
+                self.assertEqual(len(errors), 1)
+                self.assertIn("openconceptlab.subscriptionUrl", errors[0])
 
     def source_version(self, concepts, mappings):
         return {

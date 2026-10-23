@@ -24,16 +24,16 @@ PERSON_ATTRIBUTE_TYPES_PATH = Path(
 )
 FHIR_CONCEPT_SOURCES_PATH = Path("configuration/fhirconceptsources/fhirconceptsources.csv")
 EXPECTED_SIHSALUS_SUBSCRIPTION_URL = (
-    "https://api.openconceptlab.org/orgs/SIHSALUS/sources/sihsalus/2026-07-16-02"
+    "https://api.gidis-terminology.duckdns.org/orgs/SIHSALUS/sources/sihsalus/2026-10-22-01"
 )
 EXPECTED_SIHSALUS_CONCEPTS_EXPORT = (
-    OCL_DIR / "10_SIHSALUS_sihsalus_concepts_2026-09-09-1.zip"
+    OCL_DIR / "10_SIHSALUS_sihsalus_concepts_2026-10-22-01.zip"
 )
 EXPECTED_SIHSALUS_MAPPINGS_EXPORT = (
-    OCL_DIR / "60_SIHSALUS_sihsalus_mappings_2026-09-09-1.zip"
+    OCL_DIR / "60_SIHSALUS_sihsalus_mappings_2026-10-22-01.zip"
 )
 EXPECTED_SIHSALUS_CANONICAL_SHA256 = (
-    "cae14cffdce3d5ed882e97cc3ca6030d798788526b3baded304f472f7779e195"
+    "b629fd7d8dbe23adfc9a21a03f438af5ccad692811ea05e2621803d16264a436"
 )
 ETNIAS_VERSION = "2026-10-21-01"
 ETNIAS_CONCEPTS_EXPORT = OCL_DIR / f"07_SIHSALUS_etnias_concepts_{ETNIAS_VERSION}.zip"
@@ -47,7 +47,7 @@ SIHSALUS_SOURCE = "sihsalus"
 NEIGHBORHOOD_SOURCE = "barrios-santa-clotilde"
 NEIGHBORHOOD_VERSION = "2026-08-22-01"
 EXPECTED_NEIGHBORHOOD_CANONICAL_SHA256 = (
-    "fbcb4f0ed111ceb4c686ac343eee09c2435037f8dceb9b679cee0a226e1c9177"
+    "9e1579a8e5f8d46ff85e29aa7438924f33dda7991717d870320ef62b38ac41ad"
 )
 NEIGHBORHOOD_ATTRIBUTE_TYPE_UUID = "4a182c6e-9a19-4db8-8042-4bbf3b4308c2"
 NEIGHBORHOOD_SET_UUID = "0fd3e744-6d2c-4cb3-9b7e-1f88899635d9"
@@ -86,7 +86,7 @@ NEIGHBORHOOD_PRESENTATION_METADATA = {
 REFERRAL_SOURCE = "referencia-institucional"
 REFERRAL_VERSION = "2026-08-25-01"
 PROCEDURE_ANATOMY_SOURCE = "anatomia-procedimientos"
-PROCEDURE_ANATOMY_VERSION = "2026-10-11-02"
+PROCEDURE_ANATOMY_VERSION = "2026-10-16-1"
 PROCEDURE_ANATOMY_SET_CODE = "PROCEDURE-BODY-SITES"
 PROCEDURE_ANATOMY_SET_UUID = "25b4e8e6-0781-5c04-bc76-888402f3f505"
 PROCEDURE_ANATOMY_HL7_URL = "http://terminology.hl7.org/CodeSystem/v2-0550"
@@ -99,7 +99,7 @@ PROCEDURE_ANATOMY_MAPPINGS_EXPORT = OCL_DIR / (
     f"67_SIHSALUS_{PROCEDURE_ANATOMY_SOURCE}_mappings_{PROCEDURE_ANATOMY_VERSION}.zip"
 )
 EXPECTED_PROCEDURE_ANATOMY_CANONICAL_SHA256 = (
-    "26dd43fb00dc098741742a7cbfe86f247b42aa229390d5ed4f7a687b74d928a7"
+    "70f0df7710ed06002bb061a12365ace51fc215f25bf6371281f7d447aa4d5a27"
 )
 # Historical identities are assertions, not a second operational catalog.
 PROCEDURE_ANATOMY_HISTORICAL = {
@@ -124,7 +124,7 @@ REFERRAL_CONCEPTS_EXPORT = OCL_DIR / (
     f"16_SIHSALUS_{REFERRAL_SOURCE}_concepts_{REFERRAL_VERSION}.zip"
 )
 EXPECTED_REFERRAL_CANONICAL_SHA256 = (
-    "9a85ebac1f3710be861ddb092fb9806eee0e5d60557e494bcdb742be510aedff"
+    "f448f638372e3401fe058f5dab34b72914fa17658d500978f5d786f9b568494c"
 )
 REFERRAL_TRANSPORT_CONCEPTS = [
     (
@@ -435,6 +435,7 @@ def main():
     validate_mapping_integrity(concepts_by_url, mapping_records, errors)
     validate_default_name_collision_safety(concept_records, errors)
     validate_laboratory_capture(concept_records, errors)
+    validate_birth_length(concept_records, errors)
     validate_split_export(exports_by_path, errors, "sihsalus", EXPECTED_SIHSALUS_CONCEPTS_EXPORT,
                           EXPECTED_SIHSALUS_MAPPINGS_EXPORT, EXPECTED_SIHSALUS_CANONICAL_SHA256)
     validate_split_export(exports_by_path, errors, "etnias", ETNIAS_CONCEPTS_EXPORT,
@@ -464,6 +465,23 @@ def main():
 
     print(f"Validated {checked} OCL concepts and {len(mapping_records)} mapping endpoints.")
     return 0
+
+
+def validate_birth_length(concept_records, errors):
+    uuid = "bf82beb1-d3b8-400e-8160-90869cad8136"
+    matches = [(source, concept) for _, source, concept in concept_records
+               if (source == SIHSALUS_SOURCE and concept.get("id") == "382")
+               or concept.get("external_id") == uuid]
+    if len(matches) != 1:
+        errors.append("birth length must retain exactly one clinical concept")
+        return
+    source, concept = matches[0]
+    extras = concept.get("extras") or {}
+    if (source != SIHSALUS_SOURCE or concept.get("id") != "382"
+            or concept.get("external_id") != uuid or concept.get("retired") is not False
+            or concept.get("datatype") != "Numeric" or extras.get("units") != "cm"
+            or extras.get("allow_decimal") is not True):
+        errors.append("birth length must retain its active Numeric UUID, cm and allow_decimal:true")
 
 
 def validate_laboratory_capture(concept_records, errors):
