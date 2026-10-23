@@ -449,13 +449,30 @@ class Harness:
     def check_retained_checksums(self, before, after):
         old = self.configuration_checksums(self.baseline_config)
         new = self.configuration_checksums(self.candidate_config)
+        loaded = self.runtime_configuration_checksums()
         require(before.keys() <= after.keys(), "ocl_upgrade_removed_prior_checksums")
         for key, value in before.items():
-            expected = new[key] if key in new and old.get(key) != new[key] else value
+            expected = loaded[key] if key in new and old.get(key) != new[key] else value
             require(after[key] == expected, "ocl_upgrade_changed_unapproved_checksum")
         for path in (self.candidate_config / "ocl").glob("*.zip"):
             key = "ocl/" + path.stem + ".checksum"
             require(after.get(key) == new[key], "ocl_candidate_checksum_missing_or_stale")
+
+    def runtime_configuration_checksums(self):
+        """Apply the pinned image's startup hook to a private copy, without secrets."""
+        directory = self.directory / ("checksum-input-" + uuid.uuid4().hex)
+        configuration = directory / "configuration"
+        shutil.copytree(self.candidate_config, configuration)
+        # The native hook removes the token property before Initializer hashes
+        # the XML. Reuse it rather than duplicating its rendering in the oracle.
+        helper = self.container("checksum-input",
+            ["--network", "none", "--user", str(os.getuid()) + ":" + str(os.getgid()),
+             "--env", "OMRS_OCL_TOKEN=", "--mount", "type=bind,src=" + str(directory) + ",dst=/fixture",
+             "--entrypoint", "/usr/local/bin/configure-ocl-token.sh"],
+            self.backend_image, ["/fixture/configuration", "/fixture/checksums"])
+        self.docker("start", "--attach", helper, timeout=self.remaining(60))
+        self.remove_container(helper)
+        return self.configuration_checksums(configuration)
 
     def terminology_identity_snapshot(self, db):
         # Compare identities and actual graph edges, not timestamps that native

@@ -165,6 +165,23 @@ el catálogo para provocar un checksum distinto.
 La suscripción candidata es
 `https://api.gidis-terminology.duckdns.org/orgs/SIHSALUS/sources/sihsalus/2026-10-22-01`.
 
+### Ensayo de actualización y checksum del XML
+
+El [primer CI de la candidata](https://github.com/sihsalus/sihsalus-content/actions/runs/39870634999)
+pasó instalación nueva, los tres escenarios históricos y las validaciones del
+paquete. Las dos actualizaciones OCL confirmaron el catálogo, su orden y
+`allowDecimal:true`, pero fallaron al exigir el checksum del XML original.
+El hook nativo del distro fijado elimina la propiedad de token antes de cargar
+ese archivo: su hash no es el del template. Se reprodujo con el hook del commit
+`bdfa1bb78095e59fc24eb655bb39aa352fdf5681`, sin credenciales.
+
+El ensayo reutiliza ese hook de la imagen sobre una copia privada, sin red y
+con token vacío, para obtener el checksum esperado de archivos modificados.
+Conserva la comparación exacta de archivos sin cambios e historia, exige los
+checksums de todos los ZIP y rechaza el hash crudo o cualquier otro valor.
+No altera la configuración ni los checksums del backend probado. Los seis
+escenarios deben repetirse sobre el SHA final; el CI anterior sigue fallido.
+
 ### Pendientes y flujos de aceptación
 
 1. Ejecutar CI del SHA final de content 1.25.42. Los escenarios de instalación,

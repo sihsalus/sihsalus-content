@@ -2,6 +2,7 @@
 """Pure harness contracts. No Docker, network, backend, or existing credentials."""
 
 import io
+import hashlib
 import json
 import tempfile
 import unittest
@@ -183,6 +184,7 @@ class HarnessContracts(unittest.TestCase):
         (self.runtime.candidate_config / "ocl/new.zip").write_bytes(b"candidate")
         before = self.runtime.configuration_checksums(self.runtime.baseline_config)
         after = {**before, **self.runtime.configuration_checksums(self.runtime.candidate_config)}
+        self.runtime.runtime_configuration_checksums = lambda: self.runtime.configuration_checksums(self.runtime.candidate_config)
         self.runtime.check_retained_checksums(before, after)
         for removed in ("ocl/old.checksum", "ocl/new.checksum", "roles/stable.checksum"):
             invalid = dict(after)
@@ -192,6 +194,50 @@ class HarnessContracts(unittest.TestCase):
         for key in after:
             with self.subTest(changed=key), self.assertRaises(HarnessFailure):
                 self.runtime.check_retained_checksums(before, {**after, key: b"0" * 32})
+
+    def test_changed_xml_checksum_uses_native_startup_output_and_rejects_raw_hash(self):
+        self.runtime.baseline_config, self.runtime.candidate_config = self.root / "old", self.root / "new"
+        for directory, value in ((self.runtime.baseline_config, b"old template"),
+                                 (self.runtime.candidate_config, b"new template")):
+            (directory / "globalproperties").mkdir(parents=True)
+            (directory / "globalproperties/config.xml").write_bytes(value)
+        before = self.runtime.configuration_checksums(self.runtime.baseline_config)
+        raw = self.runtime.configuration_checksums(self.runtime.candidate_config)
+        loaded = {"globalproperties/config.checksum": b"1" * 32}
+        self.runtime.runtime_configuration_checksums = lambda: loaded
+        self.runtime.check_retained_checksums(before, loaded)
+        for invalid in (raw, before, {"globalproperties/config.checksum": b"0" * 32}):
+            with self.subTest(invalid=invalid), self.assertRaises(HarnessFailure):
+                self.runtime.check_retained_checksums(before, invalid)
+
+    def test_expected_checksums_reuse_isolated_pinned_image_hook_on_copy(self):
+        self.runtime.directory = self.root
+        self.runtime.candidate_config = self.root / "candidate"
+        original = self.runtime.candidate_config / "globalproperties/config.xml"
+        original.parent.mkdir(parents=True)
+        original.write_bytes(b"template")
+        observed = {}
+
+        def container(suffix, options, image, command):
+            self.assertEqual(suffix, "checksum-input")
+            self.assertEqual(image, self.runtime.backend_image)
+            self.assertEqual(command, ["/fixture/configuration", "/fixture/checksums"])
+            self.assertEqual(options[options.index("--network") + 1], "none")
+            self.assertEqual(options[options.index("--env") + 1], "OMRS_OCL_TOKEN=")
+            self.assertEqual(options[options.index("--entrypoint") + 1], "/usr/local/bin/configure-ocl-token.sh")
+            observed["directory"] = Path(options[options.index("--mount") + 1].split("src=", 1)[1].split(",dst=", 1)[0])
+            return "owned-helper"
+
+        def start(*args, **kwargs):
+            self.assertEqual(args, ("start", "--attach", "owned-helper"))
+            (observed["directory"] / "configuration/globalproperties/config.xml").write_bytes(b"native output")
+
+        self.runtime.container, self.runtime.docker = container, start
+        self.runtime.remaining = lambda seconds: seconds
+        self.runtime.remove_container = lambda name: self.assertEqual(name, "owned-helper")
+        checksums = self.runtime.runtime_configuration_checksums()
+        self.assertEqual(checksums, {"globalproperties/config.checksum": hashlib.md5(b"native output").hexdigest().encode()})
+        self.assertEqual(original.read_bytes(), b"template")
 
     def test_etnias_checks_native_reference_identity_names_and_searches(self):
         self.runtime.candidate_config = harness.ROOT / "configuration"

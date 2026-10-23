@@ -111,6 +111,14 @@ successful native item URLs under the old host. Expected URLs derive from the
 exact baseline files and subscription; a changed file still requires the new
 namespace, exact UUID/version and successful state. No checksum reset or forced
 reload is used.
+The pinned distro's
+[`configure-ocl-token.sh`](https://github.com/sihsalus/sihsalus/blob/bdfa1bb78095e59fc24eb655bb39aa352fdf5681/backend/bin/configure-ocl-token.sh)
+removes the token property from copied global-properties XML before Initializer
+computes its checksum. For changed files, the checksum oracle runs that same
+image hook on a private configuration copy, with an empty token and no network;
+it compares the loaded bytes rather than the package template. Unchanged and
+historical checksums remain exact, and every candidate OCL ZIP must have its
+actual checksum. The helper does not modify the backend configuration or checksums.
 Upgrade compares every concept identity, set/answer relationship including
 `sort_weight`, reference map, term and source. The only expected new concept is
 the native vitamin A dose UUID `9c0b51ef-0d4c-49a3-bdbb-2ee7083fe778`:
