@@ -3,8 +3,10 @@
 
 import io
 import json
+import runpy
 import tempfile
 import unittest
+import zipfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -985,6 +987,188 @@ class HarnessContracts(unittest.TestCase):
         self.runtime.request = Mock(return_value=(403, body))
         with self.assertRaisesRegex(HarnessFailure, "^clinical_drug_search_invalid$"):
             self.runtime.check_clinical_drug("owned", "db", "fresh")
+
+
+class FormUpgradeContracts(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(prefix="form-upgrade-unit-")
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.baseline, self.candidate = self.root / "baseline", self.root / "candidate"
+        for config in (self.baseline, self.candidate):
+            (config / "ampathforms").mkdir(parents=True)
+        for config, version, question in ((self.baseline, "1.0", "old"), (self.candidate, "1.1", "new")):
+            self.write(config, "Consulta Ácida.json", "Consulta Ácida", "1.0", "stable")
+            self.write(config, "(CRED) Nacimiento.json", "Nacimiento", "1.2", question)
+            self.write(config, "Vacunación.json", "Vacunación", version, "dose")
+            self.write(config, "_deprecated/No cargar.json", "Deprecated", "9", "ignored")
+        self.contract = guards.form_upgrade_contract(self.baseline, self.candidate)
+        self.before = [self.row(key, schema, number) for number, (key, schema)
+                       in enumerate(self.contract["baseline"].items(), 10)]
+        self.legacy = ("Unrelated historical form", "0.1", "10000000-0000-4000-8000-000000000001",
+                       "99", "0", "1", "historical-schema")
+        self.before.append(self.legacy)
+        self.after = []
+        for row in self.before:
+            key = row[:2]
+            if key in self.contract["in_place"]:
+                row = self.row(key, self.contract["candidate"][key], row[3])
+            elif key in self.contract["replaced"]:
+                row = (*row[:4], "0", "1", row[6])
+            self.after.append(row)
+        self.after.extend(self.row(key, self.contract["candidate"][key], 100 + number)
+                          for number, key in enumerate(sorted(self.contract["versioned"])))
+
+    def write(self, config, filename, name, version, question):
+        path = config / "ampathforms" / filename
+        path.parent.mkdir(parents=True, exist_ok=True)
+        raw = json.dumps({"name": name, "version": version, "published": True,
+                          "retired": False, "uuid": "deliberately-not-the-persisted-uuid",
+                          "question": question}, ensure_ascii=False).encode()
+        path.write_bytes(b" \t\r\n" + raw + b"\n\t ")
+
+    @staticmethod
+    def row(key, schema, number):
+        return (*key, schema["uuid"], str(number), schema["published"],
+                schema["retired"], schema["schema_md5"])
+
+    def mutate(self, rows, key, column, value):
+        return [tuple(value if index == column else field for index, field in enumerate(row))
+                if row[:2] == key else row for row in rows]
+
+    def test_unicode_classification_and_persisted_uuid_match_existing_validator(self):
+        self.assertEqual(self.contract["unchanged"], {("Consulta Ácida", "1.0")})
+        self.assertEqual(self.contract["in_place"], {("Nacimiento", "1.2")})
+        self.assertEqual(self.contract["versioned"], {("Vacunación", "1.1")})
+        self.assertEqual(self.contract["replaced"], {("Vacunación", "1.0")})
+        identity = runpy.run_path(str(harness.ROOT / ".github/scripts/validate_ampath_forms.py"))["ampath_persisted_form_uuid"]
+        for key, schema in self.contract["candidate"].items():
+            self.assertEqual(schema["uuid"], identity(*key))
+        raw = (self.candidate / "ampathforms/Vacunación.json").read_bytes()
+        self.assertEqual(self.contract["candidate"][("Vacunación", "1.1")]["schema_md5"],
+                         harness.hashlib.md5(raw.strip()).hexdigest())
+
+    def test_upgrade_preserves_unrelated_history_and_allows_reviewed_in_place_schema(self):
+        self.assertEqual(guards.assert_form_baseline(self.before, self.contract),
+                         {"packaged_forms": 3, "historical_forms": 1})
+        self.assertEqual(guards.assert_form_upgrade(self.before, self.after, self.contract),
+                         {"packaged_forms": 3, "historical_forms": 1, "unchanged": 1,
+                          "in_place": 1, "versioned": 1, "after_forms": 5,
+                          "retired_published_flag_checked": False})
+
+    def test_wrong_baseline_and_candidate_already_present_are_rejected(self):
+        for before, reason in (
+            (self.after, "form_baseline_schema_mismatch"),
+            (self.before + [row for row in self.after if row[:2] in self.contract["versioned"]],
+             "form_candidate_already_in_baseline"),
+            (self.mutate(self.before, ("Nacimiento", "1.2"), 6, "wrong-source-schema"),
+             "form_baseline_schema_mismatch"),
+        ):
+            with self.subTest(reason=reason), self.assertRaisesRegex(HarnessFailure, "^" + reason + "$"):
+                guards.assert_form_upgrade(before, self.after, self.contract)
+
+    def test_stale_in_place_hash_wrong_candidate_uuid_and_flags_are_rejected(self):
+        for column, value in ((2, "wrong-uuid"), (4, "0"), (5, "1"), (6, "stale-schema")):
+            after = self.mutate(self.after, ("Nacimiento", "1.2"), column, value)
+            with self.subTest(column=column), self.assertRaisesRegex(HarnessFailure, "^form_candidate_schema_mismatch$"):
+                guards.assert_form_upgrade(self.before, after, self.contract)
+
+    def test_existing_form_ids_and_historical_schema_are_never_reassigned(self):
+        for key, column, value, reason in (
+            (("Nacimiento", "1.2"), 3, "222", "form_upgrade_changed_persisted_identity"),
+            (("Vacunación", "1.0"), 2, "wrong-historical-uuid", "form_upgrade_changed_persisted_identity"),
+            (("Vacunación", "1.0"), 5, "0", "form_upgrade_historical_schema_or_retirement_changed"),
+            (("Vacunación", "1.0"), 6, "rewritten-history", "form_upgrade_historical_schema_or_retirement_changed"),
+            (self.legacy[:2], 6, "changed-unrelated-history", "form_upgrade_unreviewed_historical_change"),
+            (self.legacy[:2], 4, "1", "form_upgrade_unreviewed_historical_change"),
+        ):
+            with self.subTest(key=key, column=column), self.assertRaisesRegex(HarnessFailure, "^" + reason + "$"):
+                guards.assert_form_upgrade(self.before, self.mutate(self.after, key, column, value), self.contract)
+
+    def test_retired_published_flag_limit_is_explicit_but_invalid_flags_fail(self):
+        for published in ("0", "1"):
+            result = guards.assert_form_upgrade(self.before,
+                self.mutate(self.after, ("Vacunación", "1.0"), 4, published), self.contract)
+            self.assertFalse(result["retired_published_flag_checked"])
+        with self.assertRaisesRegex(HarnessFailure, "^form_snapshot_identity_or_flags_invalid$"):
+            guards.assert_form_upgrade(self.before,
+                self.mutate(self.after, ("Vacunación", "1.0"), 4, "2"), self.contract)
+
+    def test_missing_extra_and_duplicate_resources_fail_without_echoing_row_values(self):
+        extra = ("private-synthetic-name", "9", "private-synthetic-uuid", "555", "0", "1", "private-schema")
+        cases = [self.after[:-1], self.after + [extra], self.after + [self.after[0]],
+                 [row for row in self.after if row != self.legacy]]
+        for after in cases:
+            with self.subTest(rows=len(after)), self.assertRaises(HarnessFailure) as error:
+                guards.assert_form_upgrade(self.before, after, self.contract)
+            self.assertRegex(str(error.exception), r"^form_[a-z_]+$")
+            self.assertNotIn("private", str(error.exception))
+
+    def test_duplicate_packaged_identity_and_removed_name_are_rejected(self):
+        self.write(self.candidate, "Copia ácida.json", "Consulta Ácida", "1.0", "stable")
+        with self.assertRaisesRegex(HarnessFailure, "^form_schema_identity_duplicated$"):
+            guards.form_upgrade_contract(self.baseline, self.candidate)
+        (self.candidate / "ampathforms/Copia ácida.json").unlink()
+        (self.candidate / "ampathforms/Consulta Ácida.json").unlink()
+        with self.assertRaisesRegex(HarnessFailure, "^form_upgrade_unreviewed_name_addition_or_removal$"):
+            guards.form_upgrade_contract(self.baseline, self.candidate)
+
+
+class ProductionUpgradeContracts(unittest.TestCase):
+    @staticmethod
+    def archive(entries):
+        output = io.BytesIO()
+        with zipfile.ZipFile(output, "w") as archive:
+            for name, value in entries.items():
+                archive.writestr(name, value)
+        return output.getvalue()
+
+    def test_candidate_migration_identities_come_from_packaged_native_xml(self):
+        xml = '<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"><changeSet id="new-core" author="core"/></databaseChangeLog>'
+        module = '<databaseChangeLog><changeSet id="new-module" author="module"/></databaseChangeLog>'
+        api = self.archive({"liquibase-update.xml": xml, "config.xml": "<config/>"})
+        war = self.archive({"WEB-INF/lib/openmrs-api-2.8.10.jar": api, "liquibase.xml": module})
+        self.assertEqual(harness.ProductionUpgrade.archive_changesets(war), {("new-core", "core"), ("new-module", "module")})
+
+    def test_history_preserves_checksums_and_rejects_undeclared_or_renamed_identities(self):
+        runtime = object.__new__(harness.ProductionUpgrade)
+        runtime.module_changesets = {("new", "module"), ("old", "core")}
+        before = ["old\tcore\tliquibase.xml\t8:original\tEXECUTED"]
+        new = "new\tmodule\tliquibase.xml\t8:new\tEXECUTED"
+        with redirect_stdout(io.StringIO()):
+            runtime.preserve_history(before, before + [new])
+        for after, reason in (
+            ([before[0].replace("8:original", "8:changed"), new], "changed_existing_history"),
+            (before + [new.replace("new\tmodule", "undeclared\tmodule")], "undeclared_module_changeset"),
+            (before + [before[0].replace("liquibase.xml", "renamed.xml")], "duplicated_history_identity"),
+            (before + [new, new.replace("liquibase.xml", "duplicate.xml")], "duplicated_history_identity"),
+        ):
+            with self.subTest(reason=reason), self.assertRaisesRegex(HarnessFailure, reason):
+                runtime.preserve_history(before, after)
+
+    def test_rejects_wrong_source_image_before_any_probe_or_backend_creation(self):
+        runtime = object.__new__(harness.ProductionUpgrade)
+        runtime.docker = Mock()
+        runtime.remaining = Mock(return_value=30)
+        runtime.container = Mock()
+        pin = runtime.BASELINE
+        runtime.inspect = Mock(return_value={"Os": "linux", "Architecture": "amd64", "RepoDigests": [pin["image"]],
+                                            "Config": {"User": "1001", "Labels": {"org.opencontainers.image.revision": runtime.TARGET["distro"]}}})
+        with self.assertRaisesRegex(HarnessFailure, "production_image_identity_mismatch"):
+            runtime.published_configuration(pin, "baseline")
+        runtime.container.assert_not_called()
+
+    def test_runtime_requires_the_ocl_version_of_each_selected_artifact(self):
+        runtime = object.__new__(harness.ProductionUpgrade)
+        runtime.ocl_transition = True
+        runtime.ocl_module_version = "3.2.0"
+        initializer = {"uuid": "initializer", "version": guards.INITIALIZER_VERSION, "started": True}
+        runtime.request = Mock(side_effect=[(200, initializer), (200, {"uuid": "openconceptlab", "version": "3.2.0", "started": True})])
+        self.assertTrue(runtime.module_status("owned"))
+        runtime.ocl_module_version = "4.0.0"
+        runtime.request = Mock(side_effect=[(200, initializer), (200, {"uuid": "openconceptlab", "version": "3.2.0", "started": True})])
+        with self.assertRaisesRegex(HarnessFailure, "ocl_module_not_started_at_pinned_version"):
+            runtime.module_status("owned")
 
 
 if __name__ == "__main__":

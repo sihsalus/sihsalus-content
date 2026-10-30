@@ -7,14 +7,16 @@ It runs only on disposable GitHub-hosted runners with synthetic data.
 ## Run
 
 [admission-initializer.yml](../../workflows/admission-initializer.yml) runs all
-five scenarios. A manual dispatch can select one scenario for diagnosis.
+five standard scenarios. A manual dispatch can select one scenario for diagnosis,
+including the separate `production-33-a94` release-upgrade check below. That
+additional scenario is not included in `all` or the normal workflow-call matrix.
 
 ```sh
 python3 -B .github/integration/admission-initializer/test_harness.py
 ```
 
 The pure tests above need no Docker. Native execution requires the workflow's
-runner environment, exact candidate checkout and three pinned content baselines.
+runner environment, exact candidate checkout and the pinned content baselines.
 Do not spoof runner variables to run it on a persistent machine.
 
 | Scenario | Baseline and checks |
@@ -24,10 +26,23 @@ Do not spoof runner variables to run it on a persistent machine.
 | `operational` | Content 1.25.15 with the recognized 55-permission admission alias and supplement; preserve assignments during reconciliation. |
 | `ocl-fresh` | Current pinned runtime with empty database; catalog, numeric metadata, observations and restart. |
 | `ocl-upgrade` | Published content 1.25.34 on the current pinned runtime; preserve catalog identities, relationships, ordering, observations and checksums through upgrade/restart. |
+| `production-33-a94` (manual only) | Published backend `81818303` / content 1.25.33, baseline restart, published backend `a94d9237` / content 1.25.41, then candidate restart on the same synthetic volumes. |
 
 All five must pass on the candidate commit. Matrix failures do not cancel the
 other scenarios. These checks do not replace clinical acceptance or DEV/QLTY
 smoke tests listed in the [follow-up audit](../../../docs/audits/2026-10-19-normative-alignment-followup.md).
+
+The manual release-upgrade scenario fixes the source and destination image
+digests independently from their content commits. It verifies the real packaged
+Core and module versions and their active state after startup. It compares all
+113 packaged forms: 82 unchanged schemas, 27 explicitly reviewed updates to an
+existing identity/version, and four new versions whose previous schemas must
+remain available as retired history. Other historical forms and persisted
+identities must remain unchanged. Catalog, synthetic observations, RBAC,
+Initializer checksums and Liquibase history are checked across the update and
+restart. The scenario does not read production data or contact production hosts,
+publish images, change the normal integration pins or establish clinical
+acceptance. The FUA workflow still needs functional acceptance in QLTY.
 
 ## Inputs and packaging
 
@@ -123,6 +138,12 @@ The isolated database uses `innodb_flush_log_at_trx_commit=2` to reduce cold-imp
 I/O; this fixture does not test crash durability. The first historical baseline
 allows 45 minutes, other startups 35 minutes, within an 80-minute total budget.
 Cleanup has three minutes; the workflow has a 90-minute timeout.
+
+The manual `production-33-a94` scenario allows a 180-minute total budget and a
+90-minute ceiling for each startup, with a 200-minute workflow job timeout.
+It includes four startups because both the baseline and candidate are restarted;
+the longer limit accounts for the slow startup observed for the published
+candidate. These limits do not promise a production outage duration.
 
 Containers, volumes and the internal network carry a random prefix and ownership
 label. Docker uses the local runner socket and an empty configuration directory.

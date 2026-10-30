@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import tarfile
+import uuid
 import xml.etree.ElementTree as ET
 from pathlib import Path, PurePosixPath
 
@@ -280,3 +281,106 @@ def admission_privileges(configuration, additions=frozenset()):
         and "Purge Relationships" not in privileges, "unexpected_admission_policy",
     )
     return privileges
+
+
+def form_upgrade_contract(baseline_config, candidate_config):
+    """Read packaged schemas, including Unicode filenames, without invoking a loader."""
+    def read(configuration):
+        result = {}
+        for path in sorted((Path(configuration) / "ampathforms").rglob("*.json")):
+            if "_deprecated" in path.relative_to(configuration).parts:
+                continue
+            require(not path.is_symlink(), "form_schema_symlink_forbidden")
+            try:
+                raw = path.read_bytes()
+                schema = json.loads(raw)
+                name, version = schema["name"], schema["version"]
+                published, retired = schema["published"], schema["retired"]
+            except (OSError, ValueError, KeyError, TypeError):
+                raise HarnessFailure("form_schema_invalid") from None
+            require(isinstance(name, str) and name.strip()
+                    and isinstance(version, str) and version.strip()
+                    and isinstance(published, bool) and isinstance(retired, bool),
+                    "form_schema_identity_or_flags_invalid")
+            key = (name, version)
+            require(key not in result, "form_schema_identity_duplicated")
+            # Initializer Utils.generateUuidFromObjects uses the AMPATH namespace,
+            # name and version; the JSON's top-level uuid is not the persisted ID.
+            seed = ("794c4598-ab82-47ca-8d18-483a8abe6f4f_" + name + "_" + version).encode()
+            result[key] = {
+                "uuid": str(uuid.UUID(bytes=hashlib.md5(seed).digest(), version=3)),
+                "published": str(int(published)), "retired": str(int(retired)),
+                "schema_md5": hashlib.md5(raw.strip(bytes(range(33)))).hexdigest(),
+            }
+        require(result, "form_schema_set_empty")
+        require(len({value["uuid"] for value in result.values()}) == len(result),
+                "form_schema_uuid_collision")
+        return result
+
+    baseline, candidate = read(baseline_config), read(candidate_config)
+    require({key[0] for key in baseline} == {key[0] for key in candidate},
+            "form_upgrade_unreviewed_name_addition_or_removal")
+    shared = baseline.keys() & candidate.keys()
+    return {"baseline": baseline, "candidate": candidate,
+            "unchanged": {key for key in shared if baseline[key] == candidate[key]},
+            "in_place": {key for key in shared if baseline[key] != candidate[key]},
+            "versioned": candidate.keys() - baseline.keys(),
+            "replaced": baseline.keys() - candidate.keys()}
+
+
+def _form_snapshot(rows):
+    result, identifiers, numbers = {}, set(), set()
+    for row in rows:
+        require(isinstance(row, (tuple, list)) and len(row) == 7,
+                "form_snapshot_shape_invalid")
+        values = tuple(str(value) if value is not None else "NULL" for value in row)
+        name, version, identifier, number, published, retired, schema_hash = values
+        require(name and identifier and re.fullmatch(r"[1-9][0-9]*", number)
+                and published in {"0", "1"} and retired in {"0", "1"},
+                "form_snapshot_identity_or_flags_invalid")
+        key = (name, version)
+        require(key not in result and identifier not in identifiers and number not in numbers,
+                "form_snapshot_duplicate_identity_or_resource")
+        result[key] = values
+        identifiers.add(identifier)
+        numbers.add(number)
+    return result
+
+
+def _assert_packaged_forms(expected, actual, reason):
+    for key, schema in expected.items():
+        row = actual.get(key)
+        require(row is not None and (row[2], *row[4:]) ==
+                (schema["uuid"], schema["published"], schema["retired"], schema["schema_md5"]),
+                reason)
+
+
+def assert_form_baseline(rows, contract):
+    """Require the exact baseline schemas; permit pre-existing historical forms."""
+    actual = _form_snapshot(rows)
+    _assert_packaged_forms(contract["baseline"], actual, "form_baseline_schema_mismatch")
+    require(not actual.keys() & contract["versioned"], "form_candidate_already_in_baseline")
+    return {"packaged_forms": len(contract["baseline"]),
+            "historical_forms": len(actual) - len(contract["baseline"])}
+
+
+def assert_form_upgrade(before_rows, after_rows, contract):
+    """Compare metadata only; never include row contents in errors or results."""
+    baseline_counts = assert_form_baseline(before_rows, contract)
+    before, after = _form_snapshot(before_rows), _form_snapshot(after_rows)
+    _assert_packaged_forms(contract["candidate"], after, "form_candidate_schema_mismatch")
+    require(after.keys() == before.keys() | contract["candidate"].keys(),
+            "form_upgrade_unexpected_identity_addition_or_removal")
+    for key, row in before.items():
+        loaded = after[key]
+        require(loaded[:4] == row[:4], "form_upgrade_changed_persisted_identity")
+        if key in contract["replaced"]:
+            require(loaded[5] == "1" and loaded[6] == row[6],
+                    "form_upgrade_historical_schema_or_retirement_changed")
+            # The verified loader contract requires retirement. Its historical
+            # published flag is deliberately not inferred from the JSON source.
+        elif key not in contract["in_place"]:
+            require(loaded == row, "form_upgrade_unreviewed_historical_change")
+    return {**baseline_counts, "unchanged": len(contract["unchanged"]),
+            "in_place": len(contract["in_place"]), "versioned": len(contract["versioned"]),
+            "after_forms": len(after), "retired_published_flag_checked": False}

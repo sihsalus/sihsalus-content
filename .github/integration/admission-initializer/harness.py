@@ -4,6 +4,7 @@
 import base64
 import csv
 import hashlib
+import io
 import json
 import os
 import re
@@ -29,6 +30,7 @@ from guards import (
     single_file_archive, assemble, validate_assembly, sql_string, admission_privileges,
     OCL_BACKEND, OCL_DISTRO_SHA, OCL_BASELINE_SHA, OCL_BASELINE_VERSION,
     OCL_CORE_VERSION, OCL_MODULE_VERSION, OCL_API_URL, BIRTH_LENGTH_UUID,
+    form_upgrade_contract, assert_form_baseline, assert_form_upgrade,
 )
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -755,7 +757,8 @@ class Harness:
             code, ocl = self.request(backend, "GET", "/module/openconceptlab?v=full")
             require(code == 200 and isinstance(ocl, dict)
                     and ocl.get("uuid") == "openconceptlab" and ocl.get("started") is True
-                    and ocl.get("version") == OCL_MODULE_VERSION, "ocl_module_not_started_at_pinned_version")
+                    and ocl.get("version") == getattr(self, "ocl_module_version", OCL_MODULE_VERSION),
+                    "ocl_module_not_started_at_pinned_version")
         return body["started"]
 
     def bootstrap(self, backend):
@@ -1601,6 +1604,233 @@ class Harness:
         return failures == 0
 
 
+class ProductionUpgrade(Harness):
+    """One manual, synthetic replay of the two published production artifacts."""
+
+    BASELINE = {
+        "image": "ghcr.io/sihsalus/sihsalus-backend@sha256:7c8387f88f3332053906e74b3cf04adb04e155d57aa309b7eaccf180ad870b57",
+        "distro": "81818303c452922cec59711ed859f4c3094825b8",
+        "content": "0d9ae8ca25f3a5e442d1da9e6610c168dfbaee77",
+        "versions": {"content.sihsalus-content": "1.25.33", "war.openmrs": "2.8.9",
+                     "omod.initializer": INITIALIZER_VERSION, "omod.openconceptlab": "3.2.0",
+                     "omod.addresshierarchy": "2.21.0", "omod.fhir2": "4.3.0-sihsalus.1",
+                     "omod.fua": "1.0.90", "omod.imaging": "1.2.8"},
+    }
+    TARGET = {
+        "image": "ghcr.io/sihsalus/sihsalus-backend@sha256:a53bc8dd3ec812fbde89ee6e685aea519ba00d87b850d2e15d139e3ad8d4b5bc",
+        "distro": "a94d923784c21c3e309e6524d9d8514b9be30548",
+        "content": "0b9dd4fd6aeb07f8329cc79c925d71186ff137fc",
+        "versions": {"content.sihsalus-content": "1.25.41", "war.openmrs": "2.8.10-sihsalus.5",
+                     "omod.initializer": INITIALIZER_VERSION, "omod.openconceptlab": "4.0.0",
+                     "omod.addresshierarchy": "3.0.0", "omod.fhir2": "4.3.0",
+                     "omod.fua": "1.0.91", "omod.imaging": "1.2.9"},
+    }
+    FORM_DELTA_SHA256 = "62701eb061e9a4853c4370cfd52c391d9649159cc9ec54a2c6e7b68fcd991619"
+
+    def __init__(self, env, scenario="production-33-a94"):
+        super().__init__(env, "ocl-upgrade")
+        self.scenario = scenario
+        self.deadline = time.monotonic() + 180 * 60
+        self.hospital_compatibility = frozenset()  # Already present in the .33 steady state.
+
+    def remaining(self, maximum=90 * 60):
+        return super().remaining(maximum)
+
+    @staticmethod
+    def archive_changesets(data, depth=0):
+        """Read declared identities from pinned WAR/OMOD XML and native API jars."""
+        require(depth <= 2, "distribution_archive_nesting_invalid")
+        result = set()
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            for entry in archive.infolist():
+                if entry.filename.endswith(".xml"):
+                    require(entry.file_size <= 16 * 1024 * 1024, "distribution_xml_too_large")
+                    raw = archive.read(entry)
+                    if b"changeSet" not in raw:
+                        continue
+                    root = ET.fromstring(raw)
+                    for change in root.iter():
+                        if change.tag.rsplit("}", 1)[-1] == "changeSet":
+                            require("id" in change.attrib and "author" in change.attrib,
+                                    "distribution_changeset_identity_missing")
+                            result.add((change.attrib["id"], change.attrib["author"]))
+                elif re.search(r"(?:^|/)[^/]+-api-[^/]+\.jar$", entry.filename):
+                    require(entry.file_size <= 128 * 1024 * 1024, "distribution_api_jar_too_large")
+                    result.update(ProductionUpgrade.archive_changesets(archive.read(entry), depth + 1))
+        return result
+
+    def published_configuration(self, pin, suffix):
+        self.docker("pull", "--platform", "linux/amd64", pin["image"], timeout=self.remaining(600))
+        details = self.inspect("image", pin["image"])
+        require(details.get("Os") == "linux" and details.get("Architecture") == "amd64"
+                and details.get("Config", {}).get("Labels", {}).get("org.opencontainers.image.revision") == pin["distro"]
+                and pin["image"] in details.get("RepoDigests", []), "production_image_identity_mismatch")
+        owner = details["Config"].get("User", "")
+        require(re.fullmatch(r"[1-9][0-9]*(?::[0-9]+)?", owner), "numeric_nonroot_backend_user_required")
+        probe = self.container(suffix + "-probe", ["--network", "none"], pin["image"])
+        distro = properties(self.copy_file(probe, "/openmrs/distribution/openmrs-distro.properties"))
+        require(all(distro.get(key) == value for key, value in pin["versions"].items()),
+                "production_packaged_versions_mismatch")
+        packaged = self.directory / (suffix + "-packaged")
+        source = self.directory / (suffix + "-source")
+        configuration = self.directory / (suffix + "-configuration")
+        self.copy_tree(probe, "/openmrs/distribution/openmrs_config", packaged, "openmrs_config")
+        self.git_configuration(pin["content"], pin["versions"]["content.sihsalus-content"], source)
+        # No replacement content: verify exact published bytes and retain the image remainder.
+        receipt = assemble(packaged, source, source, configuration)
+        if suffix == "target":
+            self.module_changesets = self.archive_changesets(
+                self.copy_file(probe, "/openmrs/distribution/openmrs_core/openmrs.war"))
+            modules = self.directory / "target-modules"
+            self.copy_tree(probe, "/openmrs/distribution/openmrs_modules", modules, "openmrs_modules")
+            for path in modules.rglob("*.omod"):
+                self.module_changesets.update(self.archive_changesets(path.read_bytes()))
+            require(self.module_changesets, "candidate_module_changesets_missing")
+        self.remove_container(probe)
+        emit("production_artifact", "PASSED", phase=suffix, distro=pin["distro"], image=pin["image"],
+             content=pin["versions"]["content.sihsalus-content"], core=pin["versions"]["war.openmrs"], **receipt)
+        return configuration, owner
+
+    def prepare(self):
+        require(sys.platform.startswith("linux") and Path("/var/run/docker.sock").is_socket(), "local_linux_runner_required")
+        require(checked(["git", "rev-parse", "HEAD"], cwd=ROOT).stdout.decode().strip() == self.candidate_sha,
+                "checkout_sha_mismatch")
+        require(not checked(["git", "status", "--porcelain", "--untracked-files=no"], cwd=ROOT).stdout,
+                "clean_tracked_checkout_required")
+        require(not checked(["git", "diff", "--name-only", self.TARGET["content"], "HEAD", "--",
+                             "configuration", "assembly.xml", "pom.xml", "content.properties"], cwd=ROOT).stdout,
+                "production_test_must_keep_published_content")
+        self.docker("pull", "--platform", "linux/amd64", DATABASE_IMAGE, timeout=self.remaining(300))
+        self.baseline_config, self.baseline_owner = self.published_configuration(self.BASELINE, "baseline")
+        self.candidate_config, self.target_owner = self.published_configuration(self.TARGET, "target")
+        require(self.baseline_owner == self.target_owner, "backend_data_owner_transition_unreviewed")
+        self.form_contract = form_upgrade_contract(self.baseline_config, self.candidate_config)
+        groups = {key: sorted(self.form_contract[key]) for key in ("unchanged", "in_place", "versioned", "replaced")}
+        require(len(self.form_contract["baseline"]) == len(self.form_contract["candidate"]) == 113
+                and [len(groups[key]) for key in ("unchanged", "in_place", "versioned", "replaced")] == [82, 27, 4, 4]
+                and hashlib.sha256(json.dumps(groups, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode()).hexdigest()
+                    == self.FORM_DELTA_SHA256, "production_form_delta_not_the_reviewed_33_to_41")
+        self.role_md5 = hashlib.md5((self.baseline_config / ROLES_FILE).read_bytes()).hexdigest()
+        self.candidate_role_md5 = hashlib.md5((self.candidate_config / ROLES_FILE).read_bytes()).hexdigest()
+        self.privileges = admission_privileges(self.candidate_config, CURRENT_ADMISSION_ADDITIONS)
+        with (self.candidate_config / ROLES_FILE).open(encoding="utf-8-sig", newline="") as stream:
+            self.current_core_roles = [row for row in csv.DictReader(stream) if row["Role name"] in CURRENT_CORE_ROLE_ADDITIONS]
+        require(len(self.current_core_roles) == 2, "production_role_addition_count_changed")
+        for row in self.current_core_roles:
+            expected = CURRENT_CORE_ROLE_ADDITIONS[row["Role name"]]
+            require(row["Uuid"] == expected["uuid"] and not row["Inherited roles"].strip()
+                    and set(row["Privileges"].split(";")) == expected["privileges"], "production_role_addition_changed")
+        self.ocl_items, self.ocl_sources = self.ocl_item_contract(self.candidate_config)
+        self.network = self.prefix + "-network"
+        self.docker("network", "create", "--internal", "--label", OWNER_LABEL + "=" + self.nonce, self.network)
+        require(self.owned("network", self.network).get("Internal") is True, "network_not_internal")
+        self.use_artifact(self.BASELINE, self.baseline_owner)
+
+    def use_artifact(self, pin, owner):
+        self.backend_image = pin["image"]
+        self.backend_owner = owner
+        self.runtime_versions = pin["versions"]
+        self.ocl_module_version = pin["versions"]["omod.openconceptlab"]
+
+    def check_runtime_modules(self, backend):
+        for key, version in self.runtime_versions.items():
+            if not key.startswith("omod."):
+                continue
+            module = key.removeprefix("omod.")
+            code, value = self.request(backend, "GET", "/module/" + module + "?v=full")
+            require(code == 200 and isinstance(value, dict) and value.get("uuid") == module
+                    and value.get("started") is True and value.get("version") == version,
+                    "production_runtime_module_not_started_at_pinned_version")
+        emit("production_modules", "PASSED", modules=sum(key.startswith("omod.") for key in self.runtime_versions))
+
+    def all_form_rows(self, db):
+        # Include historical versions of every packaged name. No observed clinical data.
+        names = {name for name, version in self.form_contract["baseline"]} | {
+            name for name, version in self.form_contract["candidate"]}
+        rows = self.query(db, "SELECT f.name,f.version,f.uuid,f.form_id,f.published,f.retired,MD5(c.value) FROM form f "
+            "LEFT JOIN form_resource r ON r.form_id=f.form_id AND r.name='JSON schema' "
+            "LEFT JOIN clob_datatype_storage c ON c.uuid=r.value_reference WHERE f.name IN ("
+            + ",".join(sql_string(name) for name in sorted(names)) + ") ORDER BY f.name,f.version,f.uuid")
+        return [tuple(row.split("\t")) for row in rows]
+
+    def preserve_history(self, before, after):
+        require(not Counter(before) - Counter(after), "production_upgrade_changed_existing_history")
+        added = list((Counter(after) - Counter(before)).elements())
+        # ID/AUTHOR/FILENAME are the first columns in the native history table.
+        previous_identities = {tuple(row.split("\t")[:2]) for row in before}
+        added_identities = [tuple(row.split("\t")[:2]) for row in added]
+        require(len(set(added_identities)) == len(added_identities)
+                and not previous_identities & set(added_identities), "production_upgrade_duplicated_history_identity")
+        require(all(identifier in self.module_changesets for identifier in added_identities),
+                "production_upgrade_added_undeclared_module_changeset")
+        emit("production_migration_history", "PASSED", previous_rows=len(before), added_module_changesets=len(added),
+             additions_sha256=hashlib.sha256("\n".join(sorted(added)).encode()).hexdigest())
+
+    def run_transition(self):
+        db = self.start_database("production")
+        backend, volume = self.start_backend("production-baseline", self.baseline_config)
+        self.wait_initializer(backend, "production_baseline")
+        self.assert_checksums(backend)
+        # Production is a previously restarted installation; settle EMRAPI's CSV privileges first.
+        self.docker("stop", "--time", "30", backend, timeout=45)
+        self.remove_container(backend)
+        backend, _ = self.start_backend("production-baseline-warm", self.baseline_config, data_volume=volume)
+        self.wait_initializer(backend, "production_baseline_warm")
+        self.check_runtime_modules(backend)
+        self.assert_checksums(backend)
+        self.check_emrapi_roles(db)
+        self.create_fixtures(backend)
+        self.check_admission(db)
+        self.check_arrival_payment(db)
+        old_forms, old_state = self.all_form_rows(db), self.state(db)
+        emit("production_baseline_forms", "PASSED", **assert_form_baseline(old_forms, self.form_contract))
+        expected_state = self.expected_hospital_role_state(db, old_state, self.current_core_roles)
+        old_history, old_checksums = self.history(db), self.checksum_snapshot(backend)
+        identities = self.terminology_identity_snapshot(db)
+        self.create_birth_length_observation(backend, db, self.fixtures[0]["person"], 30)
+        observations = self.query(db, "SELECT * FROM obs ORDER BY obs_id")
+        self.docker("stop", "--time", "30", backend, timeout=45)
+        self.remove_container(backend)
+        self.use_artifact(self.TARGET, self.target_owner)
+        backend, _ = self.start_backend("production-upgrade", self.candidate_config, data_volume=volume)
+        self.wait_initializer(backend, "production_upgrade")
+        self.check_runtime_modules(backend)
+        self.assert_checksums(backend, self.candidate_role_md5)
+        self.check_retained_checksums(old_checksums, self.checksum_snapshot(backend))
+        self.preserve_history(old_history, self.history(db))
+        self.assert_state(db, expected_state, "production_upgrade_changed_unapproved_rbac")
+        self.check_admission(db)
+        self.check_arrival_payment(db)
+        emit("production_forms", "PASSED", **assert_form_upgrade(old_forms, self.all_form_rows(db), self.form_contract))
+        identities = self.expected_vitamin_a_insertion(db, identities)
+        identities = self.expected_etnias_insertions(identities, self.check_etnias(backend, db, "upgrade"))
+        self.assert_terminology_identity(db, identities, "upgrade")
+        self.check_ocl_namespace(db, "upgrade")
+        require(self.query(db, "SELECT * FROM obs ORDER BY obs_id") == observations, "production_upgrade_changed_synthetic_observations")
+        self.rbac(backend, db)
+        forms, history, checksums = self.all_form_rows(db), self.history(db), self.checksum_snapshot(backend)
+        state = self.expected_emrapi_refresh(self.state(db))
+        self.docker("stop", "--time", "30", backend, timeout=45)
+        self.remove_container(backend)
+        backend, _ = self.start_backend("production-restart", self.candidate_config, data_volume=volume)
+        self.wait_initializer(backend, "production_restart")
+        self.check_runtime_modules(backend)
+        self.assert_checksums(backend, self.candidate_role_md5)
+        self.assert_state(db, state, "production_restart_changed_unapproved_rbac")
+        require(self.all_form_rows(db) == forms, "production_restart_changed_forms")
+        require(self.history(db) == history, "production_restart_changed_history")
+        require(self.checksum_snapshot(backend) == checksums, "production_restart_changed_checksums")
+        self.assert_terminology_identity(db, identities, "restart")
+        self.check_etnias(backend, db, "restart")
+        self.check_ocl_namespace(db, "restart")
+        require(self.query(db, "SELECT * FROM obs ORDER BY obs_id") == observations, "production_restart_changed_synthetic_observations")
+        self.check_admission(db)
+        self.check_emrapi_roles(db)
+        self.rbac(backend, db)
+        emit("production_upgrade", "PASSED", baseline=self.BASELINE["distro"], target=self.TARGET["distro"],
+             restart_verified=True, synthetic_data_only=True, functional_fua_acceptance="not-tested")
+
+
 def main(scenario="upgrade"):
     harness, success, cleanup_ok = None, False, True
     def interrupted(signum, frame):
@@ -1608,10 +1838,12 @@ def main(scenario="upgrade"):
     signal.signal(signal.SIGTERM, interrupted)
     signal.signal(signal.SIGINT, interrupted)
     try:
-        require(scenario in ("upgrade", "fresh", "operational", "ocl-fresh", "ocl-upgrade"), "invalid_initializer_scenario")
-        harness = Harness(os.environ, scenario)
+        require(scenario in ("upgrade", "fresh", "operational", "ocl-fresh", "ocl-upgrade", "production-33-a94"), "invalid_initializer_scenario")
+        harness = ProductionUpgrade(os.environ) if scenario == "production-33-a94" else Harness(os.environ, scenario)
         harness.prepare()
-        if scenario in ("ocl-fresh", "ocl-upgrade"):
+        if scenario == "production-33-a94":
+            harness.run_transition()
+        elif scenario in ("ocl-fresh", "ocl-upgrade"):
             harness.ocl_transition_run(upgrade=scenario == "ocl-upgrade")
         elif scenario == "fresh":
             harness.fresh()
