@@ -8,7 +8,7 @@ It runs only on disposable GitHub-hosted runners with synthetic data.
 
 [admission-initializer.yml](../../workflows/admission-initializer.yml) runs all
 five standard scenarios. A manual dispatch can select one scenario for diagnosis,
-including the separate `production-33-a94` release-upgrade check below. That
+including the separate `production-33-fua92` release-upgrade check below. That
 additional scenario is not included in `all` or the normal workflow-call matrix.
 
 ```sh
@@ -26,7 +26,7 @@ Do not spoof runner variables to run it on a persistent machine.
 | `operational` | Content 1.25.15 with the recognized 55-permission admission alias and supplement; preserve assignments during reconciliation. |
 | `ocl-fresh` | Current pinned runtime with empty database; catalog, numeric metadata, observations and restart. |
 | `ocl-upgrade` | Published content 1.25.34 on the current pinned runtime; preserve catalog identities, relationships, ordering, observations and checksums through upgrade/restart. |
-| `production-33-a94` (manual only) | Published backend `81818303` / content 1.25.33, baseline restart, published backend `a94d9237` / content 1.25.41, then candidate restart on the same synthetic volumes. |
+| `production-33-fua92` (manual only) | Published backend `81818303` / content 1.25.33, baseline restart, published backend `1b784d40` / FUA 1.0.92 / content 1.25.41, then candidate restart on the same synthetic volumes. |
 
 All five must pass on the candidate commit. Matrix failures do not cancel the
 other scenarios. These checks do not replace clinical acceptance or DEV/QLTY
@@ -139,7 +139,7 @@ I/O; this fixture does not test crash durability. The first historical baseline
 allows 45 minutes, other startups 35 minutes, within an 80-minute total budget.
 Cleanup has three minutes; the workflow has a 90-minute timeout.
 
-The manual `production-33-a94` scenario allows a 180-minute total budget and a
+The manual `production-33-fua92` scenario allows a 180-minute total budget and a
 90-minute ceiling for each startup, with a 200-minute workflow job timeout.
 It includes four startups because both the baseline and candidate are restarted;
 the longer limit accounts for the slow startup observed for the published

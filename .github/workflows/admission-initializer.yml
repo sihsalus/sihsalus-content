@@ -9,7 +9,7 @@ on:
         type: choice
         required: true
         default: all
-        options: [all, upgrade, fresh, operational, ocl-fresh, ocl-upgrade, production-33-a94]
+        options: [all, upgrade, fresh, operational, ocl-fresh, ocl-upgrade, production-33-fua92]
 
 permissions:
   contents: read
@@ -18,7 +18,7 @@ jobs:
   initializer-upgrade:
     name: Initializer (${{ matrix.scenario }})
     runs-on: ubuntu-24.04
-    timeout-minutes: ${{ matrix.scenario == 'production-33-a94' && 200 || 90 }}
+    timeout-minutes: ${{ matrix.scenario == 'production-33-fua92' && 200 || 90 }}
     strategy:
       fail-fast: false
       matrix:

@@ -1617,17 +1617,17 @@ class ProductionUpgrade(Harness):
                      "omod.fua": "1.0.90", "omod.imaging": "1.2.8"},
     }
     TARGET = {
-        "image": "ghcr.io/sihsalus/sihsalus-backend@sha256:a53bc8dd3ec812fbde89ee6e685aea519ba00d87b850d2e15d139e3ad8d4b5bc",
-        "distro": "a94d923784c21c3e309e6524d9d8514b9be30548",
+        "image": "ghcr.io/sihsalus/sihsalus-backend@sha256:c06868be246ab12361011aba7a957d64e29c99531aac2ed82ad2da2883b470e0",
+        "distro": "1b784d40c043a40e299732024cd5ce7ef640bce9",
         "content": "0b9dd4fd6aeb07f8329cc79c925d71186ff137fc",
         "versions": {"content.sihsalus-content": "1.25.41", "war.openmrs": "2.8.10-sihsalus.5",
                      "omod.initializer": INITIALIZER_VERSION, "omod.openconceptlab": "4.0.0",
                      "omod.addresshierarchy": "3.0.0", "omod.fhir2": "4.3.0",
-                     "omod.fua": "1.0.91", "omod.imaging": "1.2.9"},
+                     "omod.fua": "1.0.92", "omod.imaging": "1.2.9"},
     }
     FORM_DELTA_SHA256 = "62701eb061e9a4853c4370cfd52c391d9649159cc9ec54a2c6e7b68fcd991619"
 
-    def __init__(self, env, scenario="production-33-a94"):
+    def __init__(self, env, scenario="production-33-fua92"):
         super().__init__(env, "ocl-upgrade")
         self.scenario = scenario
         self.deadline = time.monotonic() + 180 * 60
@@ -1838,10 +1838,10 @@ def main(scenario="upgrade"):
     signal.signal(signal.SIGTERM, interrupted)
     signal.signal(signal.SIGINT, interrupted)
     try:
-        require(scenario in ("upgrade", "fresh", "operational", "ocl-fresh", "ocl-upgrade", "production-33-a94"), "invalid_initializer_scenario")
-        harness = ProductionUpgrade(os.environ) if scenario == "production-33-a94" else Harness(os.environ, scenario)
+        require(scenario in ("upgrade", "fresh", "operational", "ocl-fresh", "ocl-upgrade", "production-33-fua92"), "invalid_initializer_scenario")
+        harness = ProductionUpgrade(os.environ) if scenario == "production-33-fua92" else Harness(os.environ, scenario)
         harness.prepare()
-        if scenario == "production-33-a94":
+        if scenario == "production-33-fua92":
             harness.run_transition()
         elif scenario in ("ocl-fresh", "ocl-upgrade"):
             harness.ocl_transition_run(upgrade=scenario == "ocl-upgrade")
