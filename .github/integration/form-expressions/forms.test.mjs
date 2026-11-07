@@ -9,7 +9,7 @@ import dayjs from 'dayjs';
 // operators are eager, unlike node:vm. Never substitute JavaScript on failure.
 assert.ok(process.env.SIHSALUS_EXPRESSION_EVALUATOR,
   'Set SIHSALUS_EXPRESSION_EVALUATOR to the pinned frontend esm-expression-evaluator/dist/index.js; see README.md');
-const { evaluateAsBoolean, extractVariableNames } = await import(
+const { evaluateAsBoolean, evaluateAsType, extractVariableNames } = await import(
   pathToFileURL(process.env.SIHSALUS_EXPRESSION_EVALUATOR).href
 );
 const evaluateNative = (expression, values) => evaluateAsBoolean(expression, { dayjs, ...values });
@@ -30,6 +30,50 @@ const mentalHealth = fields('CRED-011-SALUD MENTAL NIÑO Y CUIDADOR.json');
 const birth = fields('(CRED) Detalles de Nacimiento.json');
 const evaluate = (expression, values) => vm.runInNewContext(expression, { dayjs, ...values });
 const date = (value) => dayjs(value).toDate();
+
+for (const [filename, dateId, textIds] of [
+  ['(Página 11 y 12) Valoración de Enfermería.json', 'fechaDeLaValorizacion',
+    ['diagnosticoDeEnfermeria', 'intervencionDeEnfermeria']],
+  ['(Página 8) Ficha de Observación del Amamantamiento de la Consejería en Lactancia Materna.json',
+    'fechaDeExamen', ['notas']],
+]) {
+  const form = fields(filename);
+  test(`${dateId}: new forms default to today without replacing an existing or edited date`, () => {
+    const expression = form[dateId].questionOptions.calculate.calculateExpression;
+    const now = new Date('2026-11-07T11:00:00Z');
+    const historic = new Date('2026-10-22T13:00:00Z');
+    for (const [mode, myValue, expected] of [
+      ['enter', null, now], ['enter', historic, historic],
+      ['edit', historic, historic], ['edit', null, null],
+    ]) {
+      const actual = evaluateAsType(expression, {
+        mode, myValue, today: () => now, isEmpty: (v) => v == null || v === '',
+      }, () => true);
+      assert.equal(actual, expected);
+    }
+  });
+  test(`${dateId}: birth-day boundary and missing demographics remain explicit`, () => {
+    const validator = form[dateId].validators.find((v) => v.type === 'js_expression');
+    for (const [patient, myValue, rejected] of [
+      [{ birthDate: '2026-10-01' }, date('2026-09-30'), true],
+      [{ birthDate: '2026-10-01' }, date('2026-10-01'), false],
+      [{ birthDate: '2026-10-01' }, date('2026-10-02'), false],
+      [null, date('2026-10-02'), true], [{}, date('2026-10-02'), true],
+      [{ birthDate: 'invalid' }, date('2026-10-02'), true], [null, null, false],
+    ]) {
+      assert.equal(evaluateNative(validator.failsWhenExpression, {
+        patient, myValue, isEmpty: (v) => v == null || v === '',
+      }), rejected);
+    }
+    assert.equal(form[dateId].validators.find((v) => v.type === 'date').allowFutureDates, 'false');
+  });
+  test(`${filename}: uses the requested common text limit and explicit minute precision`, () => {
+    for (const id of textIds) assert.equal(form[id].questionOptions.maxLength, '255');
+    if (form.tiempoQueElBebeMamoMin) {
+      assert.equal(form.tiempoQueElBebeMamoMin.questionOptions.disallowDecimals, true);
+    }
+  });
+}
 
 test('native evaluator: neonatal discharge rejects days before birth and allows the birth day', () => {
   const validator = birth.fechaAltaRecienNacido.validators.find((v) => v.type === 'js_expression');

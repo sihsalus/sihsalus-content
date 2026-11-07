@@ -46,6 +46,17 @@
               "required": true
             },
             {
+              "id": "rolDelResponsable",
+              "label": "Rol del responsable",
+              "type": "encounterRole",
+              "required": true,
+              "questionOptions": {
+                "rendering": "ui-select-extended",
+                "isSearchable": false
+              },
+              "questionInfo": "Seleccione el rol con el que realiza esta atención."
+            },
+            {
               "type": "encounterLocation",
               "questionOptions": {
                 "rendering": "ui-select-extended",

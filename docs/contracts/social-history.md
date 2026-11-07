@@ -39,7 +39,12 @@ valor inicial, copia automática ni ocultamiento condicional. No evaluado se
 conserva como ausencia de observación, nunca como No o cero. No se deduce un
 diagnóstico ni se calcula exposición acumulada.
 
-Fecha, profesional y ubicación son obligatorios. El frontend vincula registros
+Fecha, profesional, rol del profesional y ubicación son obligatorios. El rol
+se elige en el catálogo nativo, sin inferir profesión ni conceder privilegios.
+La ausencia de ese campo causaba el rechazo de guardado por
+`encounter_role_id` nulo (#409). Se conserva la identidad del formulario y de
+los encuentros previos; al editar se recupera el rol persistido.
+El frontend vincula registros
 nuevos a una visita ambulatoria activa, recupera un registro ya existente de ese
 formulario en esa visita y bloquea duplicados ambiguos. Al editar, conserva la
 visita original del encuentro. La lectura usa `app:hoja.clinica.historiaSocial` y

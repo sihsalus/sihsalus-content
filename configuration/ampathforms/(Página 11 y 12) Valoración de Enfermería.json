@@ -21,11 +21,25 @@
                   "type": "obs",
                   "questionOptions": {
                     "rendering": "date",
-                    "concept": "1fae4014-1838-461a-ad81-a508d607959e"
+                    "concept": "1fae4014-1838-461a-ad81-a508d607959e",
+                    "calculate": {
+                      "calculateExpression": "mode === 'enter' && isEmpty(myValue) ? today() : myValue"
+                    }
                   },
                   "id": "fechaDeLaValorizacion",
                   "datePickerFormat": "calendar",
-                  "label": "Fecha de la valorización"
+                  "label": "Fecha de la valoración",
+                  "validators": [
+                    {
+                      "type": "date",
+                      "allowFutureDates": "false"
+                    },
+                    {
+                      "type": "js_expression",
+                      "failsWhenExpression": "isEmpty(myValue) ? false : !patient ? true : isEmpty(patient.birthDate) || !dayjs(patient.birthDate).isValid() || dayjs(myValue).isBefore(dayjs(patient.birthDate), 'day')",
+                      "message": "La fecha debe ser igual o posterior al nacimiento. Si no dispone de una fecha de nacimiento válida, revise la demografía."
+                    }
+                  ]
                 },
                 {
                   "type": "obs",
@@ -232,7 +246,8 @@
                     "rendering": "textarea",
                     "concept": "c20d1f4e-d19a-47b6-b545-181a85477187",
                     "minLength": "",
-                    "rows": 2
+                    "rows": 2,
+                    "maxLength": "255"
                   },
                   "id": "diagnosticoDeEnfermeria",
                   "label": "Diagnóstico de Enfermería"
@@ -242,7 +257,8 @@
                   "questionOptions": {
                     "rendering": "textarea",
                     "concept": "47a5ae3a-36a8-422c-a0b0-9b18bb44655f",
-                    "rows": 3
+                    "rows": 3,
+                    "maxLength": "255"
                   },
                   "id": "intervencionDeEnfermeria",
                   "label": "Intervención de enfermería"

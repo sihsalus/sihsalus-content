@@ -84,7 +84,8 @@ EXPRESSION_GLOBALS = {
     "myValue",
     "new",
     "null",
-    # Native form-engine ExpressionContext (FHIR patient), not a local field.
+    # Native form-engine ExpressionContext, not local fields.
+    "mode",
     "patient",
     "this",
     "true",

@@ -85,6 +85,10 @@ class AmpathFormIdentityTest(unittest.TestCase):
             {'missingDate'},
             validator.expression_references('patient.birthDate && dayjs(missingDate).isBefore(patient.birthDate)'),
         )
+        self.assertEqual(
+            {'missingDate'},
+            validator.expression_references("mode === 'enter' && isEmpty(missingDate) ? today() : myValue"),
+        )
 
     def test_disabled_expression_rejects_missing_local_question(self):
         self.write_form('disabled.json', pages=[{'sections': [{'questions': [{

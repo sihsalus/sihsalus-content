@@ -8,6 +8,13 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Captura clínica (candidata 1.25.43)
+
+- Historia social exige seleccionar el rol del profesional mediante el campo nativo, evitando el envío de un proveedor sin rol (#409).
+- Enfermería y lactancia proponen la fecha actual solo en capturas nuevas y rechazan futuro o fechas anteriores al nacimiento (#405, #408).
+- Lactancia exige minutos enteros; Diagnóstico, Intervención y Notas declaran el máximo de 255 solicitado por el usuario (#407, #408).
+- Conserva identidades de formularios, observaciones, catálogos y migraciones. Requiere el frontend coordinado para contador sin recorte, feedback de fechas y límites numéricos nativos (#404, #406). Pendientes revisión clínica y pruebas de guardado/reapertura en QLTY.
+
 ### Transición OCL y talla decimal (candidata 1.25.42)
 
 - Consume exports institucionales publicados de las 18 fuentes y actualiza la suscripción conjuntamente; conserva los 32.551 conceptos y 20.610 mappings, sus UUID y las exclusiones históricas.
