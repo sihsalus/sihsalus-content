@@ -279,7 +279,7 @@ minutos enteros no negativos mediante `disallowDecimals`.
 Diagnóstico de Enfermería, Intervención de enfermería y Notas de lactancia
 declaran `questionOptions.maxLength: "255"`, contado en unidades UTF-16
 (espacios y saltos incluidos; un emoji puede contar dos). El usuario solicitó
-usar el máximo más repetido en el frontend: en `e46991836`, 255 aparece en siete
+usar el máximo más repetido en el frontend: en `e46991836`, 255 aparece en ocho
 definiciones numéricas de `maxLength`/constantes de longitud de producción,
 excluyendo pruebas y artefactos. Es una elección funcional solicitada, no un
 estándar clínico deducido de su frecuencia.
