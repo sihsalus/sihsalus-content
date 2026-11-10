@@ -31,6 +31,11 @@ def validate_contract(form, encounter_types):
     if len(matches) != 1 or matches[0].get('View privilege') != 'app:hoja.clinica.historiaSocial' or matches[0].get('Edit privilege') != 'app:hoja.clinica.historiaSocial.editar':
         errors.append('Encounter privileges must preserve the social-history boundary')
     fields = [node for node in walk(form) if node.get('type') == 'obs']
+    roles = [node for node in walk(form) if node.get('type') == 'encounterRole']
+    if len(roles) != 1 or roles[0].get('required') is not True:
+        errors.append('Social history requires an explicit encounter role before saving')
+    elif roles[0].get('questionOptions', {}).get('defaultValue'):
+        errors.append('Do not infer the professional role')
     if {field.get('id') for field in fields} != set(CONCEPTS) or len(fields) != 4:
         errors.append('The initial scope is alcohol, tobacco, cigarettes/day and duration in years')
     for field in fields:

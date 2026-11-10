@@ -266,6 +266,45 @@ No se introducen filtros en lectores para ocultar observaciones mal atribuidas.
 
 ## Contrato clínico de CRED
 
+### Correcciones de captura de enfermería y lactancia (#405–#408)
+
+Valoración de Enfermería y Ficha de Observación del Amamantamiento conservan
+sus nombres, versiones y UUID. La fecha se propone con el helper nativo
+`today()` solo al crear y cuando está vacía; al editar se conserva el valor
+registrado, incluso su ausencia. Sigue editable para transcripción histórica.
+Se rechazan fechas futuras o anteriores al día de nacimiento y se requiere
+demografía válida cuando se informa una fecha. La duración de lactancia exige
+minutos enteros no negativos mediante `disallowDecimals`.
+
+Diagnóstico de Enfermería, Intervención de enfermería y Notas de lactancia
+declaran `questionOptions.maxLength: "255"`, contado en unidades UTF-16
+(espacios y saltos incluidos; un emoji puede contar dos). El usuario solicitó
+usar el máximo más repetido en el frontend: en `e46991836`, 255 aparece en ocho
+definiciones numéricas de `maxLength`/constantes de longitud de producción,
+excluyendo pruebas y artefactos. Es una elección funcional solicitada, no un
+estándar clínico deducido de su frecuencia.
+
+Estos tres campos persisten en `obs.valueText` mediante el formulario de
+encuentro. Core `2d1a2e8af6a26c557318ed9a7b843bb6889dce43` define
+`ObsValidator.VALUE_TEXT_MAX_LENGTH = 65535` con `String.length()` y
+`Obs.hbm.xml` mapea `value_text` como TEXT. El máximo solicitado de 255 unidades
+cabe también en 65535 bytes UTF-8. No se reutiliza el límite de comentarios de
+órdenes como capacidad de una observación. La aceptación clínica del alcance
+de 255 queda a cargo de enfermería.
+
+El frontend coordinado debe mostrar contador y error sin recortar el pegado:
+el contador integrado de Carbon impone `maxlength`, por lo que se reutiliza su
+feedback de ayuda/error y el validador del motor. Los textos históricos largos
+se muestran íntegros y no se migran ni se truncan; una edición que los conserve
+por encima del máximo requiere corrección explícita antes de guardar.
+Probar 254/255/256 unidades, texto de 1000, Unicode, pegado y reapertura.
+La prueba local de expresiones no acredita guardado ni aceptación en QLTY.
+
+Los límites absolutos de temperatura y frecuencia se leen del concepto nativo
+en el motor; la forma no duplica esos límites del catálogo. El frontend combina
+las restricciones del esquema y del concepto sin permitir que el esquema las
+relaje. No se añaden umbrales clínicos nuevos.
+
 Los formularios CRED precargan el profesional vinculado a la sesión mediante el
 adaptador del motor de formularios. El rol se selecciona explícitamente en la
 lista visible: `Enfermería Responsable` para enfermería o `Médico Responsable`

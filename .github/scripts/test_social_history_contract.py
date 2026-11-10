@@ -17,6 +17,13 @@ class SocialHistoryContractTest(unittest.TestCase):
     def test_packaged_contract(self):
         self.assertEqual([], validate_contract(self.form, self.encounters))
 
+    def test_role_is_required_without_an_inferred_profession(self):
+        questions = self.form['pages'][0]['sections'][0]['questions']
+        roles = [q for q in questions if q['type'] == 'encounterRole']
+        self.assertEqual(1, len(roles))
+        roles[0]['required'] = False
+        self.assertTrue(validate_contract(self.form, self.encounters))
+
     def test_no_inferred_clinical_answers(self):
         for key, value in [('default', 'No'), ('enablePreviousValue', True), ('hideWhenExpression', 'true')]:
             with self.subTest(key=key):

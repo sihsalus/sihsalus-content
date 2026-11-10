@@ -12,11 +12,25 @@
               "type": "obs",
               "questionOptions": {
                 "rendering": "datetime",
-                "concept": "8b88b123-a28f-4d70-a86d-49fd322c46d5"
+                "concept": "8b88b123-a28f-4d70-a86d-49fd322c46d5",
+                "calculate": {
+                  "calculateExpression": "mode === 'enter' && isEmpty(myValue) ? today() : myValue"
+                }
               },
               "id": "fechaDeExamen",
               "datePickerFormat": "both",
-              "label": "Fecha y Hora de Inicio del Examen"
+              "label": "Fecha y Hora de Inicio del Examen",
+              "validators": [
+                {
+                  "type": "date",
+                  "allowFutureDates": "false"
+                },
+                {
+                  "type": "js_expression",
+                  "failsWhenExpression": "isEmpty(myValue) ? false : !patient ? true : isEmpty(patient.birthDate) || !dayjs(patient.birthDate).isValid() || dayjs(myValue).isBefore(dayjs(patient.birthDate), 'day')",
+                  "message": "La fecha debe ser igual o posterior al nacimiento. Si no dispone de una fecha de nacimiento válida, revise la demografía."
+                }
+              ]
             }
           ]
         },
@@ -196,7 +210,8 @@
                 "rendering": "number",
                 "step": 1,
                 "concept": "4cb55646-934c-44f5-a986-166654b44996",
-                "min": "0"
+                "min": "0",
+                "disallowDecimals": true
               },
               "id": "tiempoQueElBebeMamoMin",
               "label": "Tiempo que el bebe mamó (min)"
@@ -206,7 +221,8 @@
               "questionOptions": {
                 "rendering": "textarea",
                 "concept": "f947a4ad-3d8d-4516-8e6b-67b3dca4e227",
-                "rows": 3
+                "rows": 3,
+                "maxLength": "255"
               },
               "id": "notas",
               "label": "Notas"
