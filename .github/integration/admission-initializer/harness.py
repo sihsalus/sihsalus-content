@@ -77,6 +77,14 @@ TERMINOLOGY_TABLES = {
 }
 VITAMIN_A_DOSE_UUID = "9c0b51ef-0d4c-49a3-bdbb-2ee7083fe778"
 ETHNICITY_VERSION = "2026-10-21-01"
+CIE10_VERSION = "2026-11-20-01"
+CIE10_TOTAL_CONCEPTS = 13486
+CIE10_NEW_DIAGNOSES = {
+    "A0141": "1886b655-8700-56ce-b040-2a2ec193ccb0",
+    "A925": "46ce0b18-319d-5720-89d4-1baf9d42565a",
+}
+OCL_TOTAL_CONCEPTS = 32553
+OCL_TOTAL_MAPPINGS = 20610
 ADMISSION_SUPPLEMENT = "SIHSALUS Admision Hospitalaria"
 SUPPLEMENT_CHANGESET = "retire-admission-hospital-supplement-20260921"
 HOSPITAL_ROLES_FILE = "roles/roles_hospital_operations.csv"
@@ -396,7 +404,10 @@ class Harness:
                     key = (kind, url)
                     require(key not in expected, "ocl_transition_duplicate_item")
                     expected[key] = (identifier, version_url)
-        require(len(sources) == 18 and len(expected) == 32551 + 20610, "ocl_transition_catalog_size_changed")
+        require(len(sources) == 18
+                and sum(kind == "CONCEPT" for kind, _ in expected) == OCL_TOTAL_CONCEPTS
+                and sum(kind == "MAPPING" for kind, _ in expected) == OCL_TOTAL_MAPPINGS,
+                "ocl_transition_catalog_size_changed")
         return expected, sources
 
     def check_ocl_namespace(self, db, phase):
@@ -422,7 +433,7 @@ class Harness:
                     and record[2] in {"0", "1", "2", "3", "6"} and record[3] == "0",
                     "ocl_transition_item_not_successfully_loaded")
         emit("ocl_namespace", "PASSED", phase=phase, sources=len(self.ocl_sources),
-             concepts=32551, mappings=20610)
+             concepts=OCL_TOTAL_CONCEPTS, mappings=OCL_TOTAL_MAPPINGS)
 
     def checksum_snapshot(self, backend):
         target = self.directory / ("checksums-" + uuid.uuid4().hex)
@@ -522,6 +533,67 @@ class Harness:
         require(all(row[1] != VITAMIN_A_DOSE_UUID for row in previous), "vitamin_a_unexpected_baseline_identity")
         require(all(row[0] != fields[0] for row in previous), "vitamin_a_existing_concept_id_reused")
         return {**baseline, "concepts": tuple(sorted((*baseline["concepts"], concept),
+                                                     key=lambda row: int(row.split("\t")[0])))}
+
+    def check_cie10(self, db, phase):
+        """Verify the active diagnosis catalog and its names after native loading."""
+        paths = list((self.candidate_config / "ocl").glob(
+            f"*_SIHSALUS_diagnosis_concepts_{CIE10_VERSION}.zip"))
+        require(len(paths) == 1, "cie10_release_missing_or_duplicated")
+        with zipfile.ZipFile(paths[0]) as archive:
+            export = json.loads(archive.read("export.json"))
+        require(export.get("released") is True and export.get("version") == CIE10_VERSION
+                and len(export["concepts"]) == CIE10_TOTAL_CONCEPTS and not export["mappings"],
+                "cie10_release_shape_invalid")
+
+        types = {"Fully-Specified": "FULLY_SPECIFIED", "Short": "SHORT"}
+        expected = set()
+        new_codes = {}
+        for concept in export["concepts"]:
+            require(concept["retired"] is False, "cie10_retired_concept_unexpected")
+            for name in concept["names"]:
+                require(name["locale"] == "es" and name["name_type"] in types and not name.get("retired"),
+                        "cie10_label_shape_invalid")
+                expected.add((concept["external_id"], concept["concept_class"], concept["datatype"],
+                              name["external_id"], name["locale"], types[name["name_type"]],
+                              str(int(name["locale_preferred"])), name["name"].encode().hex().upper()))
+                if name["name_type"] == "Short" and name["name"] in CIE10_NEW_DIAGNOSES:
+                    require(concept["concept_class"] == "Diagnosis", "cie10_new_code_not_diagnosis")
+                    new_codes[name["name"]] = concept["external_id"]
+        require(new_codes == CIE10_NEW_DIAGNOSES and len(expected) == CIE10_TOTAL_CONCEPTS * 2,
+                "cie10_identity_or_name_count_changed")
+
+        rows = self.query(db,
+            "SELECT c.uuid,cl.name,dt.name,n.uuid,n.locale,n.concept_name_type,n.locale_preferred,HEX(n.name) "
+            "FROM concept c JOIN concept_class cl ON cl.concept_class_id=c.class_id "
+            "JOIN concept_datatype dt ON dt.concept_datatype_id=c.datatype_id "
+            "JOIN concept_name n ON n.concept_id=c.concept_id "
+            "WHERE c.retired=0 AND n.voided=0 AND n.locale='es' "
+            "AND n.concept_name_type IN ('FULLY_SPECIFIED','SHORT') "
+            "AND EXISTS (SELECT 1 FROM openconceptlab_item i WHERE i.type='CONCEPT' AND i.uuid=c.uuid "
+            "AND i.url LIKE '%/orgs/SIHSALUS/sources/diagnosis/concepts/%')")
+        actual = {tuple(row.split("\t")) for row in rows}
+        require(len(rows) == len(actual) and actual == expected, "cie10_imported_names_or_identities_differ")
+        identifiers = ",".join(sql_string(identifier) for identifier in CIE10_NEW_DIAGNOSES.values())
+        additions = self.query(db,
+            "SELECT concept_id,uuid,datatype_id,class_id,is_set,retired FROM concept WHERE uuid IN ("
+            + identifiers + ")")
+        require(len(additions) == len(CIE10_NEW_DIAGNOSES), "cie10_added_concepts_missing")
+        emit("cie10", "PASSED", phase=phase, concepts=CIE10_TOTAL_CONCEPTS, names=len(actual))
+        return additions
+
+    @staticmethod
+    def expected_cie10_insertions(baseline, additions):
+        """Allow only the two new UUIDs in the strict identity comparison."""
+        previous = [row.split("\t") for row in baseline["concepts"]]
+        added = [row.split("\t") for row in additions]
+        require(all(len(row) == 6 for row in previous + added), "terminology_snapshot_column_shape_changed")
+        require({row[1] for row in added} == set(CIE10_NEW_DIAGNOSES.values()),
+                "cie10_added_concept_identities_differ")
+        require(not ({row[0] for row in previous} & {row[0] for row in added})
+                and not ({row[1] for row in previous} & {row[1] for row in added}),
+                "cie10_reused_baseline_identity")
+        return {**baseline, "concepts": tuple(sorted((*baseline["concepts"], *additions),
                                                      key=lambda row: int(row.split("\t")[0])))}
 
     def etnias_contract(self):
@@ -678,11 +750,13 @@ class Harness:
             else:
                 self.check_vitamin_a_measurement(db)
                 self.check_etnias(backend, db, "upgrade")
+            identities = self.expected_cie10_insertions(identities, self.check_cie10(db, "upgrade"))
             self.assert_terminology_identity(db, identities, "upgrade")
             self.check_retained_checksums(checksums, self.checksum_snapshot(backend))
         else:
             self.check_vitamin_a_measurement(db)
             self.check_etnias(backend, db, "fresh")
+            self.check_cie10(db, "fresh")
         self.check_ocl_namespace(db, "upgrade" if upgrade else "fresh")
         self.create_birth_length_observation(backend, db, person["uuid"], 30.1)
         observations = self.query(db, "SELECT * FROM obs ORDER BY obs_id")
@@ -700,6 +774,7 @@ class Harness:
         require(self.check_birth_length(backend, db, decimal=True) == concept_id, "birth_length_concept_id_changed_on_restart")
         self.check_vitamin_a_measurement(db)
         self.check_etnias(backend, db, "restart")
+        self.check_cie10(db, "restart")
         self.check_ocl_namespace(db, "restart")
         emit("ocl_transition", "PASSED", scenario="upgrade" if upgrade else "fresh",
              restart_verified=True, prior_checksums_preserved=True, clinical_observations=2,

@@ -8,6 +8,12 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Actualización CIE-10 MINSA (candidata 1.25.44)
+
+- Actualiza la fuente SIHSALUS/diagnosis a 2026-11-20-01 desde la hoja «VOLUMEN VIGENTE» del Excel compartido el 19 de noviembre. Ajusta 6.630 nombres y añade A0141 y A925 con las identidades del export institucional.
+- Conserva los UUID existentes, los 500 códigos históricos fuera del Excel y las denominaciones de 17 códigos con colisiones de nombre. Los conflictos quedan documentados para codificación clínica.
+- El ensayo nativo coteja nombres, clases y UUID del catálogo después de la instalación, la actualización y el reinicio. Solo admite los dos nuevos conceptos en la comparación de identidades de la actualización.
+
 ### Captura clínica (candidata 1.25.43)
 
 - Historia social exige seleccionar el rol del profesional mediante el campo nativo, evitando el envío de un proveedor sin rol (#409).
