@@ -161,7 +161,7 @@ class HarnessContracts(unittest.TestCase):
             (baseline / "ocl" / path.name).write_bytes(path.read_bytes())
         items, sources = harness.Harness.ocl_item_contract(configuration, baseline)
         historical = [(kind, url) for kind, url in items if urlsplit(url).netloc == "api.openconceptlab.org"]
-        self.assertEqual(len(items), 32551 + 20610)
+        self.assertEqual(len(items), harness.OCL_TOTAL_CONCEPTS + harness.OCL_TOTAL_MAPPINGS)
         self.assertEqual(len(sources), 18)
         self.assertEqual(len(historical), 62 + 122)
         self.assertTrue(all("/sources/etnias/" in url for _, url in historical))
@@ -173,6 +173,21 @@ class HarnessContracts(unittest.TestCase):
         self.assertTrue(all(kind == "MAPPING" for kind, _ in historical))
         fresh, _ = harness.Harness.ocl_item_contract(configuration)
         self.assertTrue(all(urlsplit(url).netloc == urlsplit(guards.OCL_API_URL).netloc for _, url in fresh))
+
+    def test_cie10_upgrade_allows_only_two_new_concepts_and_preserves_baseline(self):
+        existing = "10000000-0000-4000-8000-000000000001"
+        previous = "1\t" + existing + "\t1\t2\t0\t0"
+        baseline = {"concepts": (previous,), "sets": ("set-row",)}
+        added = [f"{index}\t{identifier}\t1\t2\t0\t0"
+                 for index, identifier in enumerate(harness.CIE10_NEW_DIAGNOSES.values(), 2)]
+        result = harness.Harness.expected_cie10_insertions(baseline, added)
+        self.assertEqual(result, {**baseline, "concepts": (previous, *added)})
+        with self.assertRaises(HarnessFailure):
+            harness.Harness.expected_cie10_insertions(baseline, [added[0]])
+        with self.assertRaises(HarnessFailure):
+            harness.Harness.expected_cie10_insertions(baseline, [previous, added[1]])
+        with self.assertRaises(HarnessFailure):
+            harness.Harness.expected_cie10_insertions(baseline, ["1" + added[0][1:], added[1]])
 
     def test_ocl_upgrade_keeps_prior_checksum_files_and_only_updates_changed_content(self):
         self.runtime.baseline_config, self.runtime.candidate_config = self.root / "old", self.root / "new"
@@ -359,6 +374,9 @@ class HarnessContracts(unittest.TestCase):
         vitamin_a = "\t".join(vitamin_a_result().split("\t")[:6])
         runtime.check_vitamin_a_measurement = Mock(return_value=vitamin_a)
         runtime.check_etnias = Mock(return_value={})
+        cie10 = tuple(f"{index}\t{identifier}\t1\t7\t0\t0"
+                      for index, identifier in enumerate(harness.CIE10_NEW_DIAGNOSES.values(), 530))
+        runtime.check_cie10 = Mock(return_value=cie10)
         runtime.request = Mock(return_value=(201, {"uuid": "10000000-0000-4000-8000-000000000001"}))
         runtime.create_birth_length_observation = Mock(return_value=["original observation"])
         runtime.query = Mock(return_value=["original observation", "second observation"])
@@ -366,7 +384,8 @@ class HarnessContracts(unittest.TestCase):
         baseline = {key: () for key in harness.TERMINOLOGY_TABLES}
         baseline["concepts"] = ("510\tsynthetic-existing-concept\t1\t7\t0\t0",)
         baseline["answers"] = ("610\tsynthetic-private-uuid\t10\t20\tNULL\t1",)
-        identities = {**baseline, "concepts": (*baseline["concepts"], vitamin_a)}
+        after_vitamin_a = {**baseline, "concepts": (*baseline["concepts"], vitamin_a)}
+        identities = {**after_vitamin_a, "concepts": (*after_vitamin_a["concepts"], *cie10)}
         changed_identities = {**identities, "answers": ("610\tsynthetic-private-uuid\t10\t20\tNULL\tNULL",)}
         runtime.terminology_identity_snapshot = Mock(return_value=identities,
             side_effect=[baseline, identities, identities, identities])
@@ -386,6 +405,8 @@ class HarnessContracts(unittest.TestCase):
         for call in runtime.start_backend.call_args_list[1:]:
             self.assertEqual(call.kwargs, {"data_volume": "owned-volume"})
         runtime.check_retained_checksums.assert_called_once()
+        self.assertEqual(runtime.check_cie10.call_args_list,
+                         [unittest.mock.call("owned-db", "upgrade"), unittest.mock.call("owned-db", "restart")])
         self.assertEqual(runtime.check_vitamin_a_measurement.call_args_list,
                          [unittest.mock.call("owned-db"), unittest.mock.call("owned-db")])
 
@@ -432,7 +453,7 @@ class HarnessContracts(unittest.TestCase):
         runtime.ocl_baseline_version = guards.OCL_LATEST_BASELINE_VERSION
         runtime.start_backend.side_effect = [("baseline", "owned-volume"), ("upgrade", "owned-volume"),
                                              ("restart", "owned-volume")]
-        runtime.terminology_identity_snapshot.side_effect = [identities] * 4
+        runtime.terminology_identity_snapshot.side_effect = [after_vitamin_a, identities, identities, identities]
         runtime.expected_vitamin_a_insertion = Mock(side_effect=AssertionError("existing concept must be preserved"))
         runtime.expected_etnias_insertions = Mock(side_effect=AssertionError("existing references must be preserved"))
         with patch.object(harness, "emit"):
